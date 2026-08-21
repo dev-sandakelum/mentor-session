@@ -10,10 +10,13 @@ const StarIcon = () => (
 
 interface StarRatingProps {
   label: string;
+  value?: number;
+  onChange?: (rating: number) => void;
 }
 
-export function StarRating({ label }: StarRatingProps) {
-  const [rating, setRating] = useState(0);
+export function StarRating({ label, value, onChange }: StarRatingProps) {
+  const [internalRating, setInternalRating] = useState(0);
+  const rating = value ?? internalRating;
 
   return (
     <div>
@@ -29,7 +32,7 @@ export function StarRating({ label }: StarRatingProps) {
               className={n <= rating ? "on" : ""}
               aria-label={`${n} star${n !== 1 ? "s" : ""}`}
               aria-pressed={n <= rating}
-              onClick={() => setRating(n)}
+              onClick={() => { setInternalRating(n); onChange?.(n); }}
             >
               <StarIcon />
             </button>

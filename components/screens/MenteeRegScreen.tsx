@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "../ToastProvider";
 import { Pill } from "../ui/Pill";
 import { MultiSelect } from "../ui/MultiSelect";
+import { postJson } from "@/lib/client-api";
 
 const ACADEMIC_OPTIONS = [
   "Programming & Algorithms", "Databases", "Networking",
@@ -23,10 +24,31 @@ export function MenteeRegScreen() {
   const { showToast } = useToast();
   const [academicInterests, setAcademicInterests] = useState<string[]>([]);
   const [technicalInterests, setTechnicalInterests] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
-    showToast("Registration submitted! You can now select your mentor preferences.");
-    router.push("/mentee/prefs");
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSubmitting(true);
+    try {
+      const result = await postJson<{ mentee: { id: string } }>("/api/registrations/mentee", {
+        fullName: form.get("fullName"),
+        studentId: form.get("studentId"),
+        email: form.get("email"),
+        phone: form.get("phone"),
+        batch: form.get("batch"),
+        academicInterests,
+        technicalInterests,
+        guidanceNeeded: form.get("guidanceNeeded"),
+      });
+      window.localStorage.setItem("mentor-session-mentee-id", result.mentee.id);
+      showToast("Registration submitted! You can now select your mentor preferences.");
+      router.push("/mentee/prefs");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Registration could not be submitted.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -49,26 +71,26 @@ export function MenteeRegScreen() {
           </span>
         </div>
 
-        <div className="form-grid">
+        <form className="form-grid" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="mentee-name">Full Name <span className="req">*</span></label>
-            <input id="mentee-name" type="text" placeholder="e.g., Kavindi Wickramasinghe" />
+            <input id="mentee-name" name="fullName" type="text" placeholder="e.g., Kavindi Wickramasinghe" required />
           </div>
           <div>
             <label htmlFor="mentee-id">Student ID <span className="req">*</span></label>
-            <input id="mentee-id" type="text" placeholder="e.g., TG/IT/2025/1234" />
+            <input id="mentee-id" name="studentId" type="text" placeholder="e.g., TG/IT/2025/1234" required />
           </div>
           <div>
             <label htmlFor="mentee-email">University Email <span className="req">*</span></label>
-            <input id="mentee-email" type="email" placeholder="tg2025xxxx@fot.ruh.ac.lk" />
+            <input id="mentee-email" name="email" type="email" placeholder="tg2025xxxx@fot.ruh.ac.lk" required />
           </div>
           <div>
             <label htmlFor="mentee-phone">Contact Number <span className="req">*</span></label>
-            <input id="mentee-phone" type="tel" placeholder="07X XXX XXXX" />
+            <input id="mentee-phone" name="phone" type="tel" placeholder="07X XXX XXXX" required />
           </div>
           <div>
             <label htmlFor="mentee-batch">Batch <span className="req">*</span></label>
-            <select id="mentee-batch" defaultValue="10th">
+            <select id="mentee-batch" name="batch" defaultValue="10th">
               <option value="10th">10th Batch</option>
             </select>
           </div>
@@ -85,18 +107,18 @@ export function MenteeRegScreen() {
               Areas Where Guidance Is Required
               <span className="muted" style={{ fontWeight: 400 }}> (optional)</span>
             </label>
-            <textarea id="mentee-guidance" placeholder="e.g., How to balance coursework, choosing a specialization, preparing for the first semester exams…" />
+            <textarea id="mentee-guidance" name="guidanceNeeded" placeholder="e.g., How to balance coursework, choosing a specialization, preparing for the first semester exams…" />
           </div>
           <div className="full" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "flex-end", marginTop: 4 }}>
-            <button className="btn btn-ghost" onClick={() => router.push("/")}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleSubmit}>
-              Register &amp; Choose Mentors
+            <button className="btn btn-ghost" type="button" onClick={() => router.push("/")}>Cancel</button>
+            <button className="btn btn-primary" type="submit" disabled={submitting}>
+              {submitting ? "Submitting…" : "Register & Choose Mentors"}
               <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

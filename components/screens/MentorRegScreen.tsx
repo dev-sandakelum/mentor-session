@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "../ToastProvider";
 import { Pill } from "../ui/Pill";
 import { MultiSelect } from "../ui/MultiSelect";
+import { postJson } from "@/lib/client-api";
 
 const ACADEMIC_OPTIONS = [
   "Programming & Algorithms", "Databases", "Networking",
@@ -23,6 +24,35 @@ export function MentorRegScreen() {
   const { showToast } = useToast();
   const [academicInterests, setAcademicInterests] = useState<string[]>([]);
   const [technicalInterests, setTechnicalInterests] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setSubmitting(true);
+    try {
+      const result = await postJson<{ mentor: { id: string } }>("/api/registrations/mentor", {
+        fullName: form.get("fullName"),
+        studentId: form.get("studentId"),
+        email: form.get("email"),
+        phone: form.get("phone"),
+        batch: form.get("batch"),
+        communicationMethod: form.get("communicationMethod"),
+        academicInterests,
+        technicalInterests,
+        profilePhotoUrl: form.get("profilePhotoUrl"),
+      });
+      window.localStorage.setItem("mentor-session-mentor-id", result.mentor.id);
+      showToast("Mentor registration submitted for ICTSC approval ✓");
+      event.currentTarget.reset();
+      setAcademicInterests([]);
+      setTechnicalInterests([]);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Registration could not be submitted.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="container" style={{ maxWidth: 820 }}>
@@ -44,32 +74,32 @@ export function MentorRegScreen() {
           </span>
         </div>
 
-        <div className="form-grid">
+        <form className="form-grid" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="mentor-name">Full Name <span className="req">*</span></label>
-            <input id="mentor-name" type="text" placeholder="e.g., Tharindu Jayasooriya" />
+            <input id="mentor-name" name="fullName" type="text" placeholder="e.g., Tharindu Jayasooriya" required />
           </div>
           <div>
             <label htmlFor="mentor-id">Student ID <span className="req">*</span></label>
-            <input id="mentor-id" type="text" placeholder="e.g., TG/2022/0456" />
+            <input id="mentor-id" name="studentId" type="text" placeholder="e.g., TG/2022/0456" required />
           </div>
           <div>
             <label htmlFor="mentor-email">University Email <span className="req">*</span></label>
-            <input id="mentor-email" type="email" placeholder="tg2022xxxx@fot.ruh.ac.lk" />
+            <input id="mentor-email" name="email" type="email" placeholder="tg2022xxxx@fot.ruh.ac.lk" required />
           </div>
           <div>
             <label htmlFor="mentor-phone">Contact Number <span className="req">*</span></label>
-            <input id="mentor-phone" type="tel" placeholder="07X XXX XXXX" />
+            <input id="mentor-phone" name="phone" type="tel" placeholder="07X XXX XXXX" required />
           </div>
           <div>
             <label htmlFor="mentor-batch">Batch <span className="req">*</span></label>
-            <select id="mentor-batch" defaultValue="9th">
+            <select id="mentor-batch" name="batch" defaultValue="9th">
               <option value="9th">9th Batch</option>
             </select>
           </div>
           <div>
             <label htmlFor="mentor-comms">Preferred Communication Method <span className="req">*</span></label>
-            <select id="mentor-comms">
+            <select id="mentor-comms" name="communicationMethod" defaultValue="WhatsApp">
               <option>WhatsApp</option>
               <option>Email</option>
               <option>Phone Call</option>
@@ -88,15 +118,15 @@ export function MentorRegScreen() {
             <label htmlFor="mentor-photo">
               Profile Photo <span className="muted" style={{ fontWeight: 400 }}>(optional)</span>
             </label>
-            <input id="mentor-photo" type="text" placeholder="Upload photo…" readOnly style={{ cursor: "pointer", background: "var(--gray-50)" }} />
+            <input id="mentor-photo" name="profilePhotoUrl" type="url" placeholder="https://… (optional)" style={{ background: "var(--gray-50)" }} />
           </div>
           <div className="full" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "flex-end", marginTop: 4 }}>
-            <button className="btn btn-ghost" onClick={() => router.push("/")}>Cancel</button>
-            <button className="btn btn-primary" onClick={() => showToast("Mentor registration submitted for ICTSC approval ✓")}>
-              Submit for Approval
+            <button className="btn btn-ghost" type="button" onClick={() => router.push("/")}>Cancel</button>
+            <button className="btn btn-primary" type="submit" disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit for Approval"}
             </button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

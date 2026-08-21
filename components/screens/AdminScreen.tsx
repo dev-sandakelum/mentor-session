@@ -62,6 +62,40 @@ const LOG_ENTRIES = [
 export function AdminScreen() {
   const { showToast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
+  const [adminKey, setAdminKey] = useState("");
+  const [running, setRunning] = useState(false);
+
+  const runAllocation = async (mode: "preview" | "commit", includeFallback: boolean) => {
+    if (!adminKey) return showToast("Enter the admin API key to continue.");
+    setRunning(true);
+    try {
+      const response = await fetch("/api/admin/allocations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
+        body: JSON.stringify({ mode, includeFallback }),
+      });
+      const data: unknown = await response.json();
+      if (!response.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Allocation request failed.");
+      const result = data as { allocationCount: number; unmatchedCount: number };
+      showToast(`${mode === "preview" ? "Preview" : "Allocation saved"}: ${result.allocationCount} assigned, ${result.unmatchedCount} unmatched.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Allocation request failed.");
+    } finally { setRunning(false); }
+  };
+
+  const resetAllocation = async () => {
+    if (!adminKey) return showToast("Enter the admin API key to continue.");
+    setRunning(true);
+    try {
+      const response = await fetch("/api/admin/allocations", { method: "DELETE", headers: { "x-admin-key": adminKey } });
+      const data: unknown = await response.json();
+      if (!response.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to reset allocation.");
+      setModalOpen(false);
+      showToast("Allocation reset. All saved assignments were removed.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to reset allocation.");
+    } finally { setRunning(false); }
+  };
 
   return (
     <div className="container">
@@ -98,19 +132,21 @@ export function AdminScreen() {
           </svg>
           Allocation Controls
         </h3>
+        <label htmlFor="admin-api-key">Admin API key</label>
+        <input id="admin-api-key" type="password" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} placeholder="Enter ADMIN_API_KEY" style={{ maxWidth: 360, marginBottom: 14 }} />
         <div className="admin-controls">
-          <button className="btn btn-primary btn-sm" onClick={() => showToast("FCFS preference allocation started… 72 mentees queued by submission time.")}>
+          <button className="btn btn-primary btn-sm" disabled={running} onClick={() => runAllocation("commit", false)}>
             <svg className="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8z" /></svg>
             Run FCFS Allocation
           </button>
-          <button className="btn btn-amber btn-sm" onClick={() => showToast("Random fallback: 2 unmatched mentees assigned to mentors with free capacity.")}>
+          <button className="btn btn-amber btn-sm" disabled={running} onClick={() => runAllocation("commit", true)}>
             <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
             </svg>
             Run Random Fallback
           </button>
-          <button className="btn btn-outline btn-sm" onClick={() => showToast("Allocation preview generated below.")}>Preview Allocation</button>
-          <button className="btn btn-outline btn-sm" onClick={() => showToast("Allocation finalized and locked ✓")}>
+          <button className="btn btn-outline btn-sm" disabled={running} onClick={() => runAllocation("preview", false)}>Preview Allocation</button>
+          <button className="btn btn-outline btn-sm" disabled={running} onClick={() => runAllocation("commit", true)}>
             <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
             </svg>
@@ -241,7 +277,7 @@ export function AdminScreen() {
       <ResetModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onConfirm={() => { setModalOpen(false); showToast("Allocation reset. All assignments removed — session moved to CLOSED."); }}
+        onConfirm={resetAllocation}
       />
     </div>
   );

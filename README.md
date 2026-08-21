@@ -1,4 +1,28 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mentor Session
+
+A Next.js application backed by Supabase for mentor/mentee registration, ordered mentor preferences, FCFS allocation and feedback.
+
+## Supabase setup
+
+1. Create a Supabase project.
+2. In its SQL Editor, run [database/schema.sql](database/schema.sql).
+3. Optional: run [database/mock-data.sql](database/mock-data.sql) to populate the app with approved mentors, mentees, preferences, allocations and feedback. Use [database/remove-mock-data.sql](database/remove-mock-data.sql) to remove only those records.
+4. Copy [.env.example](.env.example) to `.env.local` and fill in the three values. Keep the service-role key server-only.
+5. Start the app with `npm run dev`.
+
+The first schema run creates an open **Mentor Session 2026**. Mentors initially have `pending` status; approve one through the Supabase Table Editor or the protected endpoint below before it appears in mentee choices.
+
+## Backend API
+
+- `GET /api/health` checks the configured Supabase connection and current session.
+- `GET /api/mentors` returns approved mentors and live allocation capacity.
+- `POST /api/registrations/mentee` and `POST /api/registrations/mentor` save validated registrations.
+- `GET|POST /api/preferences` loads or locks a mentee's ordered three preferences.
+- `POST /api/feedback` saves one feedback record per participant/session.
+- `PATCH /api/admin/mentors/:id` approves or rejects a mentor.
+- `POST /api/admin/allocations` previews or commits FCFS allocation, and `DELETE /api/admin/allocations` resets it. Send `x-admin-key: <ADMIN_API_KEY>` with `{ "mode": "preview" | "commit", "includeFallback": boolean }`.
+
+Admin endpoints are protected by `ADMIN_API_KEY` until Supabase Auth/admin roles are added. Do not send that key to browser code.
 
 ## Getting Started
 
