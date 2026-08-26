@@ -9,32 +9,31 @@ with current_session as (
 )
 insert into public.mentors (
   session_id, full_name, student_id, email, phone, batch, communication_method,
-  academic_interests, technical_interests, capacity, approval_status, reviewed_at
+  academic_interests, technical_interests, capacity, profile_photo_url
 )
 select
   current_session.id, source.full_name, source.student_id, source.email, source.phone,
   '9th Batch · BICT', source.communication_method, source.academic_interests,
-  source.technical_interests, 2, 'approved', now()
+  source.technical_interests, 2, source.profile_photo_url
 from current_session
 cross join (
   values
-    ('Tharindu Jayasooriya', 'DEMO-M-001', 'tharindu.demo@fot.ruh.ac.lk', '071 234 5678', 'WhatsApp', array['Programming & Algorithms', 'Software Engineering'], array['Web Development', 'Cloud Computing', 'DevOps']),
-    ('Ishara Gunawardena', 'DEMO-M-002', 'ishara.demo@fot.ruh.ac.lk', '071 234 5679', 'WhatsApp', array['Data Science', 'Mathematics'], array['AI / Machine Learning', 'Python']),
-    ('Dulani Rathnayake', 'DEMO-M-003', 'dulani.demo@fot.ruh.ac.lk', '071 234 5680', 'Email', array['Research Methods', 'Software Engineering'], array['UI / UX Design', 'Web Development']),
-    ('Kasun Weerasinghe', 'DEMO-M-004', 'kasun.demo@fot.ruh.ac.lk', '071 234 5681', 'Phone Call', array['Computer Architecture', 'Networking'], array['Embedded Systems / IoT', 'Cloud Computing']),
-    ('Sanduni Fernando', 'DEMO-M-005', 'sanduni.demo@fot.ruh.ac.lk', '071 234 5682', 'WhatsApp', array['Operating Systems', 'Networking'], array['Cyber Security', 'DevOps']),
-    ('Pasindu Amarasinghe', 'DEMO-M-006', 'pasindu.demo@fot.ruh.ac.lk', '071 234 5683', 'In-Person', array['Programming & Algorithms'], array['Mobile Development', 'Game Development']),
-    ('Nadeesha Silva', 'DEMO-M-007', 'nadeesha.demo@fot.ruh.ac.lk', '071 234 5684', 'Email', array['Data Science', 'Mathematics'], array['AI / Machine Learning', 'Data Science']),
-    ('Ashen Kumarasinghe', 'DEMO-M-008', 'ashen.demo@fot.ruh.ac.lk', '071 234 5685', 'WhatsApp', array['Databases', 'Software Engineering'], array['Web Development', 'Cloud Computing'])
-) as source(full_name, student_id, email, phone, communication_method, academic_interests, technical_interests)
+    ('Tharindu Jayasooriya', 'DEMO-M-001', 'tharindu.demo@fot.ruh.ac.lk', '071 234 5678', 'WhatsApp', array['Programming & Algorithms', 'Software Engineering'], array['Web Development', 'Cloud Computing', 'DevOps'], '/profile/mentor/1.jpg'),
+    ('Ishara Gunawardena', 'DEMO-M-002', 'ishara.demo@fot.ruh.ac.lk', '071 234 5679', 'WhatsApp', array['Data Science', 'Mathematics'], array['AI / Machine Learning', 'Python'], '/profile/mentor/2.jpg'),
+    ('Dulani Rathnayake', 'DEMO-M-003', 'dulani.demo@fot.ruh.ac.lk', '071 234 5680', 'Email', array['Research Methods', 'Software Engineering'], array['UI / UX Design', 'Web Development'], '/profile/mentor/3.jpg'),
+    ('Kasun Weerasinghe', 'DEMO-M-004', 'kasun.demo@fot.ruh.ac.lk', '071 234 5681', 'Phone Call', array['Computer Architecture', 'Networking'], array['Embedded Systems / IoT', 'Cloud Computing'], '/profile/mentor/4.jpg'),
+    ('Sanduni Fernando', 'DEMO-M-005', 'sanduni.demo@fot.ruh.ac.lk', '071 234 5682', 'WhatsApp', array['Operating Systems', 'Networking'], array['Cyber Security', 'DevOps'], '/profile/mentor/5.jpg'),
+    ('Pasindu Amarasinghe', 'DEMO-M-006', 'pasindu.demo@fot.ruh.ac.lk', '071 234 5683', 'In-Person', array['Programming & Algorithms'], array['Mobile Development', 'Game Development'], '/profile/mentor/6.jpg'),
+    ('Nadeesha Silva', 'DEMO-M-007', 'nadeesha.demo@fot.ruh.ac.lk', '071 234 5684', 'Email', array['Data Science', 'Mathematics'], array['AI / Machine Learning', 'Data Science'], '/profile/mentor/7.jpg'),
+    ('Ashen Kumarasinghe', 'DEMO-M-008', 'ashen.demo@fot.ruh.ac.lk', '071 234 5685', 'WhatsApp', array['Databases', 'Software Engineering'], array['Web Development', 'Cloud Computing'], null)
+) as source(full_name, student_id, email, phone, communication_method, academic_interests, technical_interests, profile_photo_url)
 on conflict (session_id, student_id) do update set
   full_name = excluded.full_name,
   email = excluded.email,
   phone = excluded.phone,
   academic_interests = excluded.academic_interests,
   technical_interests = excluded.technical_interests,
-  approval_status = 'approved',
-  reviewed_at = now();
+  profile_photo_url = excluded.profile_photo_url;
 
 with current_session as (
   select id from public.mentor_sessions where year = 2026
