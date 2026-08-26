@@ -1,4 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mentor Session
+
+A Next.js application backed by Supabase for mentor/mentee registration, ordered mentor preferences, FCFS allocation and feedback.
+
+## Supabase setup
+
+1. Create a Supabase project.
+2. In its SQL Editor, run [database/schema.sql](database/schema.sql). If you already ran the schema before adding Google mentor sign-in, run [database/mentor-google-auth-migration.sql](database/mentor-google-auth-migration.sql) too.
+3. Optional: run [database/mock-data.sql](database/mock-data.sql) to populate the app with approved mentors, mentees, preferences, allocations and feedback. Use [database/remove-mock-data.sql](database/remove-mock-data.sql) to remove only those records.
+4. Copy [.env.example](.env.example) to `.env.local` and fill in all values. Keep the service-role key, admin password, and session secret server-only. Generate the session secret with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+5. Start the app with `npm run dev`.
+
+The first schema run creates an open **Mentor Session 2026**. Mentors initially have `pending` status; approve one through the Supabase Table Editor or the protected endpoint below before it appears in mentee choices.
+
+## Backend API
+
+- `GET /api/health` checks the configured Supabase connection and current session.
+- `GET /api/mentors` returns approved mentors and live allocation capacity.
+- `POST /api/registrations/mentee` saves validated registration data.
+- `POST|PATCH /api/mentor/account` creates a Google-authenticated mentor account or updates that mentor's profile.
+- `GET|POST /api/preferences` loads or locks a mentee's ordered three preferences.
+- `POST /api/feedback` saves one feedback record per participant/session.
+- `PATCH /api/admin/mentors/:id` approves or rejects a mentor.
+- `GET /api/admin/overview` returns live registration, allocation, mentor-load and log data for the admin screen.
+- `POST /api/admin/login` signs an administrator in using `ADMIN_EMAIL` and `ADMIN_PASSWORD`, then sets an HTTP-only session cookie.
+- `POST /api/admin/logout` clears the admin session.
+- `POST /api/admin/allocations` previews or commits FCFS allocation, and `DELETE /api/admin/allocations` resets it with `{ "mode": "preview" | "commit", "includeFallback": boolean }`.
+
+All other admin endpoints require the HTTP-only admin session cookie. No administrator secret is sent back to or stored in browser JavaScript.
+
+## Mentor Google sign-in
+
+Mentor registration creates an account immediately from a Google-authenticated Supabase session. Mentors then complete and update their profile from the mentor dashboard. In Supabase Dashboard, enable the Google provider and add the Google OAuth client ID and secret. In Google Cloud, add the callback URL shown on that provider page as an authorized redirect URI. Add `http://localhost:3000/mentor` (and the production `/mentor` URL) to Supabase Auth URL Configuration → Redirect URLs.
 
 ## Getting Started
 

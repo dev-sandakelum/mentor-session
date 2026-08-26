@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ICTSC Mentor Session — Faculty of Technology · University of Ruhuna</title>
+    <style>
+        :root {
+            --primary: #4f39d8;
+            --primary-dark: #4330b8;
+            --primary-light: #eef0fb;
+            --bg: #f5f6f8;
+            --card: #ffffff;
+            --border: #e5e7eb;
+            --text: #111827;
+            --muted: #6b7280;
+            --muted-light: #9ca3af;
+            --green: #16a34a;
+            --green-bg: #dcfce7;
+            --amber: #b45309;
+            --amber-bg: #fde9b8;
+            --radius: 14px;
+            --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 4px 12px rgba(0, 0, 0, .04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* ---------- Header ---------- */
+        header {
+            background: #fff;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 0;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: .85rem;
+            letter-spacing: .02em;
+        }
+
+        .brand-text h1 {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #1f2350;
+            white-space: nowrap;
+        }
+
+        .brand-text p {
+            font-size: .75rem;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        nav {
+            display: flex;
+            gap: 6px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: #374151;
+            font-weight: 600;
+            font-size: .9rem;
+            padding: 8px 14px;
+            border-radius: 10px;
+            transition: background .15s, color .15s;
+            white-space: nowrap;
+        }
+
+        nav a:hover {
+            background: #f3f4f6;
+        }
+
+        nav a.active {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        /* ---------- Layout ---------- */
+        main {
+            flex: 1;
+            padding: 32px 0 48px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.visible {
+            display: block;
+        }
+
+        /* ---------- Badges & buttons ---------- */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            padding: 4px 12px;
+            border-radius: 999px;
+            text-transform: uppercase;
+        }
+
+        .badge .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .badge.open {
+            background: var(--green-bg);
+            color: var(--green);
+        }
+
+        .badge.pending {
+            background: var(--amber-bg);
+            color: var(--amber);
+        }
+
+        .badge.registration {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font: inherit;
+            font-weight: 700;
+            font-size: .95rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            padding: 12px 24px;
+            transition: background .15s, box-shadow .15s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(79, 57, 216, .35);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-ghost {
+            background: #fff;
+            color: #374151;
+            border: 1px solid var(--border);
+            padding: 9px 18px;
+            font-size: .9rem;
+        }
+
+        .btn-ghost:hover {
+            background: #f3f4f6;
+        }
+
+        .btn-edit {
+            background: #fff;
+            color: #374151;
+            border: 1px solid var(--border);
+            padding: 6px 14px;
+            font-size: .82rem;
+            font-weight: 600;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn-edit:hover {
+            background: #f3f4f6;
+        }
+
+        .btn-edit svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        /* ---------- Registration page ---------- */
+        .reg-wrap {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .reg-title {
+            font-size: clamp(1.5rem, 4vw, 1.85rem);
+            font-weight: 800;
+        }
+
+        .reg-sub {
+            color: var(--muted);
+            margin-top: 6px;
+            font-size: .95rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .reg-card {
+            margin-top: 26px;
+            padding: clamp(20px, 4vw, 32px);
+        }
+
+        .reg-card h2 {
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .reg-card>p {
+            color: var(--muted-light);
+            text-align: center;
+            font-size: 1rem;
+            max-width: 480px;
+            margin: 22px auto 0;
+        }
+
+        .notice {
+            margin-top: 24px;
+            background: var(--primary-light);
+            border: 1px solid #dfe3f8;
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: .9rem;
+            color: #374151;
+        }
+
+        .reg-actions {
+            display: flex;
+            justify-content: center;
+            margin-top: 26px;
+        }
+
+        /* ---------- Dashboard ---------- */
+        .dash-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .dash-head h2 {
+            font-size: clamp(1.6rem, 4vw, 2rem);
+            font-weight: 800;
+        }
+
+        .dash-sub {
+            color: var(--muted);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .dash-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+            gap: 24px;
+            margin-top: 26px;
+            align-items: start;
+        }
+
+        .card-pad {
+            padding: clamp(18px, 3vw, 26px);
+        }
+
+        .card h3 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-bottom: 14px;
+        }
+
+        /* Profile */
+        .avatar-block {
+            text-align: center;
+            padding: 8px 0 4px;
+        }
+
+        .avatar {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #eef0fb;
+            background: #f3f4f6;
+        }
+
+        .avatar-remove {
+            display: inline-block;
+            margin-top: 10px;
+            color: #dc2626;
+            font-size: .85rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .avatar-remove:hover {
+            text-decoration: underline;
+        }
+
+        .avatar-hint {
+            color: var(--muted-light);
+            font-size: .8rem;
+            margin-top: 10px;
+        }
+
+        .profile-rows {
+            margin-top: 18px;
+        }
+
+        .p-row {
+            display: grid;
+            grid-template-columns: 170px 1fr auto;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 0;
+            border-bottom: 1px solid #f0f1f4;
+        }
+
+        .p-row:last-child {
+            border-bottom: none;
+        }
+
+        .p-label {
+            color: var(--muted);
+            font-size: .88rem;
+        }
+
+        .p-value {
+            font-size: 1rem;
+            color: var(--text);
+            word-break: break-word;
+        }
+
+        .p-value.unset {
+            color: var(--muted);
+        }
+
+        /* Sidebar cards */
+        .side-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .status-text {
+            color: var(--muted-light);
+            font-size: 1rem;
+            margin-top: 12px;
+        }
+
+        .kv+.kv {
+            border-top: 1px solid #f0f1f4;
+            margin-top: 14px;
+            padding-top: 14px;
+        }
+
+        .kv .k {
+            color: var(--muted);
+            font-size: .85rem;
+        }
+
+        .kv .v {
+            font-size: .98rem;
+            margin-top: 2px;
+        }
+
+        /* Feedback */
+        .stars {
+            display: flex;
+            gap: 10px;
+            margin: 12px 0 4px;
+        }
+
+        .star {
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            fill: #c7cbe8;
+            transition: fill .15s, transform .1s;
+        }
+
+        .star:hover {
+            transform: scale(1.15);
+        }
+
+        .star.on {
+            fill: #4f39d8;
+        }
+
+        .fb-label {
+            font-size: .95rem;
+            margin-top: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 90px;
+            resize: vertical;
+            margin-top: 10px;
+            padding: 12px;
+            font: inherit;
+            font-size: .92rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 57, 216, .12);
+        }
+
+        .fb-submit {
+            margin-top: 14px;
+        }
+
+        .mentees-card {
+            margin-top: 24px;
+        }
+
+        .mentees-card p {
+            color: var(--muted);
+            font-size: 1rem;
+        }
+
+        /* ---------- Footer ---------- */
+        footer {
+            background: #fff;
+            border-top: 1px solid var(--border);
+            padding: 22px 0;
+            text-align: center;
+            color: var(--muted);
+            font-size: .9rem;
+        }
+
+        footer strong {
+            color: var(--primary);
+        }
+
+        /* ---------- Responsive ---------- */
+        @media (max-width: 900px) {
+            .dash-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .header-inner {
+                justify-content: center;
+            }
+
+            nav {
+                width: 100%;
+                justify-content: center;
+            }
+
+            nav a {
+                flex: 1;
+                text-align: center;
+                padding: 8px 6px;
+                font-size: .85rem;
+            }
+
+            .p-row {
+                grid-template-columns: 1fr auto;
+            }
+
+            .p-label {
+                grid-column: 1 / -1;
+                padding-bottom: 0;
+                margin-bottom: -6px;
+                font-weight: 600;
+            }
+
+            main {
+                padding: 24px 0 36px;
+            }
+
+            .btn {
+                width: auto;
+            }
+
+            .reg-actions .btn {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .brand-text h1 {
+                font-size: .95rem;
+            }
+
+            .brand-text p {
+                font-size: .7rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="container header-inner">
+            <div class="brand">
+                <div class="brand-logo">SC</div>
+                <div class="brand-text">
+                    <h1>ICTSC Mentor Session</h1>
+                    <p>Faculty of Technology · University of Ruhuna</p>
+                </div>
+            </div>
+            <nav>
+                <a href="#registration" id="nav-reg" class="active"
+                    onclick="showPage('registration'); return false;">Mentor Registration</a>
+                <a href="#dashboard" id="nav-dash" onclick="showPage('dashboard'); return false;">Mentor Dashboard</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- ============ Registration page ============ -->
+        <section id="page-registration" class="page visible">
+            <div class="container reg-wrap">
+                <h2 class="reg-title">Mentor Registration</h2>
+                <div class="reg-sub">
+                    <span>Mentor Session 2026 · Senior Batch (9th) · Registration is</span>
+                    <span class="badge open"><span class="dot"></span>Open</span>
+                </div>
+
+                <div class="card reg-card">
+                    <h2>Create your mentor account</h2>
+                    <p>Continue with Google to create your account. You can add or update your student details, contact
+                        information, interests, and profile photo from your mentor dashboard.</p>
+                    <div class="notice">Sign in with Google to create your mentor account.</div>
+                    <div class="reg-actions">
+                        <button class="btn btn-primary" onclick="showPage('dashboard')">Continue with Google</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ Dashboard page ============ -->
+        <section id="page-dashboard" class="page">
+            <div class="container">
+                <div class="dash-head">
+                    <div>
+                        <h2>Mentor Dashboard</h2>
+                        <div class="dash-sub">
+                            <span>Mentor Session 2026 ·</span>
+                            <span class="badge registration"><span class="dot"></span>Registration</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-ghost" onclick="showPage('registration')">Sign out</button>
+                </div>
+
+                <div class="dash-grid">
+                    <!-- Left column -->
+                    <div>
+                        <div class="card card-pad">
+                            <h3>My Profile</h3>
+                            <div class="avatar-block">
+                                <svg class="avatar" viewBox="0 0 110 110" role="img" aria-label="Profile photo">
+                                    <circle cx="55" cy="55" r="55" fill="#eef4e6" />
+                                    <path d="M30 85 C40 45 60 25 85 22 C75 55 60 78 30 85 Z" fill="#7cb342" />
+                                    <path d="M38 82 C50 55 65 40 82 30 C70 60 58 74 38 82 Z" fill="#aed581" />
+                                </svg>
+                                <br />
+                                <a href="#" class="avatar-remove" onclick="return false;">Remove</a>
+                                <div class="avatar-hint">JPEG · PNG · WebP · GIF — max 3 MB</div>
+                            </div>
+
+                            <div class="profile-rows">
+                                <div class="p-row">
+                                    <div class="p-label">Full Name</div>
+                                    <div class="p-value">Hasitha Bro Gaming</div>
+                                    <button class="btn-edit">✎ Edit</button>
+                                </div>
+                                <div class="p-row">
+                                    <div class="p-label">Student ID</div>
+                                    <div class="p-value unset">Not set</div>
+                                    <button class="btn-edit">✎ Edit</button>
+                                </div>
+                                <div class="p-row">
+                                    <div class="p-label">Google Email</div>
+                                    <div class="p-value">game.hasitha@gmail.com</div>
+                                    <span></span>
+                                </div>
+                                <div class="p-row">
+                                    <div class="p-label">Contact Number</div>
+                                    <div class="p-value unset">Not set</div>
+                                    <button class="btn-edit">✎ Edit</button>
+                                </div>
+                                <div class="p-row">
+                                    <div class="p-label">Batch</div>
+                                    <div class="p-value unset">Not set</div>
+                                    <button class="btn-edit">✎ Edit</button>
+                                </div>
+                                <div class="p-row">
+                                    <div class="p-label">Preferred Communication</div>
+                                    <div class="p-value">Email</div>
+                                    <button class="btn-edit">✎ Edit</button>
+                                </div>
+                                <div class="p-row">
+                                    <div class="p-label">Academic Interests</div>
+                                    <div class="p-value unset">None selected</div>
+                                    <button class="btn-edit">✎ Edit</button>
+                                </div>
+                                <div class="p-row">
+                                    <div class="p-label">Technical Interests</div>
+                                    <div class="p-value unset">None selected</div>
+                                    <button class="btn-edit">✎ Edit</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card card-pad mentees-card">
+                            <h3>My Mentees</h3>
+                            <p>No mentees have been assigned yet.</p>
+                        </div>
+                    </div>
+
+                    <!-- Right column -->
+                    <div class="side-stack">
+                        <div class="card card-pad">
+                            <h3>Account Status</h3>
+                            <span class="badge pending">Pending</span>
+                            <p class="status-text">Complete your profile while it is awaiting organizer approval.</p>
+                        </div>
+
+                        <div class="card card-pad">
+                            <h3>Session Details</h3>
+                            <div class="kv">
+                                <div class="k">Date &amp; Time</div>
+                                <div class="v">To be announced</div>
+                            </div>
+                            <div class="kv">
+                                <div class="k">Venue</div>
+                                <div class="v">To be announced</div>
+                            </div>
+                        </div>
+
+                        <div class="card card-pad">
+                            <h3>Mentor Feedback</h3>
+                            <p style="color:var(--muted); font-size:.95rem;">How was your mentoring experience?</p>
+                            <div class="stars" id="stars" role="radiogroup" aria-label="Rating"></div>
+                            <div class="fb-label">Suggestions for future Mentor Sessions</div>
+                            <textarea placeholder="Share your thoughts…"></textarea>
+                            <button class="btn btn-primary fb-submit">Submit Feedback</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <strong>ICT Students' Circle</strong> · Faculty of Technology · University of Ruhuna — Mentor Session
+            Management System (UI Prototype)
+        </div>
+    </footer>
+
+    <script>
+        function showPage(name) {
+            document.getElementById('page-registration').classList.toggle('visible', name === 'registration');
+            document.getElementById('page-dashboard').classList.toggle('visible', name === 'dashboard');
+            document.getElementById('nav-reg').classList.toggle('active', name === 'registration');
+            document.getElementById('nav-dash').classList.toggle('active', name === 'dashboard');
+            window.scrollTo({ top: 0 });
+            if (history.replaceState) history.replaceState(null, '', '#' + name);
+        }
+
+        // Star rating
+        const starsEl = document.getElementById('stars');
+        let rating = 0;
+        for (let i = 1; i <= 5; i++) {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 24 24');
+            svg.classList.add('star');
+            svg.innerHTML = '<path d="M12 2l2.9 6.26L21.5 9.1l-4.75 4.4 1.15 6.5L12 16.9 6.1 20l1.15-6.5L2.5 9.1l6.6-.84L12 2z"/>';
+            svg.addEventListener('click', () => {
+                rating = i;
+                [...starsEl.children].forEach((s, idx) => s.classList.toggle('on', idx < rating));
+            });
+            starsEl.appendChild(svg);
+        }
+
+        // Open page from hash
+        if (location.hash === '#dashboard') showPage('dashboard');
+    </script>
+
+</body>
+
+</html>
