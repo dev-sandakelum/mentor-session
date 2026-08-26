@@ -2,7 +2,6 @@
 -- Run this once in Supabase Dashboard → SQL Editor.
 
 create type public.session_status as enum ('draft', 'registration', 'allocation', 'published', 'closed');
-create type public.mentor_approval_status as enum ('pending', 'approved', 'rejected');
 create type public.allocation_method as enum ('preference', 'fallback', 'manual');
 create type public.participant_type as enum ('mentor', 'mentee');
 
@@ -22,17 +21,15 @@ create table public.mentors (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null references public.mentor_sessions(id) on delete cascade,
   full_name text not null check (char_length(full_name) between 2 and 120),
-  student_id text not null,
+  student_id text,
   email text not null,
-  phone text not null,
-  batch text not null,
+  phone text,
+  batch text,
   communication_method text not null check (communication_method in ('WhatsApp', 'Email', 'Phone Call', 'In-Person')),
   academic_interests text[] not null default '{}',
   technical_interests text[] not null default '{}',
   profile_photo_url text,
   capacity smallint not null default 2 check (capacity between 1 and 10),
-  approval_status public.mentor_approval_status not null default 'pending',
-  reviewed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (session_id, student_id),
@@ -98,7 +95,6 @@ create table public.allocation_logs (
   created_at timestamptz not null default now()
 );
 
-create index mentor_session_status_idx on public.mentors(session_id, approval_status);
 create index mentee_session_submitted_idx on public.mentees(session_id, preference_submitted_at);
 create index preferences_mentee_idx on public.mentor_preferences(mentee_id, priority);
 create index allocations_session_mentor_idx on public.allocations(session_id, mentor_id);

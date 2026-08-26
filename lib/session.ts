@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export type MentorSummary = {
   id: string;
   fullName: string;
-  batch: string;
+  batch: string | null;
   academicInterests: string[];
   technicalInterests: string[];
   profilePhotoUrl: string | null;
@@ -36,7 +36,6 @@ export async function getAvailableMentors(): Promise<MentorSummary[]> {
     .from("mentors")
     .select("id, full_name, batch, academic_interests, technical_interests, profile_photo_url, capacity")
     .eq("session_id", session.id)
-    .eq("approval_status", "approved")
     .order("full_name");
   if (mentorError) throw databaseError("Unable to load mentors.", mentorError.code);
 

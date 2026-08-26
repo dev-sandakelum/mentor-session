@@ -60,7 +60,9 @@ export function MultiSelect({
         style={{
           minHeight: 42,
           padding: "6px 36px 6px 10px",
-          border: "1.5px solid var(--gray-200)",
+          borderWidth: "1.5px",
+          borderStyle: "solid",
+          borderColor: open ? "var(--indigo-light)" : "var(--gray-200)",
           borderRadius: 10,
           background: "#fff",
           cursor: "pointer",
@@ -69,9 +71,7 @@ export function MultiSelect({
           gap: 6,
           alignItems: "center",
           transition: "border-color .15s, box-shadow .15s",
-          ...(open
-            ? { borderColor: "var(--indigo-light)", boxShadow: "0 0 0 3px var(--indigo-soft)" }
-            : {}),
+          boxShadow: open ? "0 0 0 3px var(--indigo-soft)" : "none",
         }}
       >
         {value.length === 0 ? (

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { hasAdminSession } from "@/lib/admin-auth";
 
 export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status = 400,
+    public readonly field?: string,
   ) {
     super(message);
   }
@@ -48,8 +50,11 @@ export function isUuid(value: string) {
 }
 
 export function apiError(error: unknown) {
-  if (error instanceof ApiError) return NextResponse.json({ error: error.message }, { status: error.status });
+  if (error instanceof ApiError) return NextResponse.json({ error: error.message, field: error.field }, { status: error.status });
   if (error instanceof Error && error.message.startsWith("Supabase is not configured")) {
+    return NextResponse.json({ error: error.message }, { status: 503 });
+  }
+  if (error instanceof Error && error.message.startsWith("Admin login is not configured")) {
     return NextResponse.json({ error: error.message }, { status: 503 });
   }
   console.error(error);
@@ -58,12 +63,12 @@ export function apiError(error: unknown) {
 
 export function databaseError(message: string, code?: string) {
   if (code === "23505") return new ApiError("A record with those details already exists.", 409);
+  console.error(`[databaseError] ${message} (code: ${code ?? "none"})`);
   return new ApiError(message, 500);
 }
 
 export function requireAdmin(request: Request) {
-  const key = process.env.ADMIN_API_KEY;
-  if (!key || request.headers.get("x-admin-key") !== key) {
+  if (!hasAdminSession(request)) {
     throw new ApiError("Administrator authentication is required.", 401);
   }
 }

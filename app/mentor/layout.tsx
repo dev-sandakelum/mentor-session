@@ -2,7 +2,7 @@ import { SiteHeader } from "@/components/nav/SiteHeader";
 import { MentorNav } from "@/components/nav/MentorNav";
 
 export const metadata = {
-  title: "Mentor — ICTSC Mentor Session 2026",
+  title: "Mentor Directory — ICTSC Mentor Session 2026",
 };
 
 export default function MentorLayout({ children }: LayoutProps<"/mentor">) {

@@ -1,30 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { postJson } from "@/lib/client-api";
+import { getJson, postJson } from "@/lib/client-api";
 import { useToast } from "../ToastProvider";
+import { MentorCard } from "../ui/MentorCard";
 
 interface Mentor {
   id: string;
   fullName: string;
-  batch: string;
+  batch: string | null;
   academicInterests: string[];
   technicalInterests: string[];
+  profilePhotoUrl: string | null;
   capacity: number;
   allocatedCount: number;
 }
 
-const GRADIENTS = [
-  "linear-gradient(135deg,#6366f1,#312e81)", "linear-gradient(135deg,#0ea5e9,#1d4ed8)",
-  "linear-gradient(135deg,#f472b6,#9d174d)", "linear-gradient(135deg,#22c55e,#166534)",
-  "linear-gradient(135deg,#f59e0b,#b45309)", "linear-gradient(135deg,#a855f7,#6b21a8)",
-];
-const PRIO_LABELS = ["★1", "2", "3"] as const;
 const SLOT_LABELS = ["⭐ 1st Priority", "2nd Priority", "3rd Priority"] as const;
-
-function initials(name: string) {
-  return name.split(" ").map((word) => word[0]).slice(0, 2).join("");
-}
 
 export function PrefsScreen() {
   const { showToast } = useToast();
@@ -37,12 +29,7 @@ export function PrefsScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetch("/api/mentors")
-      .then(async (response) => {
-        const payload: unknown = await response.json();
-        if (!response.ok) throw new Error(typeof payload === "object" && payload && "error" in payload && typeof payload.error === "string" ? payload.error : "Unable to load mentors.");
-        return payload as { mentors: Mentor[] };
-      })
+    getJson<{ mentors: Mentor[] }>("/api/mentors")
       .then((payload) => setMentors(payload.mentors))
       .catch((error: unknown) => showToast(error instanceof Error ? error.message : "Unable to load mentors."))
       .finally(() => setLoading(false));
@@ -117,20 +104,21 @@ export function PrefsScreen() {
             const isFull = mentor.allocatedCount >= mentor.capacity;
             const priorityIndex = picks.indexOf(mentor.id);
             const isSelected = priorityIndex > -1;
-            const barClass = isFull ? "fullbar" : mentor.allocatedCount > 0 ? "half" : "empty";
-            const tags = [...mentor.academicInterests, ...mentor.technicalInterests].slice(0, 4);
             return (
-              <div key={mentor.id} className={`mentor-card${isFull ? " full" : ""}${isSelected ? ` selected prio-${priorityIndex + 1}` : ""}`} role="button" tabIndex={isFull ? -1 : 0}
-                aria-pressed={isSelected} aria-disabled={isFull} onClick={() => toggleMentor(mentor.id, isFull)}
-                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggleMentor(mentor.id, isFull); } }}>
-                <div className="card-photo"><div className="card-photo-fallback" style={{ background: GRADIENTS[index % GRADIENTS.length] }} aria-hidden="true">{initials(mentor.fullName)}</div>
-                  {isSelected && <div className={`prio-badge p${priorityIndex + 1}`} aria-hidden="true">{PRIO_LABELS[priorityIndex]}</div>}
-                </div>
-                <div className="card-info"><h4>{mentor.fullName}</h4><div className="batch">{mentor.batch}</div>
-                  <div className="tags">{tags.map((tag) => <span key={tag} className="tag">{tag}</span>)}</div>
-                  <div className="cap-row"><div className="cap-bar"><span className={barClass} /></div><span className="cap-count">{mentor.allocatedCount}/{mentor.capacity}{isFull ? " · Full" : ""}</span></div>
-                </div>
-              </div>
+              <MentorCard
+                key={mentor.id}
+                id={mentor.id}
+                fullName={mentor.fullName}
+                batch={mentor.batch}
+                academicInterests={mentor.academicInterests}
+                technicalInterests={mentor.technicalInterests}
+                profilePhotoUrl={mentor.profilePhotoUrl}
+                index={index}
+                priority={isSelected ? priorityIndex + 1 : undefined}
+                isFull={isFull}
+                onClick={() => toggleMentor(mentor.id, isFull)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleMentor(mentor.id, isFull); } }}
+              />
             );
           })}
         </div>

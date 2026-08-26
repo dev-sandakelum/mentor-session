@@ -3,6 +3,8 @@ import { ApiError, apiError, databaseError, isUuid, readJson } from "@/lib/api";
 import { getCurrentSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     const menteeId = new URL(request.url).searchParams.get("menteeId");

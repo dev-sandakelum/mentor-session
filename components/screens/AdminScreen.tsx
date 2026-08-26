@@ -1,20 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { useToast } from "../ToastProvider";
 import { Pill } from "../ui/Pill";
-import { LifecycleStepper } from "../ui/LifecycleStepper";
 import { ResetModal } from "../ui/ResetModal";
-import type { LifecycleStep } from "../ui/LifecycleStepper";
+import { MentorFormModal, type MentorRecord } from "../admin/MentorFormModal";
 
-const LIFECYCLE_STEPS: LifecycleStep[] = [
-  { label: "DRAFT",      status: "done" },
-  { label: "OPEN",       status: "done" },
-  { label: "CLOSED",     status: "done" },
-  { label: "ALLOCATING", status: "done" },
-  { label: "ALLOCATED",  status: "done" },
-  { label: "PUBLISHED",  status: "current", number: 6 },
-  { label: "COMPLETED",  status: "pending", number: 7 },
+type Overview = {
+  session: { title: string; status: string; event_starts_at: string | null; venue: string | null };
+  stats: Record<"totalMentors" | "totalMentees" | "submittedPreferences" | "totalCapacity" | "assigned" | "unassigned" | "availableCapacity" | "firstChoice" | "secondChoice" | "thirdChoice" | "fallback" | "manual" | "preferenceSatisfaction", number>;
+  allocations: { mentee: string; mentor: string; submittedAt: string | null; method: string; matchedPriority: number | null }[];
+  unmatched: { mentee: string; preferences: string[] }[];
+  mentorLoads: { name: string; assigned: number; capacity: number }[];
+  mentors: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; communication_method: string; academic_interests: string[]; technical_interests: string[]; profile_photo_url: string | null; capacity: number }[];
+  mentees: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; academic_interests: string[]; technical_interests: string[]; guidance_needed: string | null; preference_submitted_at: string | null; assignedMentor: string | null; allocationMethod: string | null; matchedPriority: number | null }[];
+  logs: { id: number; action: string; detail: string | null; created_at: string }[];
+};
+
+type Tab = "overview" | "mentors" | "mentees" | "allocation" | "logs";
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "overview",   label: "Overview"   },
+  { id: "mentors",    label: "Mentors"    },
+  { id: "mentees",    label: "Mentees"    },
+  { id: "allocation", label: "Allocation" },
+  { id: "logs",       label: "Logs"       },
 ];
 
 function StatCard({ value, label, accent = "default" }: { value: string; label: string; accent?: "indigo" | "amber" | "green" | "default" }) {
@@ -26,258 +36,438 @@ function StatCard({ value, label, accent = "default" }: { value: string; label: 
   );
 }
 
-const ALLOCATION_ROWS = [
-  { student: "Kavindi Wickramasinghe", time: "10:31:42.183", mentor: "Tharindu Jayasooriya", method: <Pill variant="amber">⭐ 1st Choice</Pill> },
-  { student: "Sahan Dissanayake",      time: "10:31:48.902", mentor: "Tharindu Jayasooriya", method: <Pill variant="indigo">2nd Choice</Pill> },
-  { student: "Nimesha Herath",         time: "10:32:05.114", mentor: "Ishara Gunawardena",   method: <Pill variant="amber">⭐ 1st Choice</Pill> },
-  { student: "Ravindu Peris",          time: "10:32:11.560", mentor: "Dulani Rathnayake",    method: <Pill variant="amber">⭐ 1st Choice</Pill> },
-  { student: "Chamodi Senanayake",     time: "10:33:27.031", mentor: "Kasun Weerasinghe",    method: <Pill variant="indigo">3rd Choice</Pill> },
-  { student: "Isuru Bandara",          time: "10:34:02.775", mentor: "Sanduni Fernando",     method: <Pill variant="gray">Randomly Assigned</Pill> },
-  { student: "Hiruni Madushani",       time: "10:34:40.218", mentor: "Pasindu Amarasinghe",  method: <Pill variant="indigo">2nd Choice</Pill> },
-  { student: "Dineth Kulasekara",      time: "10:35:16.644", mentor: "Ishara Gunawardena",   method: <Pill variant="green">Admin Assigned</Pill> },
-];
+function methodPill(method: string, priority: number | null) {
+  if (method === "fallback") return <Pill variant="gray">Fallback</Pill>;
+  if (method === "manual")   return <Pill variant="green">Manual</Pill>;
+  return <Pill variant={priority === 1 ? "amber" : "indigo"}>
+    {priority ? `${priority}${priority === 1 ? "st" : priority === 2 ? "nd" : "rd"} Choice` : "Preference"}
+  </Pill>;
+}
 
-const UNMATCHED_ROWS = [
-  { student: "Isuru Bandara",    prefs: "T. Jayasooriya → I. Gunawardena → D. Rathnayake" },
-  { student: "Malsha Ekanayake", prefs: "D. Rathnayake → K. Weerasinghe → T. Jayasooriya" },
-];
+// ─── Tab panels ──────────────────────────────────────────────────────────────
 
-const MENTOR_LOADS = [
-  { name: "Tharindu Jayasooriya", pct: 100, label: "2 / 2 · Full", color: undefined },
-  { name: "Ishara Gunawardena",   pct: 100, label: "2 / 2 · Full", color: undefined },
-  { name: "Dulani Rathnayake",    pct: 100, label: "2 / 2 · Full", color: undefined },
-  { name: "Kasun Weerasinghe",    pct: 100, label: "2 / 2 · Full", color: undefined },
-  { name: "Sanduni Fernando",     pct: 50,  label: "1 / 2",        color: "var(--amber)" },
-  { name: "Pasindu Amarasinghe",  pct: 50,  label: "1 / 2",        color: "var(--amber)" },
-  { name: "Nadeesha Silva",       pct: 0,   label: "0 / 2",        color: undefined },
-];
+function OverviewTab({ overview }: { overview: Overview }) {
+  const s = overview.stats;
+  return (
+    <>
+      <div className="stats-grid">
+        <StatCard value={String(s.totalMentors)}           label="Total mentors"                accent="indigo" />
+        <StatCard value={String(s.totalMentees)}           label={`${s.submittedPreferences} preferences submitted`} accent="indigo" />
+        <StatCard value={String(s.totalCapacity)}          label="Total capacity" />
+        <StatCard value={String(s.assigned)}               label="Assigned"                     accent="green" />
+        <StatCard value={String(s.unassigned)}             label="Unassigned" />
+        <StatCard value={String(s.availableCapacity)}      label="Available capacity" />
+        <StatCard value={String(s.firstChoice)}            label="1st choice"                   accent="amber" />
+        <StatCard value={String(s.secondChoice)}           label="2nd choice" />
+        <StatCard value={String(s.thirdChoice)}            label="3rd choice" />
+        <StatCard value={String(s.fallback)}               label="Fallback" />
+        <StatCard value={String(s.manual)}                 label="Manual assignment" />
+        <StatCard value={`${s.preferenceSatisfaction}%`}   label="Preference satisfaction"      accent="green" />
+      </div>
 
-const LOG_ENTRIES = [
-  { time: "10:40:02", msg: "FCFS allocation completed · 70 assigned" },
-  { time: "10:41:15", msg: "Random fallback run · 2 assigned" },
-  { time: "10:45:30", msg: "Allocation finalized by admin" },
-  { time: "11:00:00", msg: "Results published to participants" },
-];
+      <div className="card" style={{ marginTop: 22 }}>
+        <h3 className="card-title">Session Details</h3>
+        <div className="info-row"><div><b>Date &amp; Time</b>{overview.session.event_starts_at ? new Date(overview.session.event_starts_at).toLocaleString() : "To be announced"}</div></div>
+        <div className="info-row"><div><b>Venue</b>{overview.session.venue ?? "To be announced"}</div></div>
+        <div className="info-row"><div><b>Status</b><Pill variant="indigo" dot>{overview.session.status.toUpperCase()}</Pill></div></div>
+      </div>
+
+      <div className="card" style={{ marginTop: 22 }}>
+        <h3 className="card-title">Mentor Load</h3>
+        {overview.mentorLoads.length === 0
+          ? <p className="muted">No approved mentors yet.</p>
+          : overview.mentorLoads.map((m, i) => (
+            <div className="load-row" key={`${m.name}-${i}`}>
+              <span className="name">{m.name}</span>
+              <div className="bar"><span style={{ width: `${Math.min((m.assigned / m.capacity) * 100, 100)}%` }} /></div>
+              <span className="count">{m.assigned} / {m.capacity}</span>
+            </div>
+          ))}
+      </div>
+    </>
+  );
+}
+
+function MentorsTab({ overview, onAdd, onEdit, onDelete }: {
+  overview: Overview;
+  onAdd: () => void;
+  onEdit: (mentor: Overview["mentors"][number]) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+        <h3 className="card-title" style={{ margin: 0 }}>All Mentors</h3>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Pill variant="indigo">{overview.mentors.length} mentors</Pill>
+          <button className="btn btn-primary btn-sm" onClick={onAdd}>+ Add mentor</button>
+        </div>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table>
+          <thead>
+            <tr><th>Mentor</th><th>Contact</th><th>Batch</th><th>Interests</th><th>Capacity</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {overview.mentors.length ? overview.mentors.map((m) => (
+              <tr key={m.id}>
+                <td><b>{m.full_name}</b><br /><span className="muted">{m.student_id}</span></td>
+                <td>{m.email}<br /><span className="muted">{m.phone} · {m.communication_method}</span></td>
+                <td>{m.batch}</td>
+                <td className="muted">{[...m.academic_interests, ...m.technical_interests].join(", ") || "-"}</td>
+                <td>{m.capacity}</td>
+                <td>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button className="btn btn-outline btn-sm" onClick={() => onEdit(m)}>Edit</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => onDelete(m.id)}>Delete</button>
+                  </div>
+                </td>
+              </tr>
+            )) : <tr><td colSpan={6} className="muted">No mentors added yet. Use &quot;Add mentor&quot; to create one.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function MenteesTab({ overview }: { overview: Overview }) {
+  return (
+    <div className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+        <h3 className="card-title" style={{ margin: 0 }}>All Mentees</h3>
+        <Pill variant="indigo">{overview.mentees.length} mentees</Pill>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table>
+          <thead>
+            <tr><th>Mentee</th><th>Contact</th><th>Batch</th><th>Interests &amp; guidance</th><th>Preferences</th><th>Assigned mentor</th></tr>
+          </thead>
+          <tbody>
+            {overview.mentees.length ? overview.mentees.map((m) => (
+              <tr key={m.id}>
+                <td><b>{m.full_name}</b><br /><span className="muted">{m.student_id}</span></td>
+                <td>{m.email}<br /><span className="muted">{m.phone}</span></td>
+                <td>{m.batch}</td>
+                <td className="muted">
+                  {[...m.academic_interests, ...m.technical_interests].join(", ") || "-"}
+                  {m.guidance_needed ? <><br />Needs: {m.guidance_needed}</> : null}
+                </td>
+                <td>{m.preference_submitted_at ? <Pill variant="green">Submitted</Pill> : <Pill variant="amber">Pending</Pill>}</td>
+                <td>
+                  {m.assignedMentor
+                    ? <>{m.assignedMentor}<br />{methodPill(m.allocationMethod ?? "preference", m.matchedPriority)}</>
+                    : <span className="muted">Unassigned</span>}
+                </td>
+              </tr>
+            )) : <tr><td colSpan={6} className="muted">No mentees registered yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function AllocationTab({ overview, running, onRun, onReset }: {
+  overview: Overview;
+  running: boolean;
+  onRun: (mode: "preview" | "commit", fallback: boolean) => void;
+  onReset: () => void;
+}) {
+  return (
+    <>
+      <div className="card">
+        <h3 className="card-title">Allocation Controls</h3>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+          Preview a first-come, first-served result before committing it. A fallback fills remaining mentor capacity for unmatched mentees.
+        </p>
+        <div className="admin-controls">
+          <button className="btn btn-outline btn-sm" disabled={running} onClick={() => onRun("preview", false)}>Preview FCFS</button>
+          <button className="btn btn-primary btn-sm" disabled={running} onClick={() => onRun("commit", false)}>Commit FCFS</button>
+          <button className="btn btn-amber btn-sm" disabled={running} onClick={() => onRun("commit", true)}>Commit with Fallback</button>
+          <button className="btn btn-danger btn-sm" disabled={running} onClick={onReset}>Reset Allocation</button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 22 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 12, alignItems: "center" }}>
+          <h3 className="card-title" style={{ margin: 0 }}>Allocation Results</h3>
+          <Pill variant="gray">{overview.allocations.length} assignments</Pill>
+        </div>
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead><tr><th>Student</th><th>Submitted</th><th>Mentor</th><th>Method</th></tr></thead>
+            <tbody>
+              {overview.allocations.length
+                ? overview.allocations.map((row) => (
+                  <tr key={row.mentee}>
+                    <td>{row.mentee}</td>
+                    <td className="muted">{row.submittedAt ? new Date(row.submittedAt).toLocaleTimeString() : "-"}</td>
+                    <td>{row.mentor}</td>
+                    <td>{methodPill(row.method, row.matchedPriority)}</td>
+                  </tr>
+                ))
+                : <tr><td colSpan={4} className="muted">No allocation has been saved yet.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 22 }}>
+        <h3 className="card-title">Unmatched Pool</h3>
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead><tr><th>Student</th><th>Preferences</th></tr></thead>
+            <tbody>
+              {overview.unmatched.length
+                ? overview.unmatched.map((row) => (
+                  <tr key={row.mentee}><td>{row.mentee}</td><td className="muted">{row.preferences.join(" → ")}</td></tr>
+                ))
+                : <tr><td colSpan={2} className="muted">No unmatched mentees.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function LogsTab({ overview }: { overview: Overview }) {
+  return (
+    <div className="card">
+      <h3 className="card-title">Allocation Log</h3>
+      {overview.logs.length ? (
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead><tr><th>Time</th><th>Action</th><th>Detail</th></tr></thead>
+            <tbody>
+              {overview.logs.map((entry) => (
+                <tr key={entry.id}>
+                  <td className="muted" style={{ whiteSpace: "nowrap" }}>{new Date(entry.created_at).toLocaleString()}</td>
+                  <td><b>{entry.action}</b></td>
+                  <td className="muted">{entry.detail ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="muted">No allocation activity yet.</p>}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function AdminScreen() {
   const { showToast } = useToast();
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [modalOpen, setModalOpen] = useState(false);
-  const [adminKey, setAdminKey] = useState("");
+  const [mentorModalOpen, setMentorModalOpen] = useState(false);
+  const [editingMentor, setEditingMentor] = useState<MentorRecord | null>(null);
+  const [deleteMentorId, setDeleteMentorId] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [running, setRunning] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [overview, setOverview] = useState<Overview>();
 
-  const runAllocation = async (mode: "preview" | "commit", includeFallback: boolean) => {
-    if (!adminKey) return showToast("Enter the admin API key to continue.");
+  const loadOverview = async () => {
     setRunning(true);
     try {
-      const response = await fetch("/api/admin/allocations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
-        body: JSON.stringify({ mode, includeFallback }),
-      });
-      const data: unknown = await response.json();
-      if (!response.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Allocation request failed.");
-      const result = data as { allocationCount: number; unmatchedCount: number };
-      showToast(`${mode === "preview" ? "Preview" : "Allocation saved"}: ${result.allocationCount} assigned, ${result.unmatchedCount} unmatched.`);
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Allocation request failed.");
+      const res = await fetch("/api/admin/overview");
+      const data: unknown = await res.json();
+      if (!res.ok) {
+        if (res.status === 401) { setAuthenticated(false); setOverview(undefined); }
+        throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to load admin data.");
+      }
+      setOverview(data as Overview);
+      setAuthenticated(true);
     } finally { setRunning(false); }
   };
 
-  const resetAllocation = async () => {
-    if (!adminKey) return showToast("Enter the admin API key to continue.");
+  const signIn = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setRunning(true);
     try {
-      const response = await fetch("/api/admin/allocations", { method: "DELETE", headers: { "x-admin-key": adminKey } });
-      const data: unknown = await response.json();
-      if (!response.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to reset allocation.");
-      setModalOpen(false);
-      showToast("Allocation reset. All saved assignments were removed.");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Unable to reset allocation.");
+      const res = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to sign in.");
+      setPassword("");
+      setAuthenticated(true);
+      await loadOverview();
+      showToast("Signed in as administrator.");
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to sign in."); }
+    finally { setRunning(false); }
+  };
+
+  const signOut = async () => {
+    setRunning(true);
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+      setAuthenticated(false);
+      setOverview(undefined);
+      showToast("Signed out.");
     } finally { setRunning(false); }
+  };
+
+  const runAllocation = async (mode: "preview" | "commit", includeFallback: boolean) => {
+    setRunning(true);
+    try {
+      const res = await fetch("/api/admin/allocations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode, includeFallback }) });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Allocation request failed.");
+      const result = data as { allocationCount: number; unmatchedCount: number };
+      showToast(`${mode === "preview" ? "Preview" : "Allocation saved"}: ${result.allocationCount} assigned, ${result.unmatchedCount} unmatched.`);
+      if (mode === "commit") await loadOverview();
+    } catch (error) { showToast(error instanceof Error ? error.message : "Allocation request failed."); }
+    finally { setRunning(false); }
+  };
+
+  const resetAllocation = async () => {
+    setRunning(true);
+    try {
+      const res = await fetch("/api/admin/allocations", { method: "DELETE" });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to reset allocation.");
+      setModalOpen(false);
+      showToast("Allocation reset.");
+      await loadOverview();
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to reset allocation."); }
+    finally { setRunning(false); }
+  };
+
+  const handleMentorSaved = (mentor: MentorRecord) => {
+    setOverview((cur) => {
+      if (!cur) return cur;
+      const exists = cur.mentors.some((m) => m.id === mentor.id);
+      const mentors = exists
+        ? cur.mentors.map((m) => m.id === mentor.id ? { ...m, ...mentor, profile_photo_url: mentor.profile_photo_url ?? null } : m)
+        : [...cur.mentors, { ...mentor, profile_photo_url: mentor.profile_photo_url ?? null }].sort((a, b) => a.full_name.localeCompare(b.full_name));
+      return { ...cur, mentors, stats: { ...cur.stats, totalMentors: mentors.length } };
+    });
+    showToast(editingMentor ? "Mentor updated." : "Mentor added.");
+    setEditingMentor(null);
+  };
+
+  const deleteMentor = async () => {
+    if (!deleteMentorId) return;
+    setRunning(true);
+    try {
+      const res = await fetch(`/api/admin/mentors/${deleteMentorId}`, { method: "DELETE" });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to delete mentor.");
+      setOverview((cur) => {
+        if (!cur) return cur;
+        const mentors = cur.mentors.filter((m) => m.id !== deleteMentorId);
+        return { ...cur, mentors, stats: { ...cur.stats, totalMentors: mentors.length } };
+      });
+      setDeleteMentorId(null);
+      showToast("Mentor deleted.");
+    } catch (error) { showToast(error instanceof Error ? error.message : "Unable to delete mentor."); }
+    finally { setRunning(false); }
   };
 
   return (
     <div className="container">
+      {/* ── Page header ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 4 }}>
-        <h2 className="section-title" style={{ margin: 0 }}>Mentor Session 2026 — Admin</h2>
-        <Pill variant="green" dot>PUBLISHED</Pill>
+        <h2 className="section-title" style={{ margin: 0 }}>{overview?.session.title ?? "Mentor Session"} - Admin</h2>
+        <Pill variant="green" dot>{overview?.session.status ?? "Secure"}</Pill>
       </div>
-      <p className="section-sub">Senior Batch: 9th · Junior Batch: 10th · Session: 5 Sep 2026, Main Auditorium</p>
+      <p className="section-sub">
+        {overview?.session.event_starts_at ? new Date(overview.session.event_starts_at).toLocaleString() : "Load live data to view session details"}
+        {overview?.session.venue ? ` · ${overview.session.venue}` : ""}
+      </p>
 
-      <div className="card" style={{ padding: "16px 22px", marginBottom: 22 }}>
-        <LifecycleStepper steps={LIFECYCLE_STEPS} />
-      </div>
-
-      <div className="stats-grid">
-        <StatCard value="40"    label="Total Mentors"      accent="indigo" />
-        <StatCard value="72"    label="Total Mentees"      accent="indigo" />
-        <StatCard value="80"    label="Total Capacity" />
-        <StatCard value="72"    label="Assigned"           accent="green" />
-        <StatCard value="0"     label="Unassigned" />
-        <StatCard value="8"     label="Available Capacity" />
-        <StatCard value="51"    label="1st Choice ⭐"     accent="amber" />
-        <StatCard value="14"    label="2nd Choice" />
-        <StatCard value="5"     label="3rd Choice" />
-        <StatCard value="2"     label="Random Fallback" />
-        <StatCard value="0"     label="Admin Assigned" />
-        <StatCard value="97.2%" label="Top-3 Satisfaction" accent="green" />
-      </div>
-
+      {/* ── Auth card ── */}
       <div className="card" style={{ marginBottom: 22 }}>
-        <h3 className="card-title">
-          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" strokeWidth="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-          </svg>
-          Allocation Controls
-        </h3>
-        <label htmlFor="admin-api-key">Admin API key</label>
-        <input id="admin-api-key" type="password" value={adminKey} onChange={(event) => setAdminKey(event.target.value)} placeholder="Enter ADMIN_API_KEY" style={{ maxWidth: 360, marginBottom: 14 }} />
-        <div className="admin-controls">
-          <button className="btn btn-primary btn-sm" disabled={running} onClick={() => runAllocation("commit", false)}>
-            <svg className="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8z" /></svg>
-            Run FCFS Allocation
-          </button>
-          <button className="btn btn-amber btn-sm" disabled={running} onClick={() => runAllocation("commit", true)}>
-            <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
-            </svg>
-            Run Random Fallback
-          </button>
-          <button className="btn btn-outline btn-sm" disabled={running} onClick={() => runAllocation("preview", false)}>Preview Allocation</button>
-          <button className="btn btn-outline btn-sm" disabled={running} onClick={() => runAllocation("commit", true)}>
-            <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
-            Finalize Allocation
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => showToast("Manual assignment editor opened (mock).")}>Manual Assign</button>
-          <button className="btn btn-danger btn-sm" onClick={() => setModalOpen(true)}>
-            <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            </svg>
-            Reset Allocation
-          </button>
-        </div>
-      </div>
-
-      <div className="dash-grid">
-        <div>
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
-              <h3 className="card-title" style={{ margin: 0 }}>
-                <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" strokeWidth="2" aria-hidden="true">
-                  <path d="M3 5h18M3 12h18M3 19h18" />
-                </svg>
-                Allocation Preview
-              </h3>
-              <Pill variant="gray">Showing 8 of 72</Pill>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table>
-                <thead><tr><th>Student</th><th>Submitted</th><th>Mentor</th><th>Method</th></tr></thead>
-                <tbody>
-                  {ALLOCATION_ROWS.map((row) => (
-                    <tr key={row.student}>
-                      <td>{row.student}</td>
-                      <td className="muted">{row.time}</td>
-                      <td>{row.mentor}</td>
-                      <td>{row.method}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <h3 className="card-title">Administrator access</h3>
+        {authenticated ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <p className="hint" style={{ margin: 0 }}>You are signed in with a secure browser session.</p>
+            <button className="btn btn-outline btn-sm" disabled={running}
+              onClick={() => void loadOverview().catch((e: unknown) => showToast(e instanceof Error ? e.message : "Unable to load admin data."))}>
+              {running ? "Loading…" : "Refresh data"}
+            </button>
+            <button className="btn btn-ghost btn-sm" disabled={running} onClick={() => void signOut()}>Sign out</button>
           </div>
-
-          <div className="card" style={{ marginTop: 20 }}>
-            <h3 className="card-title">
-              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" aria-hidden="true">
-                <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
-                <path d="M12 9v4M12 17h.01" />
-              </svg>
-              Unmatched Pool
-            </h3>
-            <p className="muted" style={{ fontSize: 13.5, marginBottom: 12 }}>
-              Mentees whose 3 preferred mentors were full after FCFS allocation. Resolved via random fallback — <b>0 currently unassigned</b>.
-            </p>
-            <div style={{ overflowX: "auto" }}>
-              <table>
-                <thead><tr><th>Student</th><th>Preferences (all full)</th><th>Status</th></tr></thead>
-                <tbody>
-                  {UNMATCHED_ROWS.map((row) => (
-                    <tr key={row.student}>
-                      <td>{row.student}</td>
-                      <td className="muted">{row.prefs}</td>
-                      <td><Pill variant="gray">Randomly Assigned</Pill></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="card">
-            <h3 className="card-title">
-              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" strokeWidth="2" aria-hidden="true">
-                <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />
-              </svg>
-              Mentor Load
-            </h3>
-            {MENTOR_LOADS.map((m) => (
-              <div key={m.name} className="load-row">
-                <span className="name">{m.name}</span>
-                <div className="bar"><span style={{ width: `${m.pct}%`, background: m.color ?? undefined }} /></div>
-                <span className="count">{m.label}</span>
-              </div>
-            ))}
-            <p className="hint" style={{ marginTop: 10 }}>
-              Showing 7 of 40 mentors ·{" "}
-              <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--indigo-light)", font: "inherit", fontSize: 12, padding: 0 }}
-                onClick={() => showToast("Full mentor load report (mock)")}>
-                View all
+        ) : (
+          <form onSubmit={(e) => void signIn(e)} style={{ display: "grid", gap: 10, maxWidth: 360 }}>
+            <label htmlFor="admin-email">Email</label>
+            <input id="admin-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@example.com" required />
+            <label htmlFor="admin-password">Password</label>
+            <input id="admin-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" required />
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button className="btn btn-primary btn-sm" disabled={running} type="submit">{running ? "Signing in…" : "Sign in"}</button>
+              <button className="btn btn-outline btn-sm" disabled={running} type="button"
+                onClick={() => void loadOverview().catch((e: unknown) => showToast(e instanceof Error ? e.message : "Unable to load admin data."))}>
+                Use existing session
               </button>
-            </p>
-          </div>
-
-          <div className="card" style={{ marginTop: 20 }}>
-            <h3 className="card-title">
-              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" strokeWidth="2" aria-hidden="true">
-                <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />
-              </svg>
-              Export Data
-            </h3>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 14 }}>Export mentor lists, mentee lists, assignments, preference data, unmatched participants and feedback reports.</p>
-            <div className="admin-controls">
-              <button className="btn btn-ghost btn-sm" onClick={() => showToast("Exporting CSV… (mock)")}>⬇ CSV</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => showToast("Exporting Excel… (mock)")}>⬇ Excel</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => showToast("Exporting PDF… (mock)")}>⬇ PDF</button>
             </div>
-          </div>
-
-          <div className="card" style={{ marginTop: 20 }}>
-            <h3 className="card-title">
-              <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" strokeWidth="2" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-              </svg>
-              Allocation Log
-            </h3>
-            {LOG_ENTRIES.map((e) => (
-              <div key={e.time} className="load-row" style={{ fontSize: 12.5 }}>
-                <span style={{ flex: 1 }}><b>{e.time}</b> — {e.msg}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+          </form>
+        )}
       </div>
 
+      {/* ── Not loaded yet ── */}
+      {!overview && <div className="form-note">Sign in to view current registrations and allocations.</div>}
+
+      {/* ── Tabs ── */}
+      {overview && (
+        <>
+          <nav className="nav admin-tabs" aria-label="Admin sections" style={{ marginBottom: 20 }}>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                className={`admin-tab${activeTab === tab.id ? " active" : ""}`}
+                onClick={() => setActiveTab(tab.id)}
+                aria-current={activeTab === tab.id ? "page" : undefined}
+              >
+                {tab.label}
+                {tab.id === "mentors"    && <span className="tab-count">{overview.mentors.length}</span>}
+                {tab.id === "mentees"    && <span className="tab-count">{overview.mentees.length}</span>}
+                {tab.id === "allocation" && <span className="tab-count">{overview.allocations.length}</span>}
+                {tab.id === "logs"       && <span className="tab-count">{overview.logs.length}</span>}
+              </button>
+            ))}
+          </nav>
+
+          {activeTab === "overview"   && <OverviewTab overview={overview} />}
+          {activeTab === "mentors"    && (
+            <MentorsTab
+              overview={overview}
+              onAdd={() => { setEditingMentor(null); setMentorModalOpen(true); }}
+              onEdit={(m) => { setEditingMentor(m as MentorRecord); setMentorModalOpen(true); }}
+              onDelete={(id) => setDeleteMentorId(id)}
+            />
+          )}
+          {activeTab === "mentees"    && <MenteesTab overview={overview} />}
+          {activeTab === "allocation" && (
+            <AllocationTab
+              overview={overview}
+              running={running}
+              onRun={runAllocation}
+              onReset={() => setModalOpen(true)}
+            />
+          )}
+          {activeTab === "logs"       && <LogsTab overview={overview} />}
+        </>
+      )}
+
+      {/* ── Modals ── */}
+      <ResetModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onConfirm={resetAllocation} />
       <ResetModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onConfirm={resetAllocation}
+        isOpen={!!deleteMentorId}
+        onClose={() => setDeleteMentorId(null)}
+        onConfirm={deleteMentor}
+        title="Delete mentor?"
+        message="This permanently removes the mentor profile. Mentors with assigned mentees cannot be deleted."
+        confirmLabel="Delete mentor"
+      />
+      <MentorFormModal
+        open={mentorModalOpen}
+        mentor={editingMentor}
+        onClose={() => { setMentorModalOpen(false); setEditingMentor(null); }}
+        onSaved={handleMentorSaved}
       />
     </div>
   );

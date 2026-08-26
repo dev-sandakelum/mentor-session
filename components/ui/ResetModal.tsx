@@ -4,9 +4,25 @@ interface ResetModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  title?: string;
+  message?: React.ReactNode;
+  confirmLabel?: string;
 }
 
-export function ResetModal({ isOpen, onClose, onConfirm }: ResetModalProps) {
+export function ResetModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title = "Reset Allocation?",
+  message = (
+    <>
+      This will <b>permanently delete all current assignments</b> for this mentor session,
+      including FCFS, random fallback and manual assignments. Registration data and FCFS
+      submission timestamps will be preserved. This action is logged and cannot be undone.
+    </>
+  ),
+  confirmLabel = "Yes, Reset Allocation",
+}: ResetModalProps) {
   return (
     <div
       className={`modal-backdrop${isOpen ? " open" : ""}`}
@@ -31,15 +47,9 @@ export function ResetModal({ isOpen, onClose, onConfirm }: ResetModalProps) {
             <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
             <path d="M12 9v4M12 17h.01" />
           </svg>
-          Reset Allocation?
+          {title}
         </h3>
-        <p>
-          This will{" "}
-          <b>permanently delete all 72 current assignments</b> for Mentor
-          Session 2026, including FCFS, random fallback and manual assignments.
-          Registration data and FCFS submission timestamps will be preserved.
-          This action is logged and cannot be undone.
-        </p>
+        <p>{message}</p>
         <div className="actions">
           <button className="btn btn-ghost btn-sm" onClick={onClose}>
             Cancel
@@ -49,7 +59,7 @@ export function ResetModal({ isOpen, onClose, onConfirm }: ResetModalProps) {
             style={{ background: "var(--red)", color: "#fff" }}
             onClick={onConfirm}
           >
-            Yes, Reset Allocation
+            {confirmLabel}
           </button>
         </div>
       </div>

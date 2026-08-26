@@ -1,5 +1,5 @@
-import { MentorRegScreen } from "@/components/screens/MentorRegScreen";
+import { MentorGridScreen } from "@/components/screens/MentorGridScreen";
 
-export default function MentorRegPage() {
-  return <MentorRegScreen />;
+export default function MentorPage() {
+  return <MentorGridScreen />;
 }
