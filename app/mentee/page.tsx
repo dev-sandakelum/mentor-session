@@ -1,5 +1,5 @@
-import { MenteeRegScreen } from "@/components/screens/MenteeRegScreen";
+import { MenteeLoginScreen } from "@/components/screens/MenteeLoginScreen";
 
-export default function MenteeRegPage() {
-  return <MenteeRegScreen />;
+export default function MenteeLoginPage() {
+  return <MenteeLoginScreen />;
 }

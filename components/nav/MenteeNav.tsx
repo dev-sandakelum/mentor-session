@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/mentee",           label: "Mentee Registration" },
-  { href: "/mentee/prefs",     label: "Preference Selection" },
-  { href: "/mentee/dashboard", label: "Mentee Dashboard" },
+  { href: "/", label: "Home" },
+  { href: "/mentee", label: "Sign In" },
+  { href: "/mentee/prefs", label: "Preferences" },
+  { href: "/mentee/dashboard", label: "Dashboard" },
 ];
 
 export function MenteeNav() {

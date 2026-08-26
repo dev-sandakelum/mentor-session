@@ -31,6 +31,8 @@ export interface MentorCardProps {
   technicalInterests: string[];
   profilePhotoUrl: string | null;
   index: number;
+  /** Public directory number shown to mentees (1-based) */
+  number?: number;
   /** Selection priority (1-3), undefined = not selected */
   priority?: number;
   /** Whether this mentor is at full capacity */
@@ -50,6 +52,7 @@ export function MentorCard({
   technicalInterests,
   profilePhotoUrl,
   index,
+  number,
   priority,
   isFull,
   onClick,
@@ -97,6 +100,13 @@ export function MentorCard({
           style={{ "--mc-tint": tint } as React.CSSProperties}
           aria-hidden="true"
         />
+
+        {/* Directory number */}
+        {number !== undefined && (
+          <div className="mc-num-badge" aria-label={`Mentor number ${number}`}>
+            {number}
+          </div>
+        )}
 
         {/* Full overlay */}
         {isFull && <div className="mc-full-badge" aria-hidden="true">Full</div>}
