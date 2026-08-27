@@ -529,10 +529,29 @@ textarea {
   gap: 24px;
   align-items: start;
 }
+/* Responsive mentor grid: 1 → 2 → 3 → 4 columns */
 .mentor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
+}
+@media (min-width: 420px) {
+  .mentor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+@media (min-width: 760px) {
+  .mentor-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+@media (min-width: 1080px) {
+  .mentor-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 24px;
+  }
 }
 
 /* ── Card shell ── */
@@ -583,7 +602,7 @@ textarea {
 /* ── Photo area ── */
 .mentor-card .card-photo {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 1 / 1;
   position: relative;
   overflow: hidden;
   background: var(--gray-100);
@@ -600,26 +619,30 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  /* Scales with the card so initials fill the larger square photo */
+  font-size: clamp(34px, 5.5vw, 56px);
   font-weight: 800;
   letter-spacing: -0.5px;
   color: rgba(255,255,255,0.95);
   text-shadow: 0 2px 8px rgba(0,0,0,0.18);
 }
 
-/* Full overlay */
+/* "Full" pill — sits in the corner so it never collides with the initials */
 .card-full-overlay {
   position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.42);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   color: #fff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25);
 }
 
 /* Priority badge */
@@ -645,47 +668,35 @@ textarea {
 
 /* ── Info area ── */
 .mentor-card .card-info {
-  padding: 14px 16px 16px;
+  padding: 14px 14px 16px;
+  text-align: center;
 }
 .mentor-card .card-mentor-name {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.35;
+  letter-spacing: -0.2px;
   color: var(--gray-900);
-  margin-bottom: 2px;
-  white-space: nowrap;
+  /* Allow two lines so long names are never clipped mid-word */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .mentor-card .card-batch {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--gray-400);
-  margin-bottom: 12px;
+  margin-top: 4px;
   font-weight: 500;
 }
-
-/* Interest chips */
-.card-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-bottom: 14px;
-}
-.card-chip {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 6px;
-  background: var(--indigo-soft);
-  color: var(--indigo);
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.card-chip-alt {
-  background: var(--gray-100);
-  color: var(--gray-500);
+@media (min-width: 1080px) {
+  .mentor-card .card-info {
+    padding: 16px 16px 18px;
+  }
+  .mentor-card .card-mentor-name {
+    font-size: 17px;
+  }
 }
 
 /* Capacity bar */
@@ -1563,7 +1574,7 @@ footer b {
 .mc-photo {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
   background: var(--gray-100);
 }
@@ -1580,7 +1591,7 @@ footer b {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 42px;
+  font-size: clamp(34px, 5.5vw, 56px);
   font-weight: 800;
   letter-spacing: -1px;
   color: rgba(255, 255, 255, 0.95);
@@ -1604,19 +1615,22 @@ footer b {
   clip-path: inset(55% 0 0 0);
 }
 
-/* Full overlay */
+/* "Full" pill — corner placement keeps the portrait readable */
 .mc-full-badge {
   position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  top: 12px;
+  left: 12px;
+  padding: 5px 11px;
+  border-radius: 99px;
+  background: rgba(15, 23, 42, 0.72);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
   color: #fff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.28);
 }
 
 /* Priority badge */
@@ -1636,45 +1650,36 @@ footer b {
 
 /* ── Info area ── */
 .mc-info {
-  padding: 20px 20px 22px;
+  padding: 14px 14px 16px;
   text-align: center;
   background: #fff;
 }
 .mc-name {
-  font-size: 18px;
+  font-size: 15.5px;
   font-weight: 700;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
   color: #111d38;
-  line-height: 1.25;
-  white-space: nowrap;
+  line-height: 1.35;
+  /* Two lines max, so long names wrap instead of being cut off */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .mc-batch {
   font-size: 12.5px;
   color: var(--gray-400);
-  margin-top: 3px;
+  margin-top: 4px;
   font-weight: 500;
 }
-.mc-chips {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin: 12px 0 0;
-}
-.mc-chip {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: var(--indigo-soft);
-  color: var(--indigo);
-  white-space: nowrap;
-}
-.mc-chip-alt {
-  background: var(--gray-100);
-  color: var(--gray-500);
+@media (min-width: 1080px) {
+  .mc-info {
+    padding: 16px 16px 18px;
+  }
+  .mc-name {
+    font-size: 17px;
+  }
 }
 
 /* Accent bar */
