@@ -1,40 +1,57 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useRef, useState } from "react";
 import { useToast } from "../ToastProvider";
 
 const COMMUNICATION_OPTIONS = ["WhatsApp", "Email", "Phone Call", "In-Person"] as const;
+const FIXED_CAPACITY = 2;    // Set by the organiser — not editable by mentors
+const FIXED_BATCH    = "9th"; // Fixed for this session
 
-type Field = "fullName" | "studentId" | "email" | "phone" | "batch" | "communicationMethod";
-
+type Field = "fullName" | "studentId" | "email" | "phone" | "communicationMethod" | "photo";
 type FieldErrors = Partial<Record<Field, string>>;
 
 export function MentorRegScreen() {
   const { showToast } = useToast();
 
-  const [fullName, setFullName]           = useState("");
-  const [studentId, setStudentId]         = useState("");
-  const [email, setEmail]                 = useState("");
-  const [phone, setPhone]                 = useState("");
-  const [batch, setBatch]                 = useState("");
-  const [commMethod, setCommMethod]       = useState<string>("WhatsApp");
-  const [capacity, setCapacity]           = useState(2);
-  const [fieldErrors, setFieldErrors]     = useState<FieldErrors>({});
-  const [submitting, setSubmitting]       = useState(false);
-  const [submitted, setSubmitted]         = useState(false);
+  const [fullName,    setFullName]    = useState("");
+  const [studentId,   setStudentId]   = useState("");
+  const [email,       setEmail]       = useState("");
+  const [phone,       setPhone]       = useState("");
+  const [commMethod,  setCommMethod]  = useState<string>("WhatsApp");
+  const [photoFile,   setPhotoFile]   = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitting,  setSubmitting]  = useState(false);
+  const [submitted,   setSubmitted]   = useState(false);
   const [registeredName, setRegisteredName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const clearError = (field: Field) =>
     setFieldErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
 
+  const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    clearError("photo");
+    if (!file) { setPhotoFile(null); setPhotoPreview(null); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setFieldErrors((prev) => ({ ...prev, photo: "Only JPEG, PNG or WebP images are allowed." }));
+      return;
+    }
+    if (file.size > 3 * 1024 * 1024) {
+      setFieldErrors((prev) => ({ ...prev, photo: "Image must be smaller than 3 MB." }));
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
   const validate = (): boolean => {
     const errors: FieldErrors = {};
-    if (!fullName.trim())   errors.fullName   = "Full name is required.";
-    if (!studentId.trim())  errors.studentId  = "Student ID is required.";
-    if (!email.trim())      errors.email      = "University email is required.";
+    if (!fullName.trim())  errors.fullName  = "Full name is required.";
+    if (!studentId.trim()) errors.studentId = "Student ID is required.";
+    if (!email.trim())     errors.email     = "University email is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email address.";
-    if (!phone.trim())      errors.phone      = "Contact number is required.";
-    if (!batch.trim())      errors.batch      = "Batch is required.";
+    if (!phone.trim())     errors.phone     = "Contact number is required.";
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -44,27 +61,44 @@ export function MentorRegScreen() {
     if (!validate()) return;
     setSubmitting(true);
     try {
+      // Step 1 — register
       const res = await fetch("/api/registrations/mentor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName, studentId, email, phone, batch, communicationMethod: commMethod, capacity }),
+        body: JSON.stringify({
+          fullName, studentId, email, phone, batch: FIXED_BATCH,
+          communicationMethod: commMethod,
+          capacity: FIXED_CAPACITY,
+        }),
       });
       const data: unknown = await res.json();
       if (!res.ok) {
         const msg =
           typeof data === "object" && data && "error" in data && typeof data.error === "string"
-            ? data.error
-            : "Unable to submit registration.";
+            ? data.error : "Unable to submit registration.";
         const field =
           typeof data === "object" && data && "field" in data && typeof data.field === "string"
-            ? data.field as Field
-            : null;
+            ? (data.field as Field) : null;
         if (field) setFieldErrors((prev) => ({ ...prev, [field]: msg }));
         else showToast(msg);
         return;
       }
-      const result = data as { mentor: { fullName: string } };
+      const result = data as { mentor: { id: string; fullName: string } };
+      const mentorId = result.mentor.id;
       setRegisteredName(result.mentor.fullName);
+
+      // Step 2 — upload photo if provided
+      if (photoFile && mentorId) {
+        const form = new FormData();
+        form.append("mentorId", mentorId);
+        form.append("file", photoFile);
+        const photoRes = await fetch("/api/mentor/avatar", { method: "POST", body: form });
+        if (!photoRes.ok) {
+          // Non-fatal — registration succeeded, just warn
+          showToast("Registration saved, but photo upload failed. You can re-upload later.");
+        }
+      }
+
       setSubmitted(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -77,7 +111,7 @@ export function MentorRegScreen() {
   if (submitted) {
     return (
       <div className="container">
-        <div style={{ maxWidth: 520, margin: "0 auto" }}>
+        <div style={{ maxWidth: 520, margin: "0 auto", paddingTop: 48 }}>
           <div className="submitted-box">
             <div className="check" aria-hidden="true">✓</div>
             <h2 className="section-title" style={{ color: "var(--green)" }}>Registration Submitted!</h2>
@@ -85,9 +119,9 @@ export function MentorRegScreen() {
               Thank you, {registeredName}!
             </p>
             <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, marginTop: 6 }}>
-              Your mentor registration has been received and is <strong>pending admin approval</strong>.
-              You will be notified once it is reviewed. Your profile will appear in the mentor directory
-              after approval.
+              Your mentor registration has been received and is{" "}
+              <strong>pending admin approval</strong>. You will be notified once it is reviewed.
+              Your profile will appear in the mentor directory after approval.
             </p>
           </div>
         </div>
@@ -96,7 +130,7 @@ export function MentorRegScreen() {
   }
 
   return (
-    <div className="container">
+    <div className="container" style={{ paddingTop: 40, paddingBottom: 48 }}>
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
 
         {/* Header */}
@@ -109,7 +143,8 @@ export function MentorRegScreen() {
 
         {/* Info note */}
         <div className="form-note" style={{ marginBottom: 28 }}>
-          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flex: "none", marginTop: 1 }} aria-hidden="true">
+          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            style={{ flex: "none", marginTop: 1 }} aria-hidden="true">
             <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
           </svg>
           <span>
@@ -122,6 +157,60 @@ export function MentorRegScreen() {
           <h3 className="card-title" style={{ marginBottom: 20 }}>Your Details</h3>
 
           <div className="form-grid">
+
+            {/* Profile photo */}
+            <div className="full">
+              <label>Profile Photo <span className="muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 4 }}>
+                {/* Preview circle */}
+                <div
+                  style={{
+                    width: 72, height: 72, borderRadius: "50%",
+                    background: "var(--gray-100)", border: "2px dashed var(--gray-300)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden", flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                >
+                  {photoPreview
+                    ? <img src={photoPreview} alt="Preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <svg viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="1.5"
+                        style={{ width: 28, height: 28 }} aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {photoFile ? "Change photo" : "Upload photo"}
+                  </button>
+                  {photoFile && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => { setPhotoFile(null); setPhotoPreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                    >
+                      Remove
+                    </button>
+                  )}
+                  <p className="hint" style={{ margin: 0 }}>JPEG, PNG or WebP · max 3 MB</p>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                style={{ display: "none" }}
+                onChange={handlePhotoChange}
+                aria-label="Upload profile photo"
+              />
+              {fieldErrors.photo && <p className="hint" style={{ color: "var(--red)", marginTop: 6 }}>{fieldErrors.photo}</p>}
+            </div>
+
             {/* Full Name */}
             <div className="full">
               <label htmlFor="mreg-name">Full Name <span className="req">*</span></label>
@@ -145,26 +234,25 @@ export function MentorRegScreen() {
                 type="text"
                 value={studentId}
                 onChange={(e) => { setStudentId(e.target.value); clearError("studentId"); }}
-                placeholder="e.g. EG/2020/3456"
+                placeholder="e.g.TG/2024/3456"
                 aria-describedby={fieldErrors.studentId ? "mreg-sid-err" : undefined}
                 style={fieldErrors.studentId ? { borderColor: "var(--red)" } : undefined}
               />
               {fieldErrors.studentId && <p id="mreg-sid-err" className="hint" style={{ color: "var(--red)" }}>{fieldErrors.studentId}</p>}
             </div>
 
-            {/* Batch */}
+            {/* Batch — fixed for this session */}
             <div>
-              <label htmlFor="mreg-batch">Batch <span className="req">*</span></label>
+              <label htmlFor="mreg-batch">Batch</label>
               <input
                 id="mreg-batch"
                 type="text"
-                value={batch}
-                onChange={(e) => { setBatch(e.target.value); clearError("batch"); }}
-                placeholder="e.g. 9th"
-                aria-describedby={fieldErrors.batch ? "mreg-batch-err" : undefined}
-                style={fieldErrors.batch ? { borderColor: "var(--red)" } : undefined}
+                value={FIXED_BATCH}
+                readOnly
+                aria-readonly="true"
+                style={{ background: "var(--gray-50, #f9fafb)", color: "var(--gray-400)", cursor: "not-allowed" }}
               />
-              {fieldErrors.batch && <p id="mreg-batch-err" className="hint" style={{ color: "var(--red)" }}>{fieldErrors.batch}</p>}
+              <p className="hint">Fixed for this session.</p>
             </div>
 
             {/* Email */}
@@ -175,7 +263,7 @@ export function MentorRegScreen() {
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); clearError("email"); }}
-                placeholder="eg/2020/xxxx@fot.ruh.ac.lk"
+                placeholder="username_2024xxxx@fot.ruh.ac.lk"
                 autoComplete="email"
                 aria-describedby={fieldErrors.email ? "mreg-email-err" : undefined}
                 style={fieldErrors.email ? { borderColor: "var(--red)" } : undefined}
@@ -212,18 +300,18 @@ export function MentorRegScreen() {
               </select>
             </div>
 
-            {/* Capacity */}
+            {/* Capacity — read-only, set by organiser */}
             <div>
               <label htmlFor="mreg-cap">Mentee Capacity</label>
               <input
                 id="mreg-cap"
                 type="number"
-                min={1}
-                max={10}
-                value={capacity}
-                onChange={(e) => setCapacity(Math.min(10, Math.max(1, Number(e.target.value))))}
+                value={FIXED_CAPACITY}
+                readOnly
+                aria-readonly="true"
+                style={{ background: "var(--gray-50, #f9fafb)", color: "var(--gray-400)", cursor: "not-allowed" }}
               />
-              <p className="hint">How many mentees can you mentor at once? (1–10)</p>
+              <p className="hint">Fixed by the session organiser.</p>
             </div>
 
             {/* Submit */}
@@ -237,6 +325,7 @@ export function MentorRegScreen() {
                 {submitting ? "Submitting…" : "Submit Registration"}
               </button>
             </div>
+
           </div>
         </form>
       </div>

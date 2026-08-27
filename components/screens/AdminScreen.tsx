@@ -21,7 +21,7 @@ type Overview = {
   logs: { id: number; action: string; detail: string | null; created_at: string }[];
 };
 
-type Tab = "overview" | "controls" | "lifecycle" | "mentors" | "approvals" | "mentees" | "allocation" | "logs";
+type Tab = "overview" | "controls" | "lifecycle" | "mentors" | "approvals" | "mentees" | "allocation" | "logs" | "data";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview",   label: "Overview"   },
@@ -32,6 +32,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "mentees",    label: "Mentees"    },
   { id: "allocation", label: "Allocation" },
   { id: "logs",       label: "Logs"       },
+  { id: "data",       label: "Data"       },
 ];
 
 function StatCard({ value, label, accent = "default" }: { value: string; label: string; accent?: "indigo" | "amber" | "green" | "default" }) {
@@ -622,6 +623,158 @@ function LogsTab({ overview }: { overview: Overview }) {
   );
 }
 
+// ─── Data tab ────────────────────────────────────────────────────────────────
+
+function DataTab({
+  overview,
+  onBulkDelete,
+}: {
+  overview: Overview;
+  onBulkDelete: (target: "mentors" | "mentees") => void;
+}) {
+  // CSV download helper — runs entirely in the browser from data already loaded
+  const downloadCSV = (filename: string, rows: Record<string, unknown>[]) => {
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0]);
+    const escape  = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv     = [headers.join(","), ...rows.map((r) => headers.map((h) => escape(r[h])).join(","))].join("\n");
+    const blob    = new Blob([csv], { type: "text/csv" });
+    const url     = URL.createObjectURL(blob);
+    const a       = document.createElement("a");
+    a.href        = url;
+    a.download    = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadMentors = () =>
+    downloadCSV(`mentors-${overview.session.title}.csv`,
+      overview.mentors.map((m) => ({
+        full_name:            m.full_name,
+        student_id:           m.student_id,
+        email:                m.email,
+        phone:                m.phone,
+        batch:                m.batch,
+        communication_method: m.communication_method,
+        capacity:             m.capacity,
+        is_approved:          m.is_approved,
+      })),
+    );
+
+  const downloadMentees = () =>
+    downloadCSV(`mentees-${overview.session.title}.csv`,
+      overview.mentees.map((m) => ({
+        full_name:                m.full_name,
+        student_id:               m.student_id,
+        email:                    m.email,
+        phone:                    m.phone,
+        batch:                    m.batch,
+        preference_submitted_at:  m.preference_submitted_at ?? "",
+      })),
+    );
+
+  const downloadAllocations = () =>
+    downloadCSV(`allocations-${overview.session.title}.csv`,
+      overview.allocations.map((a) => ({
+        mentee:           a.mentee,
+        mentor:           a.mentor,
+        method:           a.method,
+        matched_priority: a.matchedPriority ?? "",
+        submitted_at:     a.submittedAt ?? "",
+      })),
+    );
+
+  const [confirmTarget, setConfirmTarget] = useState<"mentors" | "mentees" | null>(null);
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* Downloads */}
+      <div className="card">
+        <h3 className="card-title">Export Data</h3>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+          Download a CSV snapshot of the current session data.
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={downloadMentors}
+            disabled={!overview.mentors.length}
+          >
+            ↓ Mentors ({overview.mentors.length})
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={downloadMentees}
+            disabled={!overview.mentees.length}
+          >
+            ↓ Mentees ({overview.mentees.length})
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={downloadAllocations}
+            disabled={!overview.allocations.length}
+          >
+            ↓ Allocations ({overview.allocations.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Danger zone */}
+      <div className="card" style={{ border: "1px solid #fca5a5" }}>
+        <h3 className="card-title" style={{ color: "var(--red, #dc2626)" }}>Danger Zone</h3>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+          These actions are permanent and cannot be undone. Export your data first.
+        </p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={() => setConfirmTarget("mentees")}
+          >
+            Remove all mentees
+          </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={() => setConfirmTarget("mentors")}
+          >
+            Remove all mentors
+          </button>
+        </div>
+      </div>
+
+      {/* Confirm modal */}
+      <div
+        className={`modal-backdrop${confirmTarget ? " open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        onClick={() => setConfirmTarget(null)}
+      >
+        <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <h3 style={{ marginBottom: 8 }}>
+            Remove all {confirmTarget}?
+          </h3>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+            {confirmTarget === "mentees"
+              ? "This will permanently delete every mentee, their preferences, and their allocations for this session."
+              : "This will permanently delete every mentor for this session. All existing allocations must be reset first."}
+          </p>
+          <div className="actions">
+            <button className="btn btn-ghost" onClick={() => setConfirmTarget(null)}>Cancel</button>
+            <button
+              className="btn btn-danger"
+              onClick={() => {
+                if (confirmTarget) { onBulkDelete(confirmTarget); setConfirmTarget(null); }
+              }}
+            >
+              Yes, remove all {confirmTarget}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Controls tab ────────────────────────────────────────────────────────────
 
 type ControlFlag = "mentorRegOpen" | "menteeRegOpen" | "prefsOpen";
@@ -1039,6 +1192,19 @@ export function AdminScreen() {
     } finally { setRunning(false); }
   };
 
+  const bulkDelete = async (target: "mentors" | "mentees") => {
+    setRunning(true);
+    try {
+      const res = await fetch(`/api/admin/data?target=${target}`, { method: "DELETE" });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : `Unable to remove ${target}.`);
+      showToast(`All ${target} removed.`);
+      await loadOverview();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : `Unable to remove ${target}.`);
+    } finally { setRunning(false); }
+  };
+
   const deleteMentor = async () => {
     if (!deleteMentorId) return;
     setRunning(true);
@@ -1160,6 +1326,12 @@ export function AdminScreen() {
             />
           )}
           {activeTab === "logs"       && <LogsTab overview={overview} />}
+          {activeTab === "data"       && (
+            <DataTab
+              overview={overview}
+              onBulkDelete={(target) => void bulkDelete(target)}
+            />
+          )}
         </>
       )}
 
