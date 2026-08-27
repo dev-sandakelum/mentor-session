@@ -92,6 +92,11 @@ export function MentorCard({
           aria-hidden="true"
         />
 
+        {/* Mentor index — 1-based, always visible */}
+        <div className="mc-index" aria-label={`Mentor number ${index + 1}`}>
+          {index + 1}
+        </div>
+
         {/* Full overlay */}
         {isFull && <div className="mc-full-badge">Full</div>}
 

@@ -102,6 +102,10 @@ export function MentorGridScreen() {
                     {initials(mentor.fullName)}
                   </div>
                 )}
+                {/* Mentor index — 1-based, always visible */}
+                <div className="card-index" aria-label={`Mentor number ${index + 1}`}>
+                  {index + 1}
+                </div>
                 {isFull && <div className="card-full-overlay">Full</div>}
               </div>
 
