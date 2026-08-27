@@ -33,7 +33,7 @@ export function HomeScreen() {
         </span>
         <h1>Find your senior mentor. <em>Grow together.</em></h1>
         <p>
-          The ICTSC Mentor Session connects junior students with experienced
+          The Mentor Session connects junior students with experienced
           seniors for academic guidance, study advice, technical direction and
           real university experience — matched fairly, transparently and
           automatically.

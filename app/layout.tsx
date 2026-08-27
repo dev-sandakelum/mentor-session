@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ICTSC Mentor Session Management System",
+  title: "Mentor Session Management System",
   description:
     "ICT Students' Circle — Mentor Session 2026. Connecting junior students with experienced seniors at the Faculty of Technology, University of Ruhuna.",
 };

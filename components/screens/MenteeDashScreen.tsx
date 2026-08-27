@@ -22,11 +22,13 @@ type DashboardData = {
     method: string;
     matched_priority: number | null;
     mentor: {
+      id: string;
       full_name: string;
       batch: string;
       email: string;
       phone: string;
       communication_method: string;
+      profile_photo_url?: string | null;
     };
     group: { id: string; full_name: string; batch: string }[];
   };
@@ -52,6 +54,90 @@ function ordinal(n: number) {
   return `${n}${n === 1 ? "st" : n === 2 ? "nd" : "rd"}`;
 }
 
+function getInitials(name: string) {
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+// ── SVG Icons ────────────────────────────────────────────────────────────────
+const MailIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+    <rect x="2" y="5" width="16" height="12" rx="2" />
+    <path d="M2 7l8 5 8-5" />
+  </svg>
+);
+const PhoneIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+    <path d="M4 3h4l2 4-2.5 1.5a10 10 0 004 4L13 10l4 2v4a1 1 0 01-1 1C6.716 17 3 13.284 3 4a1 1 0 011-1z" />
+  </svg>
+);
+const CalendarIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+    <rect x="2" y="4" width="16" height="14" rx="2" />
+    <path d="M6 2v3M14 2v3M2 9h16" />
+  </svg>
+);
+const PinIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+    <path d="M10 2a6 6 0 016 6c0 4-6 10-6 10S4 12 4 8a6 6 0 016-6z" />
+    <circle cx="10" cy="8" r="2" />
+  </svg>
+);
+const UserGroupIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+    <circle cx="7" cy="7" r="3" />
+    <path d="M1 17c0-3.3 2.7-6 6-6" />
+    <circle cx="14" cy="7" r="3" />
+    <path d="M19 17c0-3.3-2.7-6-6-6" />
+    <path d="M7 17c0-3.3 2.7-6 6-6" />
+  </svg>
+);
+const StarIconSvg = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+    <path d="M10 2l2.4 5 5.6.8-4 3.9 1 5.5L10 14.5l-5 2.7 1-5.5L2 7.8l5.6-.8z" />
+  </svg>
+);
+const ClockIcon = () => (
+  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden="true">
+    <circle cx="10" cy="10" r="8" />
+    <path d="M10 6v4l2.5 2.5" />
+  </svg>
+);
+
+// ── Mentor photo / avatar ──────────────────────────────────────────────────────
+function MentorAvatar({
+  photoUrl,
+  name,
+  size = 80,
+  className = "",
+}: {
+  photoUrl?: string | null;
+  name: string;
+  size?: number;
+  className?: string;
+}) {
+  if (photoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photoUrl}
+        alt={name}
+        className={`mdash-mentor-photo ${className}`}
+        style={{ width: size, height: size }}
+        draggable={false}
+      />
+    );
+  }
+  return (
+    <div
+      className={`mdash-mentor-avatar ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.3 }}
+      aria-hidden="true"
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 // ── Allocated view ────────────────────────────────────────────────────────────
 function AllocatedView({
   data,
@@ -74,40 +160,63 @@ function AllocatedView({
   if (!allocation) return null;
   const { mentor, group, matched_priority, method } = allocation;
 
+  const matchLabel =
+    method === "fallback"
+      ? "Fallback assignment"
+      : `Matched on your ${ordinal(matched_priority ?? 1)} choice`;
+
+  const isFirstChoice = method !== "fallback" && matched_priority === 1;
+
   return (
     <div className="mdash-allocated">
-      {/* ── Hero mentor card ── */}
-      <div className="mdash-mentor-hero">
-        <div className="mdash-mentor-avatar">
-          {mentor.full_name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+
+      {/* ── Hero banner ── */}
+      <div className="mdash-hero-banner">
+        {/* Decorative blobs */}
+        <div className="mdash-hero-blob mdash-hero-blob-1" aria-hidden="true" />
+        <div className="mdash-hero-blob mdash-hero-blob-2" aria-hidden="true" />
+
+        <div className="mdash-hero-photo-wrap">
+          <MentorAvatar
+            photoUrl={mentor.profile_photo_url}
+            name={mentor.full_name}
+            size={88}
+            className="mdash-hero-avatar-img"
+          />
+          {isFirstChoice && (
+            <span className="mdash-hero-star-badge" aria-label="1st choice match">⭐</span>
+          )}
         </div>
-        <div className="mdash-mentor-info">
+
+        <div className="mdash-hero-text">
           <p className="mdash-mentor-label">Your Assigned Mentor</p>
           <h2 className="mdash-mentor-name">{mentor.full_name}</h2>
           <p className="mdash-mentor-batch">{mentor.batch}</p>
-          <span className="mdash-assignment-pill">
-            {method === "fallback"
-              ? "Fallback assignment"
-              : `Matched on your ${ordinal(matched_priority ?? 1)} choice`}
-          </span>
+          <span className="mdash-assignment-pill">{matchLabel}</span>
         </div>
       </div>
 
+      {/* ── Two-column detail grid ── */}
       <div className="mdash-grid">
+
         {/* Left column */}
         <div className="mdash-col">
-          {/* Contact */}
-          <div className="card">
-            <h3 className="card-title">Contact your mentor</h3>
+
+          {/* Contact card */}
+          <div className="card mdash-info-card">
+            <h3 className="card-title">
+              <span className="mdash-card-icon mdash-card-icon-indigo"><MailIcon /></span>
+              Contact your mentor
+            </h3>
             <div className="mdash-contact-row">
-              <span className="mdash-contact-icon" aria-hidden="true">✉</span>
+              <span className="mdash-contact-icon" aria-hidden="true"><MailIcon /></span>
               <div>
                 <p className="mdash-contact-label">Email</p>
                 <a href={`mailto:${mentor.email}`} className="mdash-contact-value">{mentor.email}</a>
               </div>
             </div>
             <div className="mdash-contact-row">
-              <span className="mdash-contact-icon" aria-hidden="true">📱</span>
+              <span className="mdash-contact-icon" aria-hidden="true"><PhoneIcon /></span>
               <div>
                 <p className="mdash-contact-label">{mentor.communication_method} (preferred)</p>
                 <span className="mdash-contact-value">{mentor.phone}</span>
@@ -115,17 +224,26 @@ function AllocatedView({
             </div>
           </div>
 
-          {/* Mentor group */}
-          <div className="card" style={{ marginTop: 16 }}>
-            <h3 className="card-title">Your mentor group</h3>
+          {/* Mentor group card */}
+          <div className="card mdash-info-card" style={{ marginTop: 14 }}>
+            <h3 className="card-title">
+              <span className="mdash-card-icon mdash-card-icon-green"><UserGroupIcon /></span>
+              Your mentor group
+            </h3>
             {group.length === 0 ? (
-              <p className="muted" style={{ fontSize: 13 }}>You are the only mentee assigned to this mentor.</p>
+              <p className="muted" style={{ fontSize: 13 }}>
+                You are the only mentee assigned to this mentor.
+              </p>
             ) : (
               <div className="mdash-group-list">
-                {group.map((member) => (
+                {group.map((member, i) => (
                   <div className="mdash-group-member" key={member.id}>
-                    <div className="mdash-group-avatar" aria-hidden="true">
-                      {member.full_name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                    <div
+                      className="mdash-group-avatar"
+                      style={{ "--gi": i } as React.CSSProperties}
+                      aria-hidden="true"
+                    >
+                      {getInitials(member.full_name)}
                     </div>
                     <div>
                       <p className="mdash-group-name">{member.full_name}</p>
@@ -140,11 +258,15 @@ function AllocatedView({
 
         {/* Right column */}
         <div className="mdash-col">
-          {/* Session */}
-          <div className="card">
-            <h3 className="card-title">Session details</h3>
+
+          {/* Session details card */}
+          {/* <div className="card mdash-info-card">
+            <h3 className="card-title">
+              <span className="mdash-card-icon mdash-card-icon-amber"><CalendarIcon /></span>
+              Session details
+            </h3>
             <div className="mdash-detail-row">
-              <span className="mdash-detail-icon" aria-hidden="true">📅</span>
+              <span className="mdash-detail-icon" aria-hidden="true"><CalendarIcon /></span>
               <div>
                 <p className="mdash-contact-label">Date &amp; Time</p>
                 <p className="mdash-contact-value">
@@ -155,17 +277,20 @@ function AllocatedView({
               </div>
             </div>
             <div className="mdash-detail-row">
-              <span className="mdash-detail-icon" aria-hidden="true">📍</span>
+              <span className="mdash-detail-icon" aria-hidden="true"><PinIcon /></span>
               <div>
                 <p className="mdash-contact-label">Venue</p>
                 <p className="mdash-contact-value">{session.venue ?? "To be announced"}</p>
               </div>
             </div>
-          </div>
+          </div> */}
 
-          {/* Feedback */}
-          <div className="card" style={{ marginTop: 16 }}>
-            <h3 className="card-title">Session feedback</h3>
+          {/* Feedback card */}
+          <div className="card mdash-info-card" style={{ marginTop: 14 }}>
+            <h3 className="card-title">
+              <span className="mdash-card-icon mdash-card-icon-amber"><StarIconSvg /></span>
+              Session feedback
+            </h3>
             <StarRating label="How useful was the Mentor Session?" value={rating} onChange={onRatingChange} />
             <label htmlFor="mentee-feedback-comment" style={{ marginTop: 12, display: "block" }}>
               Comments &amp; suggestions
@@ -177,7 +302,7 @@ function AllocatedView({
               placeholder="How helpful was your mentor?"
             />
             <button
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm fb-submit"
               disabled={sending}
               style={{ marginTop: 12 }}
               onClick={onFeedback}
@@ -196,11 +321,12 @@ function PendingView({ prefs }: { prefs: Preference[] }) {
   return (
     <div className="mdash-pending">
       <div className="mdash-pending-banner">
-        <div className="mdash-pending-icon" aria-hidden="true">⏳</div>
+        <div className="mdash-pending-icon" aria-hidden="true"><ClockIcon /></div>
         <div>
           <h3 className="mdash-pending-title">Allocation in progress</h3>
           <p className="mdash-pending-sub">
-            Your preferences have been recorded. Your assigned mentor will appear here once the administrator publishes allocations.
+            Your preferences have been recorded. Your assigned mentor will appear here once the
+            administrator publishes allocations.
           </p>
         </div>
       </div>
@@ -280,24 +406,39 @@ export function MenteeDashScreen() {
     } finally { setSending(false); }
   };
 
-  if (loading) return <div className="container"><p className="muted">Loading your dashboard…</p></div>;
-  if (!data) return (
-    <div className="container">
-      <h2 className="section-title">Mentee Dashboard</h2>
-      <div className="form-note">Register as a mentee first to view your dashboard.</div>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="container">
+        <div className="mdash-skeleton-header" />
+        <div className="mdash-skeleton-hero" />
+        <div className="mdash-grid" style={{ marginTop: 16 }}>
+          <div className="mdash-skeleton-card" />
+          <div className="mdash-skeleton-card" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="container">
+        <h2 className="section-title">Mentee Dashboard</h2>
+        <div className="form-note">Register as a mentee first to view your dashboard.</div>
+      </div>
+    );
+  }
 
   const { session, mentee, allocation } = data;
   const allocationPublished = ALLOCATED_STATUSES.has(session.status);
+  const firstName = mentee.full_name.split(" ")[0];
 
   return (
     <div className="container">
-      {/* Header */}
+      {/* ── Page header ── */}
       <div className="mdash-header">
         <div>
           <h2 className="section-title" style={{ marginBottom: 4 }}>
-            Welcome, {mentee.full_name.split(" ")[0]} 👋
+            Welcome, {firstName} 👋
           </h2>
           <p className="section-sub" style={{ marginBottom: 0 }}>
             {session.title}&nbsp;·&nbsp;
@@ -306,11 +447,11 @@ export function MenteeDashScreen() {
             </Pill>
           </p>
         </div>
+
       </div>
 
-      {/* Body — three states */}
+      {/* ── Body — four states ── */}
       {allocationPublished && allocation ? (
-        // State 1: Allocation published and I have a mentor
         <AllocatedView
           data={data}
           rating={rating}
@@ -321,19 +462,20 @@ export function MenteeDashScreen() {
           onFeedback={submitFeedback}
         />
       ) : allocationPublished && !allocation ? (
-        // State 2: Allocation phase but I wasn't assigned (edge case)
         <div className="card">
           <h3 className="card-title">No allocation found</h3>
-          <p className="muted">The allocation has been processed but you were not assigned a mentor. Please contact the administrator.</p>
+          <p className="muted">
+            The allocation has been processed but you were not assigned a mentor. Please contact the administrator.
+          </p>
         </div>
       ) : prefs.length > 0 ? (
-        // State 3: Still in registration, preferences submitted
         <PendingView prefs={prefs} />
       ) : (
-        // State 4: Registered but no preferences yet
         <div className="card">
           <h3 className="card-title">Select your mentors</h3>
-          <p className="muted">You haven&apos;t submitted your preferences yet. Go to Preference Selection to choose your top 3 mentors.</p>
+          <p className="muted">
+            You haven&apos;t submitted your preferences yet. Go to Preference Selection to choose your top 3 mentors.
+          </p>
         </div>
       )}
     </div>

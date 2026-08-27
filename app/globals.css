@@ -818,6 +818,40 @@ textarea {
   flex: none;
 }
 
+/* ── Mentor card skeleton ── */
+@keyframes mgsk-shimmer {
+  0%   { background-position: -800px 0; }
+  100% { background-position:  800px 0; }
+}
+.mentor-card-skeleton {
+  pointer-events: none;
+  cursor: default !important;
+  border-color: var(--gray-100) !important;
+  box-shadow: none !important;
+}
+.mentor-card-skeleton:hover {
+  transform: none !important;
+}
+.mgsk-photo {
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+  background-size: 1600px 100%;
+  animation: mgsk-shimmer 1.4s infinite linear;
+}
+.mgsk-info {
+  padding: 14px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mgsk-line {
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+  background-size: 1600px 100%;
+  animation: mgsk-shimmer 1.4s infinite linear;
+}
+.mgsk-name  { height: 14px; width: 75%; }
+.mgsk-batch { height: 11px; width: 45%; }
+
 /* ===== Preference summary sidebar ===== */
 .pref-summary {
   position: fixed;
@@ -1263,26 +1297,23 @@ footer {
   color: var(--gray-400);
   z-index: 50;
   line-height: 1;
+  padding: 0 16px;
+  text-align: center;
+  gap: 4px;
 }
 footer b {
   color: var(--indigo);
   font-weight: 600;
 }
 
-/* Mobile footer — ultra compact single line */
+/* Mobile footer — compact, no truncation */
 @media (max-width: 640px) {
   footer {
-    height: 32px;
-    font-size: 10.5px;
-    letter-spacing: -0.1px;
-    padding: 0 12px;
-    /* Truncate if needed */
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  footer b {
-    font-weight: 700;
+    height: auto;
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: 11px;
+    line-height: 1.5;
   }
 }
 
@@ -2287,9 +2318,48 @@ footer b {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 28px;
   flex-wrap: wrap;
+}
+
+/* Mentee identity badge (top-right of header) */
+.mdash-mentee-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+}
+.mdash-mentee-badge-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--indigo-light), var(--indigo-dark));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  letter-spacing: -0.3px;
+}
+.mdash-mentee-badge-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0;
+  line-height: 1.3;
+}
+.mdash-mentee-badge-batch {
+  font-size: 11.5px;
+  color: var(--gray-500);
+  margin: 0;
+  font-weight: 500;
 }
 
 /* ── Allocated state ── */
@@ -2299,62 +2369,144 @@ footer b {
   gap: 0;
 }
 
-/* Mentor hero banner */
-.mdash-mentor-hero {
+/* ── Hero banner ── */
+.mdash-hero-banner {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 20px;
-  background: linear-gradient(135deg, var(--indigo) 0%, var(--indigo-light) 100%);
-  border-radius: 20px;
-  padding: 28px 32px;
+  gap: 24px;
+  background: linear-gradient(135deg, #312e81 0%, #4f46e5 55%, #6366f1 100%);
+  border-radius: 22px;
+  padding: 32px 36px;
   margin-bottom: 20px;
   color: #fff;
+  box-shadow: 0 8px 32px rgba(79,70,229,0.35);
+}
+
+/* Decorative blobs */
+.mdash-hero-blob {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.mdash-hero-blob-1 {
+  width: 280px;
+  height: 280px;
+  background: rgba(255,255,255,0.07);
+  top: -100px;
+  right: -60px;
+}
+.mdash-hero-blob-2 {
+  width: 180px;
+  height: 180px;
+  background: rgba(245,158,11,0.18);
+  bottom: -80px;
+  right: 80px;
+}
+
+/* Photo/avatar in hero */
+.mdash-hero-photo-wrap {
+  position: relative;
+  flex: none;
+  z-index: 1;
+}
+.mdash-hero-avatar-img,
+.mdash-mentor-photo {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3.5px solid rgba(255,255,255,0.6);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  display: block;
 }
 .mdash-mentor-avatar {
-  width: 72px;
-  height: 72px;
   border-radius: 50%;
   background: rgba(255,255,255,0.2);
-  border: 3px solid rgba(255,255,255,0.5);
+  border: 3.5px solid rgba(255,255,255,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
   font-weight: 800;
   color: #fff;
   flex: none;
   letter-spacing: -0.5px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.mdash-hero-star-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 26px;
+  height: 26px;
+  background: var(--amber);
+  border-radius: 50%;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Hero text */
+.mdash-hero-text {
+  z-index: 1;
+  min-width: 0;
 }
 .mdash-mentor-label {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  opacity: 0.75;
+  letter-spacing: 1px;
+  opacity: 0.7;
   margin: 0 0 4px;
 }
 .mdash-mentor-name {
-  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-size: clamp(1.4rem, 3vw, 1.95rem);
   font-weight: 800;
   letter-spacing: -0.5px;
   margin: 0 0 4px;
   line-height: 1.15;
 }
 .mdash-mentor-batch {
-  font-size: 13px;
-  opacity: 0.8;
-  margin: 0 0 10px;
+  font-size: 13.5px;
+  opacity: 0.82;
+  margin: 0 0 12px;
+  font-weight: 500;
 }
 .mdash-assignment-pill {
-  display: inline-block;
-  background: rgba(255,255,255,0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.18);
   border: 1px solid rgba(255,255,255,0.35);
   border-radius: 99px;
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: 12px;
   font-weight: 700;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
+
+/* Card icon accents */
+.mdash-card-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.mdash-card-icon svg {
+  width: 14px;
+  height: 14px;
+}
+.mdash-card-icon-indigo { background: var(--indigo-soft); color: var(--indigo-light); }
+.mdash-card-icon-green  { background: var(--green-soft);  color: var(--green); }
+.mdash-card-icon-amber  { background: var(--amber-soft);  color: #b45309; }
 
 /* Two-column grid */
 .mdash-grid {
@@ -2367,6 +2519,9 @@ footer b {
   display: flex;
   flex-direction: column;
 }
+.mdash-info-card {
+  border-radius: 18px;
+}
 
 /* Contact rows */
 .mdash-contact-row,
@@ -2374,28 +2529,33 @@ footer b {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 10px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--gray-100);
 }
 .mdash-contact-row:last-child,
 .mdash-detail-row:last-child {
   border-bottom: none;
+  padding-bottom: 0;
 }
 .mdash-contact-icon,
 .mdash-detail-icon {
-  font-size: 16px;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--gray-100);
-  border-radius: 8px;
+  border-radius: 9px;
   flex: none;
-  margin-top: 2px;
+  color: var(--gray-500);
+}
+.mdash-contact-icon svg,
+.mdash-detail-icon svg {
+  width: 15px;
+  height: 15px;
 }
 .mdash-contact-label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2408,6 +2568,7 @@ footer b {
   color: var(--gray-900);
   margin: 0;
   word-break: break-all;
+  line-height: 1.4;
 }
 a.mdash-contact-value {
   color: var(--indigo-light);
@@ -2422,18 +2583,21 @@ a.mdash-contact-value:hover {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 4px;
 }
 .mdash-group-member {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 8px 10px;
+  background: var(--gray-50);
+  border-radius: 10px;
+  border: 1px solid var(--gray-100);
 }
+/* Cycle through a few gradients using --gi custom property */
 .mdash-group-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--indigo-light), var(--indigo-dark));
   color: #fff;
   font-size: 12px;
   font-weight: 800;
@@ -2441,17 +2605,20 @@ a.mdash-contact-value:hover {
   align-items: center;
   justify-content: center;
   flex: none;
+  background: linear-gradient(135deg, var(--indigo-light), var(--indigo-dark));
 }
 .mdash-group-name {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--gray-900);
   margin: 0;
+  line-height: 1.3;
 }
 .mdash-group-batch {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--gray-400);
   margin: 0;
+  font-weight: 500;
 }
 
 /* ── Pending state ── */
@@ -2461,14 +2628,24 @@ a.mdash-contact-value:hover {
   gap: 16px;
   background: var(--indigo-soft);
   border: 1.5px solid #c7d2fe;
-  border-radius: 16px;
-  padding: 20px 24px;
+  border-radius: 18px;
+  padding: 22px 26px;
   margin-bottom: 8px;
 }
 .mdash-pending-icon {
-  font-size: 24px;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--indigo-light);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
-  margin-top: 2px;
+}
+.mdash-pending-icon svg {
+  width: 20px;
+  height: 20px;
 }
 .mdash-pending-title {
   font-size: 15px;
@@ -2479,25 +2656,53 @@ a.mdash-contact-value:hover {
 .mdash-pending-sub {
   font-size: 13px;
   color: var(--indigo);
-  opacity: 0.8;
+  opacity: 0.82;
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.55;
 }
+
+/* ── Skeleton loading ── */
+@keyframes mdash-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+.mdash-skeleton-header,
+.mdash-skeleton-hero,
+.mdash-skeleton-card {
+  border-radius: 18px;
+  background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+  background-size: 1200px 100%;
+  animation: mdash-shimmer 1.4s infinite linear;
+}
+.mdash-skeleton-header { height: 48px; width: 260px; margin-bottom: 28px; }
+.mdash-skeleton-hero   { height: 152px; margin-bottom: 20px; }
+.mdash-skeleton-card   { height: 200px; }
 
 /* Responsive */
 @media (max-width: 700px) {
   .mdash-grid {
     grid-template-columns: 1fr;
   }
-  .mdash-mentor-hero {
+  .mdash-hero-banner {
     flex-direction: column;
     text-align: center;
-    padding: 24px 20px;
+    padding: 26px 22px;
+    gap: 16px;
   }
-  .mdash-mentor-avatar {
-    width: 60px;
-    height: 60px;
-    font-size: 18px;
+  .mdash-hero-photo-wrap {
+    margin: 0 auto;
+  }
+  .mdash-mentor-avatar,
+  .mdash-hero-avatar-img,
+  .mdash-mentor-photo {
+    width: 72px !important;
+    height: 72px !important;
+  }
+  .mdash-hero-text {
+    width: 100%;
+  }
+  .mdash-mentee-badge {
+    width: 100%;
   }
 }
 

@@ -72,7 +72,15 @@ export function MentorGridScreen() {
       </div>
 
       <div className="mentor-grid">
-        {loading && <p className="muted">Loading mentors…</p>}
+        {loading && Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="mentor-card mentor-card-skeleton" aria-hidden="true">
+            <div className="card-photo mgsk-photo" />
+            <div className="card-info mgsk-info">
+              <div className="mgsk-line mgsk-name" />
+              <div className="mgsk-line mgsk-batch" />
+            </div>
+          </div>
+        ))}
         {!loading && mentors.length === 0 && (
           <p className="muted">No mentors have been added yet. Check back soon.</p>
         )}

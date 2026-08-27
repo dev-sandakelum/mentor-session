@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     if (allocationError) throw databaseError("Unable to load allocation.", allocationError.code);
     if (!allocation) return NextResponse.json({ session, mentee, allocation: null });
     const { data: mentor, error: mentorError } = await supabase
-      .from("mentors").select("id, full_name, batch, email, phone, communication_method")
+      .from("mentors").select("id, full_name, batch, email, phone, communication_method, profile_photo_url")
       .eq("id", allocation.mentor_id).single();
     if (mentorError) throw databaseError("Unable to load mentor details.", mentorError.code);
     const { data: groupAllocations, error: groupError } = await supabase

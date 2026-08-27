@@ -2,7 +2,7 @@ import { SiteHeader } from "@/components/nav/SiteHeader";
 import { MenteeNav } from "@/components/nav/MenteeNav";
 
 export const metadata = {
-  title: "Mentee — ICTSC Mentor Session 2026",
+  title: "Mentee — Mentor Session 2026",
 };
 
 export default function MenteeLayout({ children }: LayoutProps<"/mentee">) {
@@ -11,8 +11,7 @@ export default function MenteeLayout({ children }: LayoutProps<"/mentee">) {
       <SiteHeader nav={<MenteeNav />} />
       <main className="screen-enter">{children}</main>
       <footer>
-        <b>ICT Students&apos; Circle</b> · Faculty of Technology · University of
-        Ruhuna — Mentor Session Management System (UI Prototype)
+        <b>ICT Students&apos; Circle</b> · Fac. of Technology · Uni. of Ruhuna
       </footer>
     </>
   );

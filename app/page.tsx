@@ -10,8 +10,7 @@ export default function HomePage() {
         <HomeScreen />
       </main>
       <footer>
-        <b>ICT Students&apos; Circle</b> · Faculty of Technology · University of
-        Ruhuna — Mentor Session Management System (UI Prototype)
+        <b>ICT Students&apos; Circle</b> · Fac. of Technology · Uni. of Ruhuna
       </footer>
     </>
   );
