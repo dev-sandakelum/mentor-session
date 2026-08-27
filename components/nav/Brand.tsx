@@ -5,7 +5,7 @@ export function Brand() {
   return (
     <Link href="/" className="brand" aria-label="Mentor Session — Home">
       <Image
-        src="/logo.png"
+        src="/logo2.png"
         alt="ICT Students' Circle logo"
         width={36}
         height={36}

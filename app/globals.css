@@ -255,7 +255,7 @@ h3.card-title {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  box-shadow: var(--shadow);
+  /* box-shadow: var(--shadow); */
   flex: none;
   object-fit: contain;
 }
