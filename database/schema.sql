@@ -4,6 +4,7 @@
 create type public.session_status as enum ('draft', 'registration', 'allocation', 'published', 'closed');
 create type public.allocation_method as enum ('preference', 'fallback', 'manual');
 create type public.participant_type as enum ('mentor', 'mentee');
+create type public.mentor_approval_status as enum ('pending', 'approved', 'rejected');
 
 create table public.mentor_sessions (
   id uuid primary key default gen_random_uuid(),
@@ -11,6 +12,9 @@ create table public.mentor_sessions (
   title text not null,
   status public.session_status not null default 'draft',
   registration_open boolean not null default false,
+  mentor_reg_open   boolean not null default false,
+  mentee_reg_open   boolean not null default false,
+  prefs_open        boolean not null default false,
   event_starts_at timestamptz,
   venue text,
   created_at timestamptz not null default now(),
@@ -28,6 +32,8 @@ create table public.mentors (
   communication_method text not null check (communication_method in ('WhatsApp', 'Email', 'Phone Call', 'In-Person')),
   profile_photo_url text,
   capacity smallint not null default 2 check (capacity between 1 and 10),
+  approval_status public.mentor_approval_status not null default 'approved',
+  notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (session_id, student_id),
@@ -136,11 +142,14 @@ alter table public.feedback enable row level security;
 alter table public.allocation_logs enable row level security;
 
 -- Create the session that the API selects. Change dates/venue as needed.
-insert into public.mentor_sessions (year, title, status, registration_open, event_starts_at, venue)
-values (2026, 'Mentor Session 2026', 'registration', true, '2026-09-05 03:30:00+00', 'Main Auditorium, Faculty of Technology')
+insert into public.mentor_sessions (year, title, status, registration_open, mentor_reg_open, mentee_reg_open, prefs_open, event_starts_at, venue)
+values (2026, 'Mentor Session 2026', 'registration', true, true, true, true, '2026-09-05 03:30:00+00', 'Main Auditorium, Faculty of Technology')
 on conflict (year) do update set
   title = excluded.title,
   status = excluded.status,
   registration_open = excluded.registration_open,
-  event_starts_at = excluded.event_starts_at,
-  venue = excluded.venue;
+  mentor_reg_open   = excluded.mentor_reg_open,
+  mentee_reg_open   = excluded.mentee_reg_open,
+  prefs_open        = excluded.prefs_open,
+  event_starts_at   = excluded.event_starts_at,
+  venue             = excluded.venue;

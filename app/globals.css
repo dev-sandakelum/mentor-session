@@ -1687,6 +1687,130 @@ footer b {
   background: var(--indigo-soft);
   color: var(--indigo);
 }
+.tab-count-amber {
+  background: var(--amber-soft);
+  color: #92400e;
+}
+
+/* ===== Admin Control Board ===== */
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--gray-100);
+}
+.ctrl-row:last-child {
+  border-bottom: none;
+}
+.ctrl-row-text {
+  flex: 1;
+  min-width: 0;
+}
+.ctrl-row-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin: 0 0 3px;
+}
+.ctrl-row-desc {
+  font-size: 12.5px;
+  color: var(--gray-500);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Toggle switch */
+.ctrl-toggle {
+  position: relative;
+  width: 48px;
+  height: 27px;
+  border-radius: 99px;
+  border: none;
+  background: var(--gray-200);
+  cursor: pointer;
+  flex: none;
+  transition: background 0.2s ease;
+  padding: 0;
+}
+.ctrl-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ctrl-toggle-on {
+  background: var(--toggle-color, var(--indigo-light));
+}
+.ctrl-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  transition: transform 0.2s ease;
+  display: block;
+}
+.ctrl-toggle-on .ctrl-toggle-thumb {
+  transform: translateX(21px);
+}
+
+/* Quick card */
+.ctrl-quick-card {
+  padding: 20px 24px;
+}
+.ctrl-quick-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.ctrl-status-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ctrl-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1.5px solid transparent;
+}
+.ctrl-pill-on {
+  background: var(--green-soft);
+  border-color: #a7f3d0;
+  color: var(--green);
+}
+.ctrl-pill-off {
+  background: var(--gray-100);
+  border-color: var(--gray-200);
+  color: var(--gray-400);
+}
+.ctrl-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+@media (max-width: 640px) {
+  .ctrl-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .ctrl-toggle {
+    align-self: flex-end;
+  }
+}
 
 /* ===== MentorCard component ===== */
 .mc {

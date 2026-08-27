@@ -22,29 +22,92 @@ export async function PATCH(request: Request, context: RouteContext<"/api/admin/
     if (existingError) throw databaseError("Unable to load mentor.", existingError.code);
     if (!existing) throw new ApiError("Mentor was not found.", 404);
 
+    // ── Core profile fields ───────────────────────────────────────────────────
     const fields = parseMentorFields(body);
-    const updates: Record<string, unknown> = {};
-    if (body.fullName !== undefined) updates.full_name = fields.fullName;
-    if (body.studentId !== undefined) updates.student_id = fields.studentId;
-    if (body.email !== undefined) updates.email = fields.email;
-    if (body.phone !== undefined) updates.phone = fields.phone;
-    if (body.batch !== undefined) updates.batch = fields.batch;
-    if (body.communicationMethod !== undefined) updates.communication_method = fields.communicationMethod;
-    if (body.profilePhotoUrl !== undefined) updates.profile_photo_url = fields.profilePhotoUrl;
-    if (body.capacity !== undefined) updates.capacity = fields.capacity;
+    const coreUpdates: Record<string, unknown> = {};
+    if (body.fullName            !== undefined) coreUpdates.full_name           = fields.fullName;
+    if (body.studentId           !== undefined) coreUpdates.student_id          = fields.studentId;
+    if (body.email               !== undefined) coreUpdates.email               = fields.email;
+    if (body.phone               !== undefined) coreUpdates.phone               = fields.phone;
+    if (body.batch               !== undefined) coreUpdates.batch               = fields.batch;
+    if (body.communicationMethod !== undefined) coreUpdates.communication_method = fields.communicationMethod;
+    if (body.profilePhotoUrl     !== undefined) coreUpdates.profile_photo_url   = fields.profilePhotoUrl;
+    if (body.capacity            !== undefined) coreUpdates.capacity            = fields.capacity;
 
-    if (!Object.keys(updates).length) throw new ApiError("No mentor fields were provided to update.");
+    // ── Approval field (require migration) ───────────────────────────────────
+    const approvalUpdates: Record<string, unknown> = {};
+    if (body.isApproved !== undefined) {
+      if (typeof body.isApproved !== "boolean") {
+        throw new ApiError("isApproved must be a boolean.");
+      }
+      approvalUpdates.is_approved = body.isApproved;
+    }
 
-    const { data, error } = await supabase
-      .from("mentors")
-      .update(updates)
-      .eq("id", id)
-      .select("id, full_name, student_id, email, phone, batch, communication_method, profile_photo_url, capacity")
-      .single();
+    if (!Object.keys(coreUpdates).length && !Object.keys(approvalUpdates).length) {
+      throw new ApiError("No mentor fields were provided to update.");
+    }
 
-    if (error?.code === "23505") throw databaseError("A mentor with this student ID or email already exists.", error.code);
-    if (error) throw databaseError("Unable to update mentor.", error.code);
-    return NextResponse.json({ mentor: data });
+    // Apply core updates first (always safe — no new columns)
+    let savedMentor: Record<string, unknown> | null = null;
+
+    if (Object.keys(coreUpdates).length) {
+      const { data, error } = await supabase
+        .from("mentors")
+        .update(coreUpdates)
+        .eq("id", id)
+        .select("id, full_name, student_id, email, phone, batch, communication_method, profile_photo_url, capacity")
+        .single();
+      if (error?.code === "23505") throw databaseError("A mentor with this student ID or email already exists.", error.code);
+      if (error) throw databaseError("Unable to update mentor.", error.code);
+      savedMentor = data as Record<string, unknown>;
+    }
+
+    // Apply approval update separately — degrade gracefully if column doesn't exist
+    let isApprovedResult: boolean | null = null;
+    if (Object.keys(approvalUpdates).length) {
+      const { error: aErr } = await supabase
+        .from("mentors")
+        .update(approvalUpdates)
+        .eq("id", id);
+
+      if (aErr) {
+        if (aErr.code === "42703") {
+          throw new ApiError(
+            "Approval cannot be updated yet. Run the database migration first (add_mentor_approval_status.sql).",
+            400
+          );
+        }
+        throw databaseError("Unable to update mentor approval.", aErr.code);
+      }
+
+      const { data: aFetch } = await supabase
+        .from("mentors")
+        .select("is_approved")
+        .eq("id", id)
+        .single();
+
+      if (aFetch) {
+        isApprovedResult = (aFetch as { is_approved: boolean }).is_approved;
+        savedMentor = { ...(savedMentor ?? {}), ...aFetch };
+      }
+    }
+
+    // If only core fields were updated, fetch a fresh record
+    if (!savedMentor) {
+      const { data: fresh } = await supabase
+        .from("mentors")
+        .select("id, full_name, student_id, email, phone, batch, communication_method, profile_photo_url, capacity")
+        .eq("id", id)
+        .single();
+      savedMentor = (fresh ?? {}) as Record<string, unknown>;
+    }
+
+    return NextResponse.json({
+      mentor: {
+        ...savedMentor,
+        is_approved: isApprovedResult ?? ((savedMentor.is_approved as boolean | undefined) ?? true),
+      },
+    });
   } catch (error) {
     return apiError(error);
   }

@@ -15,6 +15,13 @@ export function MentorNav() {
       >
         Mentor Directory
       </Link>
+      <Link
+        href="/mentor/register"
+        className={pathname === "/mentor/register" ? "active" : ""}
+        aria-current={pathname === "/mentor/register" ? "page" : undefined}
+      >
+        Register as Mentor
+      </Link>
     </nav>
   );
 }

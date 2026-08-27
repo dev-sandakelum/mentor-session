@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     const supabase = getSupabaseAdmin();
     const session = await getCurrentSession();
     const [{ data: mentors, error: mentorError }, { data: mentees, error: menteeError }, { data: allMentees, error: allMenteesError }, { data: preferences, error: preferenceError }] = await Promise.all([
-      supabase.from("mentors").select("id, full_name, capacity").eq("session_id", session.id).eq("approval_status", "approved"),
+      supabase.from("mentors").select("id, full_name, capacity").eq("session_id", session.id).eq("is_approved", true),
       // Mentees who submitted preferences — sorted FCFS for Phase 1
       supabase.from("mentees").select("id, full_name, preference_submitted_at").eq("session_id", session.id).not("preference_submitted_at", "is", null).order("preference_submitted_at"),
       // ALL registered mentees — used for fallback Phase 2

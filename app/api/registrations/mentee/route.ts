@@ -6,7 +6,10 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export async function POST(request: Request) {
   try {
     const body = await readJson(request);
-    const session = await getCurrentSession(true);
+    const session = await getCurrentSession();
+    // Graceful fallback: if mentee_reg_open column doesn't exist yet, fall back to registration_open
+    const menteeRegOpen = "mentee_reg_open" in session ? session.mentee_reg_open : session.registration_open;
+    if (!menteeRegOpen) throw new ApiError("Mentee registration is currently closed.", 403);
     const studentId = stringField(body.studentId, "Student ID", { max: 50 });
     const row = {
       session_id: session.id,

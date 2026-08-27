@@ -7,22 +7,28 @@ import { ResetModal } from "../ui/ResetModal";
 import { MentorFormModal, type MentorRecord } from "../admin/MentorFormModal";
 
 type Overview = {
-  session: { id: string; title: string; status: string; registration_open: boolean; event_starts_at: string | null; venue: string | null };
-  stats: Record<"totalMentors" | "totalMentees" | "submittedPreferences" | "totalCapacity" | "assigned" | "unassigned" | "availableCapacity" | "firstChoice" | "secondChoice" | "thirdChoice" | "fallback" | "manual" | "preferenceSatisfaction", number>;
+  session: {
+    id: string; title: string; status: string; registration_open: boolean;
+    mentor_reg_open: boolean; mentee_reg_open: boolean; prefs_open: boolean;
+    event_starts_at: string | null; venue: string | null;
+  };
+  stats: Record<"totalMentors" | "pendingApprovals" | "totalMentees" | "submittedPreferences" | "totalCapacity" | "assigned" | "unassigned" | "availableCapacity" | "firstChoice" | "secondChoice" | "thirdChoice" | "fallback" | "manual" | "preferenceSatisfaction", number>;
   allocations: { mentee: string; mentor: string; submittedAt: string | null; method: string; matchedPriority: number | null }[];
   unmatched: { mentee: string; preferences: string[] }[];
   mentorLoads: { name: string; assigned: number; capacity: number }[];
-  mentors: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; communication_method: string; profile_photo_url: string | null; capacity: number }[];
+  mentors: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; communication_method: string; profile_photo_url: string | null; capacity: number; is_approved: boolean }[];
   mentees: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; preference_submitted_at: string | null; assignedMentor: string | null; allocationMethod: string | null; matchedPriority: number | null }[];
   logs: { id: number; action: string; detail: string | null; created_at: string }[];
 };
 
-type Tab = "overview" | "lifecycle" | "mentors" | "mentees" | "allocation" | "logs";
+type Tab = "overview" | "controls" | "lifecycle" | "mentors" | "approvals" | "mentees" | "allocation" | "logs";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview",   label: "Overview"   },
+  { id: "controls",   label: "Controls"   },
   { id: "lifecycle",  label: "Lifecycle"  },
   { id: "mentors",    label: "Mentors"    },
+  { id: "approvals",  label: "Approvals"  },
   { id: "mentees",    label: "Mentees"    },
   { id: "allocation", label: "Allocation" },
   { id: "logs",       label: "Logs"       },
@@ -280,7 +286,8 @@ function OverviewTab({ overview }: {
   return (
     <>
       <div className="stats-grid">
-        <StatCard value={String(s.totalMentors)}           label="Total mentors"                accent="indigo" />
+        <StatCard value={String(s.totalMentors)}           label="Approved mentors"              accent="indigo" />
+        <StatCard value={String(s.pendingApprovals)}       label="Pending approvals"             accent={s.pendingApprovals > 0 ? "amber" : "default"} />
         <StatCard value={String(s.totalMentees)}           label={`${s.submittedPreferences} preferences submitted`} accent="indigo" />
         <StatCard value={String(s.totalCapacity)}          label="Total capacity" />
         <StatCard value={String(s.assigned)}               label="Assigned"                     accent="green" />
@@ -317,41 +324,54 @@ function OverviewTab({ overview }: {
   );
 }
 
-function MentorsTab({ overview, onAdd, onEdit, onDelete }: {
+function MentorsTab({ overview, onAdd, onEdit, onDelete, onApprove, onReject }: {
   overview: Overview;
   onAdd: () => void;
   onEdit: (mentor: Overview["mentors"][number]) => void;
   onDelete: (id: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
 }) {
+  const statusBadge = (approved: boolean) =>
+    approved ? <Pill variant="green">Approved</Pill> : <Pill variant="amber">Pending</Pill>;
+
   return (
     <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
         <h3 className="card-title" style={{ margin: 0 }}>All Mentors</h3>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Pill variant="indigo">{overview.mentors.length} mentors</Pill>
+          <Pill variant="indigo">{overview.mentors.length} total</Pill>
+          <Pill variant="green">{overview.mentors.filter(m => m.is_approved).length} approved</Pill>
+          {overview.mentors.filter(m => !m.is_approved).length > 0 &&
+            <Pill variant="amber">{overview.mentors.filter(m => !m.is_approved).length} pending</Pill>}
           <button className="btn btn-primary btn-sm" onClick={onAdd}>+ Add mentor</button>
         </div>
       </div>
       <div style={{ overflowX: "auto" }}>
         <table>
           <thead>
-            <tr><th>Mentor</th><th>Contact</th><th>Batch</th><th>Capacity</th><th>Actions</th></tr>
+            <tr><th>Mentor</th><th>Contact</th><th>Batch</th><th>Cap.</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {overview.mentors.length ? overview.mentors.map((m) => (
               <tr key={m.id}>
                 <td><b>{m.full_name}</b><br /><span className="muted">{m.student_id}</span></td>
-                <td>{m.email}<br /><span className="muted">{m.phone} · {m.communication_method}</span></td>
+                <td style={{ fontSize: 13 }}>{m.email}<br /><span className="muted">{m.phone} · {m.communication_method}</span></td>
                 <td>{m.batch}</td>
                 <td>{m.capacity}</td>
+                <td>{statusBadge(m.is_approved ?? true)}</td>
                 <td>
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {!m.is_approved &&
+                      <button className="btn btn-sm" style={{ background: "var(--green)", color: "#fff" }} onClick={() => onApprove(m.id)}>✓ Approve</button>}
+                    {m.is_approved &&
+                      <button className="btn btn-outline btn-sm" onClick={() => onReject(m.id)}>↩ Set pending</button>}
                     <button className="btn btn-outline btn-sm" onClick={() => onEdit(m)}>Edit</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => onDelete(m.id)}>Delete</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => onDelete(m.id)}>Delete</button>
                   </div>
                 </td>
               </tr>
-            )) : <tr><td colSpan={5} className="muted">No mentors added yet. Use &quot;Add mentor&quot; to create one.</td></tr>}
+            )) : <tr><td colSpan={6} className="muted">No mentors added yet.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -392,62 +412,184 @@ function MenteesTab({ overview }: { overview: Overview }) {
   );
 }
 
-function AllocationTab({ overview, running, onRun, onReset }: {
+function AllocationTab({ overview, running, onRun, onReset, onManualAssign, onRemoveAllocation }: {
   overview: Overview;
   running: boolean;
   onRun: (mode: "preview" | "commit", fallback: boolean) => void;
   onReset: () => void;
+  onManualAssign: (menteeId: string, mentorId: string) => void;
+  onRemoveAllocation: (menteeId: string) => void;
 }) {
+  const [manualMenteeId, setManualMenteeId] = useState("");
+  const [manualMentorId, setManualMentorId] = useState("");
+
+  const approvedMentors = overview.mentors.filter(m => m.is_approved);
+  const allocatedMenteeIds = new Set(overview.allocations.map(a => {
+    // match by name — find mentee id
+    return overview.mentees.find(m => m.full_name === a.mentee)?.id;
+  }).filter(Boolean));
+
+  const handleManualAssign = () => {
+    if (!manualMenteeId || !manualMentorId) return;
+    onManualAssign(manualMenteeId, manualMentorId);
+    setManualMenteeId("");
+    setManualMentorId("");
+  };
+
   return (
     <>
+      {/* FCFS Controls */}
       <div className="card">
-        <h3 className="card-title">Allocation Controls</h3>
+        <h3 className="card-title">Automatic Allocation (FCFS)</h3>
         <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
-          Preview a first-come, first-served result before committing it. A fallback fills remaining mentor capacity for unmatched mentees.
+          Preview a first-come, first-served result before committing. Fallback fills remaining capacity for unmatched mentees.
         </p>
         <div className="admin-controls">
           <button className="btn btn-outline btn-sm" disabled={running} onClick={() => onRun("preview", false)}>Preview FCFS</button>
           <button className="btn btn-primary btn-sm" disabled={running} onClick={() => onRun("commit", false)}>Commit FCFS</button>
           <button className="btn btn-amber btn-sm" disabled={running} onClick={() => onRun("commit", true)}>Commit with Fallback</button>
-          <button className="btn btn-danger btn-sm" disabled={running} onClick={onReset}>Reset Allocation</button>
+          <button className="btn btn-danger btn-sm" disabled={running} onClick={onReset}>Reset All</button>
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 22 }}>
+      {/* Manual assignment */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 className="card-title">Manual Assignment</h3>
+        <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+          Directly assign any mentee to any approved mentor. Overwrites an existing allocation for that mentee.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 10, alignItems: "end" }}>
+          <div>
+            <label htmlFor="manual-mentee" style={{ fontSize: 12, fontWeight: 700, color: "var(--gray-500)", marginBottom: 5, display: "block" }}>Mentee</label>
+            <select id="manual-mentee" value={manualMenteeId} onChange={e => setManualMenteeId(e.target.value)}>
+              <option value="">— select mentee —</option>
+              {overview.mentees.map(m => (
+                <option key={m.id} value={m.id}>
+                  {m.full_name}{m.assignedMentor ? ` (→ ${m.assignedMentor})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="manual-mentor" style={{ fontSize: 12, fontWeight: 700, color: "var(--gray-500)", marginBottom: 5, display: "block" }}>Mentor</label>
+            <select id="manual-mentor" value={manualMentorId} onChange={e => setManualMentorId(e.target.value)}>
+              <option value="">— select mentor —</option>
+              {approvedMentors.map(m => {
+                const load = overview.mentorLoads.find(l => l.name === m.full_name);
+                const full = load ? load.assigned >= load.capacity : false;
+                return (
+                  <option key={m.id} value={m.id} disabled={full}>
+                    {m.full_name} ({load ? `${load.assigned}/${load.capacity}` : `cap: ${m.capacity}`}){full ? " — Full" : ""}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={running || !manualMenteeId || !manualMentorId}
+            onClick={handleManualAssign}
+            style={{ alignSelf: "flex-end" }}
+          >
+            Assign
+          </button>
+        </div>
+
+        {/* Quick unassign from results table */}
+        {overview.allocations.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "var(--gray-500)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Current assignments — click × to remove
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {overview.allocations.map((row, i) => {
+                const menteeId = overview.mentees.find(m => m.full_name === row.mentee)?.id;
+                return (
+                  <span
+                    key={`${row.mentee}-${i}`}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      background: row.method === "manual" ? "var(--green-soft)" : "var(--gray-100)",
+                      border: `1px solid ${row.method === "manual" ? "#a7f3d0" : "var(--gray-200)"}`,
+                      borderRadius: 8, padding: "4px 8px 4px 10px", fontSize: 12.5, fontWeight: 600,
+                    }}
+                  >
+                    {row.mentee} → {row.mentor}
+                    {menteeId && (
+                      <button
+                        style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--gray-400)", fontSize: 13, lineHeight: 1, padding: 2 }}
+                        aria-label={`Remove assignment for ${row.mentee}`}
+                        disabled={running}
+                        onClick={() => onRemoveAllocation(menteeId)}
+                      >×</button>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Allocation Results table */}
+      <div className="card" style={{ marginTop: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 12, alignItems: "center" }}>
           <h3 className="card-title" style={{ margin: 0 }}>Allocation Results</h3>
           <Pill variant="gray">{overview.allocations.length} assignments</Pill>
         </div>
         <div style={{ overflowX: "auto" }}>
           <table>
-            <thead><tr><th>Student</th><th>Submitted</th><th>Mentor</th><th>Method</th></tr></thead>
+            <thead><tr><th>Student</th><th>Submitted</th><th>Mentor</th><th>Method</th><th></th></tr></thead>
             <tbody>
               {overview.allocations.length
-                ? overview.allocations.map((row, i) => (
-                  <tr key={`${row.mentee}-${i}`}>
-                    <td>{row.mentee}</td>
-                    <td className="muted">{row.submittedAt ? new Date(row.submittedAt).toLocaleTimeString() : "-"}</td>
-                    <td>{row.mentor}</td>
-                    <td>{methodPill(row.method, row.matchedPriority)}</td>
-                  </tr>
-                ))
-                : <tr><td colSpan={4} className="muted">No allocation has been saved yet.</td></tr>}
+                ? overview.allocations.map((row, i) => {
+                    const menteeId = overview.mentees.find(m => m.full_name === row.mentee)?.id;
+                    return (
+                      <tr key={`${row.mentee}-${i}`}>
+                        <td>{row.mentee}</td>
+                        <td className="muted">{row.submittedAt ? new Date(row.submittedAt).toLocaleTimeString() : "-"}</td>
+                        <td>{row.mentor}</td>
+                        <td>{methodPill(row.method, row.matchedPriority)}</td>
+                        <td>
+                          {menteeId && (
+                            <button className="btn btn-ghost btn-sm" disabled={running} onClick={() => onRemoveAllocation(menteeId)}>Remove</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                : <tr><td colSpan={5} className="muted">No allocation has been saved yet.</td></tr>}
             </tbody>
           </table>
         </div>
       </div>
 
-      <div className="card" style={{ marginTop: 22 }}>
-        <h3 className="card-title">Unmatched Pool</h3>
+      {/* Unmatched Pool */}
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 className="card-title">Unmatched Pool <span style={{ fontWeight: 400, fontSize: 13, color: "var(--gray-500)" }}>— use manual assignment above to resolve</span></h3>
         <div style={{ overflowX: "auto" }}>
           <table>
-            <thead><tr><th>Student</th><th>Preferences</th></tr></thead>
+            <thead><tr><th>Student</th><th>Preferences</th><th></th></tr></thead>
             <tbody>
               {overview.unmatched.length
-                ? overview.unmatched.map((row, i) => (
-                  <tr key={`${row.mentee}-${i}`}><td>{row.mentee}</td><td className="muted">{row.preferences.join(" → ")}</td></tr>
-                ))
-                : <tr><td colSpan={2} className="muted">No unmatched mentees.</td></tr>}
+                ? overview.unmatched.map((row, i) => {
+                    const menteeId = overview.mentees.find(m => m.full_name === row.mentee)?.id;
+                    return (
+                      <tr key={`${row.mentee}-${i}`}>
+                        <td>{row.mentee}</td>
+                        <td className="muted">{row.preferences.join(" → ") || "No preferences"}</td>
+                        <td>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            onClick={() => { if (menteeId) setManualMenteeId(menteeId); }}
+                          >
+                            Assign →
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                : <tr><td colSpan={3} className="muted">No unmatched mentees.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -476,6 +618,235 @@ function LogsTab({ overview }: { overview: Overview }) {
           </table>
         </div>
       ) : <p className="muted">No allocation activity yet.</p>}
+    </div>
+  );
+}
+
+// ─── Controls tab ────────────────────────────────────────────────────────────
+
+type ControlFlag = "mentorRegOpen" | "menteeRegOpen" | "prefsOpen";
+
+interface ToggleRowProps {
+  label: string;
+  description: string;
+  checked: boolean;
+  saving: boolean;
+  onChange: (val: boolean) => void;
+  accent?: "indigo" | "green" | "amber";
+}
+
+function ToggleRow({ label, description, checked, saving, onChange, accent = "indigo" }: ToggleRowProps) {
+  const accentColor =
+    accent === "green" ? "var(--green)" :
+    accent === "amber" ? "var(--amber)" :
+    "var(--indigo-light)";
+
+  return (
+    <div className="ctrl-row">
+      <div className="ctrl-row-text">
+        <p className="ctrl-row-label">{label}</p>
+        <p className="ctrl-row-desc">{description}</p>
+      </div>
+      <button
+        role="switch"
+        aria-checked={checked}
+        aria-label={`${checked ? "Disable" : "Enable"} ${label}`}
+        disabled={saving}
+        className={`ctrl-toggle${checked ? " ctrl-toggle-on" : ""}`}
+        style={{ "--toggle-color": accentColor } as React.CSSProperties}
+        onClick={() => onChange(!checked)}
+      >
+        <span className="ctrl-toggle-thumb" />
+      </button>
+    </div>
+  );
+}
+
+function ControlsTab({
+  session,
+  onToggle,
+  saving,
+}: {
+  session: Overview["session"];
+  onToggle: (flag: ControlFlag, value: boolean) => void;
+  saving: boolean;
+}) {
+  // Graceful fallback if columns don't exist yet
+  const mentorRegOpen = session.mentor_reg_open ?? session.registration_open;
+  const menteeRegOpen = session.mentee_reg_open ?? session.registration_open;
+  const prefsOpen     = session.prefs_open      ?? session.registration_open;
+
+  const allOn  = mentorRegOpen && menteeRegOpen && prefsOpen;
+  const allOff = !mentorRegOpen && !menteeRegOpen && !prefsOpen;
+
+  const toggleAll = (val: boolean) => {
+    onToggle("mentorRegOpen", val);
+    onToggle("menteeRegOpen", val);
+    onToggle("prefsOpen", val);
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* Quick actions */}
+      <div className="card ctrl-quick-card">
+        <div className="ctrl-quick-header">
+          <div>
+            <h3 className="card-title" style={{ margin: 0 }}>Quick Actions</h3>
+            <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>Toggle all registration windows at once.</p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="btn btn-sm"
+              style={{ background: "var(--green)", color: "#fff" }}
+              disabled={saving || allOn}
+              onClick={() => toggleAll(true)}
+            >
+              Open All
+            </button>
+            <button
+              className="btn btn-danger btn-sm"
+              disabled={saving || allOff}
+              onClick={() => toggleAll(false)}
+            >
+              Close All
+            </button>
+          </div>
+        </div>
+
+        {/* Status summary pills */}
+        <div className="ctrl-status-bar">
+          <span className={`ctrl-status-pill ${mentorRegOpen ? "ctrl-pill-on" : "ctrl-pill-off"}`}>
+            <span className="ctrl-status-dot" />
+            Mentor Reg
+          </span>
+          <span className={`ctrl-status-pill ${menteeRegOpen ? "ctrl-pill-on" : "ctrl-pill-off"}`}>
+            <span className="ctrl-status-dot" />
+            Mentee Reg
+          </span>
+          <span className={`ctrl-status-pill ${prefsOpen ? "ctrl-pill-on" : "ctrl-pill-off"}`}>
+            <span className="ctrl-status-dot" />
+            Preferences
+          </span>
+        </div>
+      </div>
+
+      {/* Individual toggles */}
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid var(--gray-100)" }}>
+          <h3 className="card-title" style={{ margin: 0 }}>Registration Windows</h3>
+          <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+            Control which registration flows are currently open. Changes take effect immediately.
+          </p>
+        </div>
+
+        <ToggleRow
+          label="Mentor Registration"
+          description="Allow senior students to submit a mentor registration form. New applications will require admin approval."
+          checked={mentorRegOpen}
+          saving={saving}
+          accent="indigo"
+          onChange={(v) => onToggle("mentorRegOpen", v)}
+        />
+
+        <ToggleRow
+          label="Mentee Registration"
+          description="Allow junior students to register as mentees for this session."
+          checked={menteeRegOpen}
+          saving={saving}
+          accent="green"
+          onChange={(v) => onToggle("menteeRegOpen", v)}
+        />
+
+        <ToggleRow
+          label="Preference Selection"
+          description="Allow registered mentees to browse mentors and submit their top 3 preferences."
+          checked={prefsOpen}
+          saving={saving}
+          accent="amber"
+          onChange={(v) => onToggle("prefsOpen", v)}
+        />
+      </div>
+
+      {/* Info note */}
+      <div className="form-note" style={{ alignItems: "flex-start" }}>
+        <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flex: "none", marginTop: 2 }} aria-hidden="true">
+          <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
+        </svg>
+        <span style={{ fontSize: 13 }}>
+          These switches are independent of the session lifecycle status.
+          You can open or close any window at any time regardless of the current phase.
+          The <b>Lifecycle</b> tab controls the overall session status (draft → registration → allocation → published → closed).
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Approvals tab ───────────────────────────────────────────────────────────
+
+function ApprovalsTab({
+  overview,
+  onApprove,
+  onReject,
+}: {
+  overview: Overview;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
+  const pending = overview.mentors.filter((m) => !m.is_approved);
+
+  return (
+    <div className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <h3 className="card-title" style={{ margin: 0 }}>Pending Approvals</h3>
+        <Pill variant={pending.length > 0 ? "amber" : "gray"}>{pending.length} pending</Pill>
+      </div>
+
+      {pending.length === 0 ? (
+        <p className="muted" style={{ fontSize: 13 }}>No pending mentor registrations. All caught up!</p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Mentor</th>
+                <th>Contact</th>
+                <th>Batch</th>
+                <th>Capacity</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.map((m) => (
+                <tr key={m.id}>
+                  <td>
+                    <b>{m.full_name}</b>
+                    <br />
+                    <span className="muted">{m.student_id}</span>
+                  </td>
+                  <td>
+                    {m.email}
+                    <br />
+                    <span className="muted">{m.phone} · {m.communication_method}</span>
+                  </td>
+                  <td>{m.batch}</td>
+                  <td>{m.capacity}</td>
+                  <td>
+                    <button
+                      className="btn btn-sm"
+                      style={{ background: "var(--green)", color: "#fff" }}
+                      onClick={() => onApprove(m.id)}
+                    >
+                      ✓ Approve
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -586,11 +957,86 @@ export function AdminScreen() {
       const exists = cur.mentors.some((m) => m.id === mentor.id);
       const mentors = exists
         ? cur.mentors.map((m) => m.id === mentor.id ? { ...m, ...mentor, profile_photo_url: mentor.profile_photo_url ?? null } : m)
-        : [...cur.mentors, { ...mentor, profile_photo_url: mentor.profile_photo_url ?? null }].sort((a, b) => a.full_name.localeCompare(b.full_name));
+        : [...cur.mentors, { ...mentor, profile_photo_url: mentor.profile_photo_url ?? null, is_approved: true }].sort((a, b) => a.full_name.localeCompare(b.full_name));
       return { ...cur, mentors, stats: { ...cur.stats, totalMentors: mentors.length } };
     });
     showToast(editingMentor ? "Mentor updated." : "Mentor added.");
     setEditingMentor(null);
+  };
+
+  const toggleFlag = async (flag: ControlFlag, value: boolean) => {
+    // Optimistic update
+    setOverview((cur) => cur ? { ...cur, session: { ...cur.session, [flag === "mentorRegOpen" ? "mentor_reg_open" : flag === "menteeRegOpen" ? "mentee_reg_open" : "prefs_open"]: value } } : cur);
+    try {
+      const res = await fetch("/api/admin/session-config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [flag]: value }),
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to update setting.");
+      showToast(`${flag === "mentorRegOpen" ? "Mentor registration" : flag === "menteeRegOpen" ? "Mentee registration" : "Preference selection"} ${value ? "opened" : "closed"}.`);
+    } catch (error) {
+      // Revert optimistic update on failure
+      setOverview((cur) => cur ? { ...cur, session: { ...cur.session, [flag === "mentorRegOpen" ? "mentor_reg_open" : flag === "menteeRegOpen" ? "mentee_reg_open" : "prefs_open"]: !value } } : cur);
+      showToast(error instanceof Error ? error.message : "Unable to update setting.");
+    }
+  };
+
+  const setApprovalStatus = async (id: string, approved: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/mentors/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isApproved: approved }),
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to update approval.");
+      const updated = (data as { mentor: { id: string; is_approved: boolean } }).mentor;
+      setOverview((cur) => {
+        if (!cur) return cur;
+        const mentors = cur.mentors.map((m) =>
+          m.id === id ? { ...m, is_approved: updated.is_approved } : m
+        );
+        const approvedCount = mentors.filter((m) => m.is_approved).length;
+        const pendingCount  = mentors.filter((m) => !m.is_approved).length;
+        return { ...cur, mentors, stats: { ...cur.stats, totalMentors: approvedCount, pendingApprovals: pendingCount } };
+      });
+      showToast(approved ? "Mentor approved." : "Mentor set back to pending.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to update approval.");
+    }
+  };
+
+  const manualAssign = async (menteeId: string, mentorId: string) => {
+    setRunning(true);
+    try {
+      const res = await fetch("/api/admin/allocations/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ menteeId, mentorId }),
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to assign.");
+      const result = data as { mentee: string; mentor: string };
+      showToast(`${result.mentee} assigned to ${result.mentor}.`);
+      await loadOverview();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to assign.");
+    } finally { setRunning(false); }
+  };
+
+  const removeAllocation = async (menteeId: string) => {
+    setRunning(true);
+    try {
+      const res = await fetch(`/api/admin/allocations/manual?menteeId=${encodeURIComponent(menteeId)}`, { method: "DELETE" });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to remove allocation.");
+      showToast("Allocation removed.");
+      await loadOverview();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to remove allocation.");
+    } finally { setRunning(false); }
   };
 
   const deleteMentor = async () => {
@@ -667,7 +1113,8 @@ export function AdminScreen() {
                 aria-current={activeTab === tab.id ? "page" : undefined}
               >
                 {tab.label}
-                {tab.id === "mentors"    && <span className="tab-count">{overview.mentors.length}</span>}
+                {tab.id === "mentors"    && <span className="tab-count">{overview.mentors.filter(m => m.is_approved).length}</span>}
+                {tab.id === "approvals"  && overview.stats.pendingApprovals > 0 && <span className="tab-count tab-count-amber">{overview.stats.pendingApprovals}</span>}
                 {tab.id === "mentees"    && <span className="tab-count">{overview.mentees.length}</span>}
                 {tab.id === "allocation" && <span className="tab-count">{overview.allocations.length}</span>}
                 {tab.id === "logs"       && <span className="tab-count">{overview.logs.length}</span>}
@@ -676,6 +1123,13 @@ export function AdminScreen() {
           </nav>
 
           {activeTab === "overview"   && <OverviewTab overview={overview} />}
+          {activeTab === "controls"   && (
+            <ControlsTab
+              session={overview.session}
+              onToggle={(flag, value) => void toggleFlag(flag, value)}
+              saving={running}
+            />
+          )}
           {activeTab === "lifecycle"  && <LifecycleTab session={overview.session} onAdvance={advanceLifecycle} advancing={advancing} />}
           {activeTab === "mentors"    && (
             <MentorsTab
@@ -683,6 +1137,15 @@ export function AdminScreen() {
               onAdd={() => { setEditingMentor(null); setMentorModalOpen(true); }}
               onEdit={(m) => { setEditingMentor(m as MentorRecord); setMentorModalOpen(true); }}
               onDelete={(id) => setDeleteMentorId(id)}
+              onApprove={(id) => void setApprovalStatus(id, true)}
+              onReject={(id) => void setApprovalStatus(id, false)}
+            />
+          )}
+          {activeTab === "approvals"  && (
+            <ApprovalsTab
+              overview={overview}
+              onApprove={(id) => void setApprovalStatus(id, true)}
+              onReject={(id) => void setApprovalStatus(id, false)}
             />
           )}
           {activeTab === "mentees"    && <MenteesTab overview={overview} />}
@@ -692,6 +1155,8 @@ export function AdminScreen() {
               running={running}
               onRun={runAllocation}
               onReset={() => setModalOpen(true)}
+              onManualAssign={(menteeId, mentorId) => void manualAssign(menteeId, mentorId)}
+              onRemoveAllocation={(menteeId) => void removeAllocation(menteeId)}
             />
           )}
           {activeTab === "logs"       && <LogsTab overview={overview} />}
