@@ -46,8 +46,6 @@ const PRIO_COLORS = ["var(--amber)", "var(--indigo-light)", "var(--gray-500)"] a
 export function MentorCard({
   fullName,
   batch,
-  academicInterests,
-  technicalInterests,
   profilePhotoUrl,
   index,
   priority,
@@ -59,10 +57,6 @@ export function MentorCard({
   const prioIdx = isSelected ? priority - 1 : -1;
   const gradient = GRADIENTS[index % GRADIENTS.length];
   const tint = OVERLAY_TINTS[index % OVERLAY_TINTS.length];
-  const acad = academicInterests[0];
-  const tech = technicalInterests[0];
-  const chip1 = acad ?? tech;
-  const chip2 = acad && tech ? tech : (academicInterests[1] ?? technicalInterests[1]);
   const interactive = !!onClick;
 
   return (
@@ -98,8 +92,13 @@ export function MentorCard({
           aria-hidden="true"
         />
 
+        {/* Mentor index — 1-based, always visible */}
+        <div className="mc-index" aria-label={`Mentor number ${index + 1}`}>
+          {index + 1}
+        </div>
+
         {/* Full overlay */}
-        {isFull && <div className="mc-full-badge" aria-hidden="true">Full</div>}
+        {isFull && <div className="mc-full-badge">Full</div>}
 
         {/* Priority badge */}
         {isSelected && prioIdx >= 0 && (
@@ -117,13 +116,6 @@ export function MentorCard({
       <div className="mc-info">
         <h4 className="mc-name">{fullName}</h4>
         {batch && <p className="mc-batch">{batch}</p>}
-
-        {(chip1 ?? chip2) && (
-          <div className="mc-chips">
-            {chip1 && <span className="mc-chip">{chip1}</span>}
-            {chip2 && <span className="mc-chip mc-chip-alt">{chip2}</span>}
-          </div>
-        )}
 
         {/* Accent bar */}
         <div

@@ -81,11 +81,6 @@ export function MentorGridScreen() {
 
         {mentors.map((mentor, index) => {
           const isFull = mentor.allocatedCount >= mentor.capacity;
-          // 1 academic + 1 technical, each from the first item in their category
-          const acad = mentor.academicInterests[0];
-          const tech = mentor.technicalInterests[0];
-          const chip1 = acad ?? tech;
-          const chip2 = acad && tech ? tech : (mentor.academicInterests[1] ?? mentor.technicalInterests[1]);
 
           return (
             <div
@@ -97,7 +92,7 @@ export function MentorGridScreen() {
               <div className="card-photo">
                 {mentor.profilePhotoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={mentor.profilePhotoUrl} alt="" />
+                  <img src={mentor.profilePhotoUrl} alt={`${mentor.fullName} profile photo`} />
                 ) : (
                   <div
                     className="card-photo-fallback"
@@ -107,22 +102,17 @@ export function MentorGridScreen() {
                     {initials(mentor.fullName)}
                   </div>
                 )}
-                {isFull && (
-                  <div className="card-full-overlay" aria-hidden="true">Full</div>
-                )}
+                {/* Mentor index — 1-based, always visible */}
+                <div className="card-index" aria-label={`Mentor number ${index + 1}`}>
+                  {index + 1}
+                </div>
+                {isFull && <div className="card-full-overlay">Full</div>}
               </div>
 
               {/* ── Info area ── */}
               <div className="card-info">
                 <h4 className="card-mentor-name">{mentor.fullName}</h4>
                 <div className="card-batch">{mentor.batch ?? "—"}</div>
-
-                {(chip1 ?? chip2) && (
-                  <div className="card-chips">
-                    {chip1 && <span className="card-chip">{chip1}</span>}
-                    {chip2 && <span className="card-chip card-chip-alt">{chip2}</span>}
-                  </div>
-                )}
               </div>
             </div>
           );
