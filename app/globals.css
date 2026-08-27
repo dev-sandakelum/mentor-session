@@ -255,15 +255,9 @@ h3.card-title {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--indigo-light), var(--indigo-dark));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
   box-shadow: var(--shadow);
   flex: none;
+  object-fit: contain;
 }
 .brand small {
   display: block;

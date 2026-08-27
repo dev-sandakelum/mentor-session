@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   title: "Mentor Session Management System",
   description:
     "ICT Students' Circle — Mentor Session 2026. Connecting junior students with experienced seniors at the Faculty of Technology, University of Ruhuna.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
