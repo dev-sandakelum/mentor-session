@@ -7,8 +7,8 @@ export async function POST(request: Request) {
   try {
     const body = await readJson(request);
     const session = await getCurrentSession();
-    // Graceful fallback: if mentee_reg_open column doesn't exist yet, fall back to registration_open
-    const menteeRegOpen = "mentee_reg_open" in session ? session.mentee_reg_open : session.registration_open;
+    // mentee_reg_open is always present on SessionConfig (getCurrentSession handles the fallback)
+    const menteeRegOpen = session.mentee_reg_open;
     if (!menteeRegOpen) throw new ApiError("Mentee registration is currently closed.", 403);
     const studentId = stringField(body.studentId, "Student ID", { max: 50 });
     const row = {
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         throw databaseError("Unable to save mentee registration.", error.code);
       }
     }
+    if (!data) throw new ApiError("Unable to save mentee registration.", 500);
     return NextResponse.json({ mentee: { id: data.id, fullName: data.full_name } }, { status: 201 });
   } catch (error) {
     return apiError(error);

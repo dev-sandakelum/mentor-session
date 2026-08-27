@@ -8,8 +8,8 @@ export async function POST(request: Request) {
   try {
     // Public registration — mentor reg must be open
     const session = await getCurrentSession();
-    // Graceful fallback: if mentor_reg_open column doesn't exist yet, fall back to registration_open
-    const mentorRegOpen = "mentor_reg_open" in session ? session.mentor_reg_open : session.registration_open;
+    // mentor_reg_open is always present on SessionConfig (getCurrentSession handles the fallback)
+    const mentorRegOpen = session.mentor_reg_open;
     if (!mentorRegOpen) {
       throw new ApiError("Mentor registration is currently closed.", 403);
     }

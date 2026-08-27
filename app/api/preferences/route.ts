@@ -34,8 +34,8 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseAdmin();
     const session = await getCurrentSession();
-    // Graceful fallback: if prefs_open column doesn't exist yet, fall back to registration_open
-    const prefsOpen = "prefs_open" in session ? session.prefs_open : session.registration_open;
+    // prefs_open is always present on SessionConfig (getCurrentSession handles the fallback)
+    const prefsOpen = session.prefs_open;
     if (!prefsOpen || session.status !== "registration") {
       throw new ApiError("Preference selection is currently closed.", 403);
     }
