@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     if (!menteeId || !isUuid(menteeId)) throw new ApiError("A valid menteeId is required.");
     const { data, error } = await getSupabaseAdmin()
       .from("mentor_preferences")
-      .select("priority, submitted_at, mentors(full_name)")
+      .select("priority, submitted_at, mentors(id, full_name, batch, profile_photo_url, academic_interests, technical_interests)")
       .eq("mentee_id", menteeId)
       .order("priority");
     if (error) throw databaseError("Unable to load preferences.", error.code);

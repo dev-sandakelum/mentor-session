@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ToastProvider } from "@/components/ToastProvider";
+import { DevBar } from "@/components/DevBar";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,7 +19,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={inter.className}>
       <body suppressHydrationWarning>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          {children}
+          <DevBar />
+        </ToastProvider>
       </body>
     </html>
   );

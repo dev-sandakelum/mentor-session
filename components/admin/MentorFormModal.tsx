@@ -1,16 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { MultiSelect } from "../ui/MultiSelect";
 
-const ACADEMIC_OPTIONS = [
-  "Programming & Algorithms", "Databases", "Networking", "Software Engineering",
-  "Data Science", "Mathematics", "Computer Architecture", "Operating Systems", "Research Methods",
-];
-const TECHNICAL_OPTIONS = [
-  "Web Development", "Mobile Development", "AI / Machine Learning", "Cyber Security",
-  "Cloud Computing", "DevOps", "UI / UX Design", "Embedded Systems / IoT", "Game Development", "Open Source",
-];
 const COMMUNICATION_OPTIONS = ["WhatsApp", "Email", "Phone Call", "In-Person"];
 
 export type MentorRecord = {
@@ -21,8 +12,6 @@ export type MentorRecord = {
   phone: string;
   batch: string;
   communication_method: string;
-  academic_interests: string[];
-  technical_interests: string[];
   profile_photo_url?: string | null;
   capacity: number;
 };
@@ -41,10 +30,8 @@ export function MentorFormModal({ open, mentor, onClose, onSaved }: MentorFormMo
   const [studentId, setStudentId] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [batch, setBatch] = useState("11th");
+  const batch = "9th";
   const [communicationMethod, setCommunicationMethod] = useState("Email");
-  const [academicInterests, setAcademicInterests] = useState<string[]>([]);
-  const [technicalInterests, setTechnicalInterests] = useState<string[]>([]);
   const [capacity, setCapacity] = useState(2);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -58,10 +45,7 @@ export function MentorFormModal({ open, mentor, onClose, onSaved }: MentorFormMo
     setStudentId(mentor?.student_id ?? "");
     setEmail(mentor?.email ?? "");
     setPhone(mentor?.phone ?? "");
-    setBatch(mentor?.batch ?? "11th");
     setCommunicationMethod(mentor?.communication_method ?? "Email");
-    setAcademicInterests(mentor?.academic_interests ?? []);
-    setTechnicalInterests(mentor?.technical_interests ?? []);
     setCapacity(mentor?.capacity ?? 2);
     setPhotoUrl(mentor?.profile_photo_url ?? null);
     setPhotoFile(null);
@@ -83,8 +67,6 @@ export function MentorFormModal({ open, mentor, onClose, onSaved }: MentorFormMo
         phone,
         batch,
         communicationMethod,
-        academicInterests,
-        technicalInterests,
         capacity,
       };
 
@@ -157,12 +139,17 @@ export function MentorFormModal({ open, mentor, onClose, onSaved }: MentorFormMo
             <input id="admin-mentor-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required />
           </div>
           <div>
-            <label htmlFor="admin-mentor-batch">Batch <span className="req">*</span></label>
-            <select id="admin-mentor-batch" value={batch} onChange={(e) => setBatch(e.target.value)}>
-              <option value="11th">11th Batch</option>
-              <option value="12th">12th Batch</option>
-              <option value="13th">13th Batch</option>
-            </select>
+            <label>Batch</label>
+            <div style={{ display: "flex", alignItems: "center", height: 42 }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "var(--indigo-soft)", color: "var(--indigo)",
+                border: "1.5px solid #c7d2fe", borderRadius: 8,
+                padding: "5px 14px", fontSize: 13.5, fontWeight: 700,
+              }}>
+                9th Batch
+              </span>
+            </div>
           </div>
           <div>
             <label htmlFor="admin-mentor-comm">Communication <span className="req">*</span></label>
@@ -173,14 +160,6 @@ export function MentorFormModal({ open, mentor, onClose, onSaved }: MentorFormMo
           <div>
             <label htmlFor="admin-mentor-capacity">Capacity <span className="req">*</span></label>
             <input id="admin-mentor-capacity" type="number" min={1} max={10} value={capacity} onChange={(e) => setCapacity(Number(e.target.value))} required />
-          </div>
-          <div className="full">
-            <label htmlFor="admin-mentor-academic">Academic Interests</label>
-            <MultiSelect id="admin-mentor-academic" options={ACADEMIC_OPTIONS} value={academicInterests} onChange={setAcademicInterests} placeholder="Select academic interests…" />
-          </div>
-          <div className="full">
-            <label htmlFor="admin-mentor-tech">Technical Interests</label>
-            <MultiSelect id="admin-mentor-tech" options={TECHNICAL_OPTIONS} value={technicalInterests} onChange={setTechnicalInterests} placeholder="Select technical interests…" />
           </div>
           <div className="full">
             <label>Profile Photo</label>

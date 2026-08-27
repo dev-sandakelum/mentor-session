@@ -1,4 +1,4 @@
-import { ApiError, stringArray, stringField } from "@/lib/api";
+import { ApiError, stringField } from "@/lib/api";
 
 export const COMMUNICATION_METHODS = ["WhatsApp", "Email", "Phone Call", "In-Person"] as const;
 
@@ -9,8 +9,6 @@ export type ParsedMentorFields = {
   phone: string;
   batch: string;
   communicationMethod: string;
-  academicInterests: string[];
-  technicalInterests: string[];
   profilePhotoUrl: string | null;
   capacity: number;
 };
@@ -78,8 +76,6 @@ export function parseMentorFields(body: Record<string, unknown>, options?: { req
     phone: phone ?? "",
     batch: batch ?? "",
     communicationMethod: communicationMethod ?? "Email",
-    academicInterests: stringArray(body.academicInterests, "Academic interests"),
-    technicalInterests: stringArray(body.technicalInterests, "Technical interests"),
     profilePhotoUrl,
     capacity: parsedCapacity,
   };

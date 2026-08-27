@@ -30,8 +30,6 @@ export async function PATCH(request: Request, context: RouteContext<"/api/admin/
     if (body.phone !== undefined) updates.phone = fields.phone;
     if (body.batch !== undefined) updates.batch = fields.batch;
     if (body.communicationMethod !== undefined) updates.communication_method = fields.communicationMethod;
-    if (body.academicInterests !== undefined) updates.academic_interests = fields.academicInterests;
-    if (body.technicalInterests !== undefined) updates.technical_interests = fields.technicalInterests;
     if (body.profilePhotoUrl !== undefined) updates.profile_photo_url = fields.profilePhotoUrl;
     if (body.capacity !== undefined) updates.capacity = fields.capacity;
 
@@ -41,7 +39,7 @@ export async function PATCH(request: Request, context: RouteContext<"/api/admin/
       .from("mentors")
       .update(updates)
       .eq("id", id)
-      .select("id, full_name, student_id, email, phone, batch, communication_method, academic_interests, technical_interests, profile_photo_url, capacity")
+      .select("id, full_name, student_id, email, phone, batch, communication_method, profile_photo_url, capacity")
       .single();
 
     if (error?.code === "23505") throw databaseError("A mentor with this student ID or email already exists.", error.code);

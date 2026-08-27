@@ -7,20 +7,21 @@ import { ResetModal } from "../ui/ResetModal";
 import { MentorFormModal, type MentorRecord } from "../admin/MentorFormModal";
 
 type Overview = {
-  session: { title: string; status: string; event_starts_at: string | null; venue: string | null };
+  session: { id: string; title: string; status: string; registration_open: boolean; event_starts_at: string | null; venue: string | null };
   stats: Record<"totalMentors" | "totalMentees" | "submittedPreferences" | "totalCapacity" | "assigned" | "unassigned" | "availableCapacity" | "firstChoice" | "secondChoice" | "thirdChoice" | "fallback" | "manual" | "preferenceSatisfaction", number>;
   allocations: { mentee: string; mentor: string; submittedAt: string | null; method: string; matchedPriority: number | null }[];
   unmatched: { mentee: string; preferences: string[] }[];
   mentorLoads: { name: string; assigned: number; capacity: number }[];
-  mentors: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; communication_method: string; academic_interests: string[]; technical_interests: string[]; profile_photo_url: string | null; capacity: number }[];
-  mentees: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; academic_interests: string[]; technical_interests: string[]; guidance_needed: string | null; preference_submitted_at: string | null; assignedMentor: string | null; allocationMethod: string | null; matchedPriority: number | null }[];
+  mentors: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; communication_method: string; profile_photo_url: string | null; capacity: number }[];
+  mentees: { id: string; full_name: string; student_id: string; email: string; phone: string; batch: string; preference_submitted_at: string | null; assignedMentor: string | null; allocationMethod: string | null; matchedPriority: number | null }[];
   logs: { id: number; action: string; detail: string | null; created_at: string }[];
 };
 
-type Tab = "overview" | "mentors" | "mentees" | "allocation" | "logs";
+type Tab = "overview" | "lifecycle" | "mentors" | "mentees" | "allocation" | "logs";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview",   label: "Overview"   },
+  { id: "lifecycle",  label: "Lifecycle"  },
   { id: "mentors",    label: "Mentors"    },
   { id: "mentees",    label: "Mentees"    },
   { id: "allocation", label: "Allocation" },
@@ -44,9 +45,237 @@ function methodPill(method: string, priority: number | null) {
   </Pill>;
 }
 
+// ─── Lifecycle stepper ───────────────────────────────────────────────────────
+
+type Step = {
+  label: string;
+  status: string;
+  registrationOpen: boolean;
+  description: string;
+};
+
+const LIFECYCLE_STEPS: Step[] = [
+  { label: "Create Session",      status: "draft",        registrationOpen: false, description: "Session created, not yet visible to participants." },
+  { label: "Configure Batches",   status: "draft",        registrationOpen: false, description: "Add mentors and set capacities before opening registration." },
+  { label: "Open Registration",   status: "registration", registrationOpen: true,  description: "Mentees can register. Mentor list is visible." },
+  { label: "Collect Preferences", status: "registration", registrationOpen: true,  description: "Mentees select their top 3 mentor preferences." },
+  { label: "Allocation",          status: "allocation",   registrationOpen: false, description: "Run FCFS allocation and random fallback. Registration is now closed." },
+  { label: "Publish Results",     status: "published",    registrationOpen: false, description: "Mentees can now see their assigned mentor on the dashboard." },
+  { label: "Session & Feedback",  status: "closed",       registrationOpen: false, description: "Session complete. Collect feedback from mentors and mentees." },
+];
+
+function getActiveStep(status: string, registrationOpen: boolean): number {
+  if (status === "closed")      return 6;
+  if (status === "published")   return 5;
+  if (status === "allocation")  return 4;
+  if (status === "registration" && registrationOpen) return 3;
+  if (status === "draft")       return 1;
+  return 0;
+}
+
+function LifecycleTab({
+  session,
+  onAdvance,
+  advancing,
+}: {
+  session: Overview["session"];
+  onAdvance: (step: Step) => void;
+  advancing: boolean;
+}) {
+  const [showManual, setShowManual] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState<number | "">("");
+
+  const activeIdx = getActiveStep(session.status, session.registration_open);
+  const nextStep  = LIFECYCLE_STEPS[activeIdx + 1] ?? null;
+
+  const handleManualSet = () => {
+    if (selectedIdx === "") return;
+    onAdvance(LIFECYCLE_STEPS[selectedIdx as number]);
+    setShowManual(false);
+    setSelectedIdx("");
+  };
+
+  // Status colour helpers
+  const statusVariants: Record<string, { bg: string; color: string; border: string }> = {
+    draft:        { bg: "var(--gray-100)",   color: "var(--gray-700)",  border: "var(--gray-200)"  },
+    registration: { bg: "var(--indigo-soft)", color: "var(--indigo)",   border: "#c7d2fe"           },
+    allocation:   { bg: "var(--amber-soft)",  color: "#92400e",         border: "#fde68a"           },
+    published:    { bg: "var(--green-soft)",  color: "var(--green)",    border: "#a7f3d0"           },
+    closed:       { bg: "var(--gray-100)",    color: "var(--gray-500)", border: "var(--gray-200)"   },
+  };
+  const sv = statusVariants[session.status] ?? statusVariants.draft;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+      {/* ── Current status banner ── */}
+      <div className="card" style={{ borderLeft: `4px solid ${sv.border}`, padding: "20px 24px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.7px", color: "var(--gray-400)", marginBottom: 4 }}>
+              Current status
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: sv.bg, color: sv.color,
+                border: `1.5px solid ${sv.border}`,
+                borderRadius: 8, padding: "5px 13px",
+                fontSize: 13, fontWeight: 700,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: sv.color, display: "inline-block" }} />
+                {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+              </span>
+              {session.registration_open && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  background: "var(--green-soft)", color: "var(--green)",
+                  border: "1.5px solid #a7f3d0",
+                  borderRadius: 8, padding: "5px 12px",
+                  fontSize: 12, fontWeight: 700,
+                }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--green)" }} />
+                  Registration open
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: 13, color: "var(--gray-500)", marginTop: 8 }}>
+              {LIFECYCLE_STEPS[activeIdx]?.description}
+            </p>
+          </div>
+
+          {/* Advance / manual controls */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {showManual ? (
+              <>
+                <select
+                  className="input"
+                  value={selectedIdx}
+                  onChange={e => setSelectedIdx(e.target.value === "" ? "" : Number(e.target.value))}
+                  style={{ fontSize: 13, padding: "7px 11px", borderRadius: 9, minWidth: 200 }}
+                  aria-label="Select lifecycle step"
+                >
+                  <option value="">— pick a step —</option>
+                  {LIFECYCLE_STEPS.map((step, i) => (
+                    <option key={i} value={i} disabled={i === activeIdx}>
+                      {i + 1}. {step.label}{i === activeIdx ? " ← current" : ""}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn btn-primary btn-sm" disabled={advancing || selectedIdx === ""} onClick={handleManualSet}>
+                  {advancing ? "Updating…" : "Apply"}
+                </button>
+                <button className="btn btn-ghost btn-sm" disabled={advancing} onClick={() => { setShowManual(false); setSelectedIdx(""); }}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                {nextStep && (
+                  <button className="btn btn-primary btn-sm" disabled={advancing} onClick={() => onAdvance(nextStep)}>
+                    {advancing ? "Updating…" : `Advance → ${nextStep.label}`}
+                  </button>
+                )}
+                <button className="btn btn-ghost btn-sm" disabled={advancing} onClick={() => setShowManual(true)}>
+                  Set Manually
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Step cards ── */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {LIFECYCLE_STEPS.map((step, i) => {
+          const done    = i < activeIdx;
+          const current = i === activeIdx;
+          const pending = i > activeIdx;
+
+          let nodeColor   = "var(--gray-200)";
+          let nodeBg      = "var(--gray-100)";
+          let nodeText    = "var(--gray-400)";
+          let cardBorder  = "var(--gray-200)";
+          let cardBg      = "#fff";
+          let labelColor  = "var(--gray-500)";
+
+          if (done) {
+            nodeColor = "var(--green)"; nodeBg = "var(--green)"; nodeText = "#fff";
+            cardBorder = "#a7f3d0";    cardBg  = "var(--green-soft)";
+            labelColor = "var(--gray-700)";
+          } else if (current) {
+            nodeColor = "var(--indigo-light)"; nodeBg = "var(--indigo-light)"; nodeText = "#fff";
+            cardBorder = "var(--indigo-light)"; cardBg = "var(--indigo-soft)";
+            labelColor = "var(--indigo)";
+          }
+
+          return (
+            <div
+              key={i}
+              style={{
+                display: "flex", alignItems: "center", gap: 16,
+                background: cardBg,
+                border: `1.5px solid ${cardBorder}`,
+                borderRadius: 12,
+                padding: "14px 18px",
+                opacity: pending ? 0.55 : 1,
+                transition: "opacity 0.15s",
+              }}
+            >
+              {/* Node */}
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                background: nodeBg, border: `2px solid ${nodeColor}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: current ? `0 0 0 4px var(--indigo-soft)` : undefined,
+              }}>
+                {done ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={nodeText} strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  <span style={{ fontSize: 12, fontWeight: 800, color: current ? "#fff" : nodeText }}>{i + 1}</span>
+                )}
+              </div>
+
+              {/* Label + description */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, fontSize: 14, color: labelColor, margin: 0 }}>{step.label}</p>
+                <p style={{ fontSize: 12.5, color: "var(--gray-500)", margin: "2px 0 0", lineHeight: 1.4 }}>{step.description}</p>
+              </div>
+
+              {/* DB status badge */}
+              <span style={{
+                flexShrink: 0,
+                fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px",
+                color: current ? "var(--indigo)" : done ? "var(--green)" : "var(--gray-400)",
+                background: current ? "rgba(79,70,229,0.1)" : done ? "rgba(5,150,105,0.1)" : "var(--gray-100)",
+                padding: "3px 10px", borderRadius: 6,
+                display: "none",
+              }}>
+                {step.status}
+              </span>
+
+              {/* Right label */}
+              <span style={{
+                flexShrink: 0, fontSize: 11.5, fontWeight: 700,
+                color: current ? "var(--indigo)" : done ? "var(--green)" : "var(--gray-300)",
+              }}>
+                {done ? "Done" : current ? "Current" : ""}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Tab panels ──────────────────────────────────────────────────────────────
 
-function OverviewTab({ overview }: { overview: Overview }) {
+function OverviewTab({ overview }: {
+  overview: Overview;
+}) {
   const s = overview.stats;
   return (
     <>
@@ -106,7 +335,7 @@ function MentorsTab({ overview, onAdd, onEdit, onDelete }: {
       <div style={{ overflowX: "auto" }}>
         <table>
           <thead>
-            <tr><th>Mentor</th><th>Contact</th><th>Batch</th><th>Interests</th><th>Capacity</th><th>Actions</th></tr>
+            <tr><th>Mentor</th><th>Contact</th><th>Batch</th><th>Capacity</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {overview.mentors.length ? overview.mentors.map((m) => (
@@ -114,7 +343,6 @@ function MentorsTab({ overview, onAdd, onEdit, onDelete }: {
                 <td><b>{m.full_name}</b><br /><span className="muted">{m.student_id}</span></td>
                 <td>{m.email}<br /><span className="muted">{m.phone} · {m.communication_method}</span></td>
                 <td>{m.batch}</td>
-                <td className="muted">{[...m.academic_interests, ...m.technical_interests].join(", ") || "-"}</td>
                 <td>{m.capacity}</td>
                 <td>
                   <div style={{ display: "flex", gap: 6 }}>
@@ -123,7 +351,7 @@ function MentorsTab({ overview, onAdd, onEdit, onDelete }: {
                   </div>
                 </td>
               </tr>
-            )) : <tr><td colSpan={6} className="muted">No mentors added yet. Use &quot;Add mentor&quot; to create one.</td></tr>}
+            )) : <tr><td colSpan={5} className="muted">No mentors added yet. Use &quot;Add mentor&quot; to create one.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -141,7 +369,7 @@ function MenteesTab({ overview }: { overview: Overview }) {
       <div style={{ overflowX: "auto" }}>
         <table>
           <thead>
-            <tr><th>Mentee</th><th>Contact</th><th>Batch</th><th>Interests &amp; guidance</th><th>Preferences</th><th>Assigned mentor</th></tr>
+            <tr><th>Mentee</th><th>Contact</th><th>Batch</th><th>Preferences</th><th>Assigned mentor</th></tr>
           </thead>
           <tbody>
             {overview.mentees.length ? overview.mentees.map((m) => (
@@ -149,10 +377,6 @@ function MenteesTab({ overview }: { overview: Overview }) {
                 <td><b>{m.full_name}</b><br /><span className="muted">{m.student_id}</span></td>
                 <td>{m.email}<br /><span className="muted">{m.phone}</span></td>
                 <td>{m.batch}</td>
-                <td className="muted">
-                  {[...m.academic_interests, ...m.technical_interests].join(", ") || "-"}
-                  {m.guidance_needed ? <><br />Needs: {m.guidance_needed}</> : null}
-                </td>
                 <td>{m.preference_submitted_at ? <Pill variant="green">Submitted</Pill> : <Pill variant="amber">Pending</Pill>}</td>
                 <td>
                   {m.assignedMentor
@@ -160,7 +384,7 @@ function MenteesTab({ overview }: { overview: Overview }) {
                     : <span className="muted">Unassigned</span>}
                 </td>
               </tr>
-            )) : <tr><td colSpan={6} className="muted">No mentees registered yet.</td></tr>}
+            )) : <tr><td colSpan={5} className="muted">No mentees registered yet.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -199,8 +423,8 @@ function AllocationTab({ overview, running, onRun, onReset }: {
             <thead><tr><th>Student</th><th>Submitted</th><th>Mentor</th><th>Method</th></tr></thead>
             <tbody>
               {overview.allocations.length
-                ? overview.allocations.map((row) => (
-                  <tr key={row.mentee}>
+                ? overview.allocations.map((row, i) => (
+                  <tr key={`${row.mentee}-${i}`}>
                     <td>{row.mentee}</td>
                     <td className="muted">{row.submittedAt ? new Date(row.submittedAt).toLocaleTimeString() : "-"}</td>
                     <td>{row.mentor}</td>
@@ -220,8 +444,8 @@ function AllocationTab({ overview, running, onRun, onReset }: {
             <thead><tr><th>Student</th><th>Preferences</th></tr></thead>
             <tbody>
               {overview.unmatched.length
-                ? overview.unmatched.map((row) => (
-                  <tr key={row.mentee}><td>{row.mentee}</td><td className="muted">{row.preferences.join(" → ")}</td></tr>
+                ? overview.unmatched.map((row, i) => (
+                  <tr key={`${row.mentee}-${i}`}><td>{row.mentee}</td><td className="muted">{row.preferences.join(" → ")}</td></tr>
                 ))
                 : <tr><td colSpan={2} className="muted">No unmatched mentees.</td></tr>}
             </tbody>
@@ -268,6 +492,7 @@ export function AdminScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [running, setRunning] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [overview, setOverview] = useState<Overview>();
 
@@ -283,6 +508,25 @@ export function AdminScreen() {
       setOverview(data as Overview);
       setAuthenticated(true);
     } finally { setRunning(false); }
+  };
+
+  const advanceLifecycle = async (step: Step) => {
+    setAdvancing(true);
+    try {
+      const res = await fetch("/api/admin/session-config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: step.status, registrationOpen: step.registrationOpen }),
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Unable to update session.");
+      showToast(`Session advanced to: ${step.label}`);
+      await loadOverview();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to update session status.");
+    } finally {
+      setAdvancing(false);
+    }
   };
 
   const signIn = async (event: FormEvent<HTMLFormElement>) => {
@@ -432,6 +676,7 @@ export function AdminScreen() {
           </nav>
 
           {activeTab === "overview"   && <OverviewTab overview={overview} />}
+          {activeTab === "lifecycle"  && <LifecycleTab session={overview.session} onAdvance={advanceLifecycle} advancing={advancing} />}
           {activeTab === "mentors"    && (
             <MentorsTab
               overview={overview}

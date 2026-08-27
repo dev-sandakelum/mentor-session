@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const supabase = getSupabaseAdmin();
     const session = await getCurrentSession();
     const { data: mentee, error: menteeError } = await supabase
-      .from("mentees").select("id, full_name, batch, academic_interests, technical_interests")
+      .from("mentees").select("id, full_name, batch")
       .eq("id", menteeId).eq("session_id", session.id).maybeSingle();
     if (menteeError) throw databaseError("Unable to load mentee dashboard.", menteeError.code);
     if (!mentee) throw new ApiError("Mentee registration was not found.", 404);
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     if (allocationError) throw databaseError("Unable to load allocation.", allocationError.code);
     if (!allocation) return NextResponse.json({ session, mentee, allocation: null });
     const { data: mentor, error: mentorError } = await supabase
-      .from("mentors").select("id, full_name, batch, email, phone, communication_method, academic_interests, technical_interests")
+      .from("mentors").select("id, full_name, batch, email, phone, communication_method")
       .eq("id", allocation.mentor_id).single();
     if (mentorError) throw databaseError("Unable to load mentor details.", mentorError.code);
     const { data: groupAllocations, error: groupError } = await supabase
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     if (groupError) throw databaseError("Unable to load mentor group.", groupError.code);
     const groupIds = (groupAllocations ?? []).map((item) => item.mentee_id);
     const { data: group, error: membersError } = groupIds.length
-      ? await supabase.from("mentees").select("id, full_name, batch, academic_interests, technical_interests").in("id", groupIds)
+      ? await supabase.from("mentees").select("id, full_name, batch").in("id", groupIds)
       : { data: [], error: null };
     if (membersError) throw databaseError("Unable to load mentor group.", membersError.code);
     return NextResponse.json({ session, mentee, allocation: { ...allocation, mentor, group: group ?? [] } });

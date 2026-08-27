@@ -21,12 +21,10 @@ export async function POST(request: Request) {
         phone: fields.phone,
         batch: fields.batch,
         communication_method: fields.communicationMethod,
-        academic_interests: fields.academicInterests,
-        technical_interests: fields.technicalInterests,
         profile_photo_url: fields.profilePhotoUrl,
         capacity: fields.capacity,
       })
-      .select("id, full_name, student_id, email, phone, batch, communication_method, academic_interests, technical_interests, profile_photo_url, capacity")
+      .select("id, full_name, student_id, email, phone, batch, communication_method, profile_photo_url, capacity")
       .single();
 
     if (error?.code === "23505") throw databaseError("A mentor with this student ID or email already exists.", error.code);

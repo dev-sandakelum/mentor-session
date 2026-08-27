@@ -9,8 +9,6 @@ interface Mentor {
   id: string;
   fullName: string;
   batch: string | null;
-  academicInterests: string[];
-  technicalInterests: string[];
   profilePhotoUrl: string | null;
   capacity: number;
   allocatedCount: number;

@@ -5,8 +5,6 @@ export type MentorSummary = {
   id: string;
   fullName: string;
   batch: string | null;
-  academicInterests: string[];
-  technicalInterests: string[];
   profilePhotoUrl: string | null;
   capacity: number;
   allocatedCount: number;
@@ -34,7 +32,7 @@ export async function getAvailableMentors(): Promise<MentorSummary[]> {
   const session = await getCurrentSession();
   const { data: mentors, error: mentorError } = await supabase
     .from("mentors")
-    .select("id, full_name, batch, academic_interests, technical_interests, profile_photo_url, capacity")
+    .select("id, full_name, batch, profile_photo_url, capacity")
     .eq("session_id", session.id)
     .order("full_name");
   if (mentorError) throw databaseError("Unable to load mentors.", mentorError.code);
@@ -51,8 +49,6 @@ export async function getAvailableMentors(): Promise<MentorSummary[]> {
     id: mentor.id,
     fullName: mentor.full_name,
     batch: mentor.batch,
-    academicInterests: mentor.academic_interests ?? [],
-    technicalInterests: mentor.technical_interests ?? [],
     profilePhotoUrl: mentor.profile_photo_url,
     capacity: mentor.capacity,
     allocatedCount: counts.get(mentor.id) ?? 0,

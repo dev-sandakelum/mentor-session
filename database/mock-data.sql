@@ -9,62 +9,54 @@ with current_session as (
 )
 insert into public.mentors (
   session_id, full_name, student_id, email, phone, batch, communication_method,
-  academic_interests, technical_interests, capacity, profile_photo_url
+  capacity, profile_photo_url
 )
 select
   current_session.id, source.full_name, source.student_id, source.email, source.phone,
-  '9th Batch · BICT', source.communication_method, source.academic_interests,
-  source.technical_interests, 2, source.profile_photo_url
+  '9th Batch · BICT', source.communication_method, 2, source.profile_photo_url
 from current_session
 cross join (
   values
-    ('Tharindu Jayasooriya', 'DEMO-M-001', 'tharindu.demo@fot.ruh.ac.lk', '071 234 5678', 'WhatsApp', array['Programming & Algorithms', 'Software Engineering'], array['Web Development', 'Cloud Computing', 'DevOps'], '/profile/mentor/1.jpg'),
-    ('Ishara Gunawardena', 'DEMO-M-002', 'ishara.demo@fot.ruh.ac.lk', '071 234 5679', 'WhatsApp', array['Data Science', 'Mathematics'], array['AI / Machine Learning', 'Python'], '/profile/mentor/2.jpg'),
-    ('Dulani Rathnayake', 'DEMO-M-003', 'dulani.demo@fot.ruh.ac.lk', '071 234 5680', 'Email', array['Research Methods', 'Software Engineering'], array['UI / UX Design', 'Web Development'], '/profile/mentor/3.jpg'),
-    ('Kasun Weerasinghe', 'DEMO-M-004', 'kasun.demo@fot.ruh.ac.lk', '071 234 5681', 'Phone Call', array['Computer Architecture', 'Networking'], array['Embedded Systems / IoT', 'Cloud Computing'], '/profile/mentor/4.jpg'),
-    ('Sanduni Fernando', 'DEMO-M-005', 'sanduni.demo@fot.ruh.ac.lk', '071 234 5682', 'WhatsApp', array['Operating Systems', 'Networking'], array['Cyber Security', 'DevOps'], '/profile/mentor/5.jpg'),
-    ('Pasindu Amarasinghe', 'DEMO-M-006', 'pasindu.demo@fot.ruh.ac.lk', '071 234 5683', 'In-Person', array['Programming & Algorithms'], array['Mobile Development', 'Game Development'], '/profile/mentor/6.jpg'),
-    ('Nadeesha Silva', 'DEMO-M-007', 'nadeesha.demo@fot.ruh.ac.lk', '071 234 5684', 'Email', array['Data Science', 'Mathematics'], array['AI / Machine Learning', 'Data Science'], '/profile/mentor/7.jpg'),
-    ('Ashen Kumarasinghe', 'DEMO-M-008', 'ashen.demo@fot.ruh.ac.lk', '071 234 5685', 'WhatsApp', array['Databases', 'Software Engineering'], array['Web Development', 'Cloud Computing'], null)
-) as source(full_name, student_id, email, phone, communication_method, academic_interests, technical_interests, profile_photo_url)
+    ('Tharindu Jayasooriya', 'DEMO-M-001', 'tharindu.demo@fot.ruh.ac.lk', '071 234 5678', 'WhatsApp', '/profile/mentor/1.jpg'),
+    ('Ishara Gunawardena', 'DEMO-M-002', 'ishara.demo@fot.ruh.ac.lk', '071 234 5679', 'WhatsApp', '/profile/mentor/2.jpg'),
+    ('Dulani Rathnayake', 'DEMO-M-003', 'dulani.demo@fot.ruh.ac.lk', '071 234 5680', 'Email', '/profile/mentor/3.jpg'),
+    ('Kasun Weerasinghe', 'DEMO-M-004', 'kasun.demo@fot.ruh.ac.lk', '071 234 5681', 'Phone Call', '/profile/mentor/4.jpg'),
+    ('Sanduni Fernando', 'DEMO-M-005', 'sanduni.demo@fot.ruh.ac.lk', '071 234 5682', 'WhatsApp', '/profile/mentor/5.jpg'),
+    ('Pasindu Amarasinghe', 'DEMO-M-006', 'pasindu.demo@fot.ruh.ac.lk', '071 234 5683', 'In-Person', '/profile/mentor/6.jpg'),
+    ('Nadeesha Silva', 'DEMO-M-007', 'nadeesha.demo@fot.ruh.ac.lk', '071 234 5684', 'Email', '/profile/mentor/7.jpg'),
+    ('Ashen Kumarasinghe', 'DEMO-M-008', 'ashen.demo@fot.ruh.ac.lk', '071 234 5685', 'WhatsApp', null)
+) as source(full_name, student_id, email, phone, communication_method, profile_photo_url)
 on conflict (session_id, student_id) do update set
   full_name = excluded.full_name,
   email = excluded.email,
   phone = excluded.phone,
-  academic_interests = excluded.academic_interests,
-  technical_interests = excluded.technical_interests,
   profile_photo_url = excluded.profile_photo_url;
 
 with current_session as (
   select id from public.mentor_sessions where year = 2026
 )
 insert into public.mentees (
-  session_id, full_name, student_id, email, phone, batch, academic_interests,
-  technical_interests, guidance_needed, preference_submitted_at
+  session_id, full_name, student_id, email, phone, batch, preference_submitted_at
 )
 select
   current_session.id, source.full_name, source.student_id, source.email, source.phone,
-  '10th Batch · BICT', source.academic_interests, source.technical_interests,
-  source.guidance_needed, source.submitted_at
+  '10th Batch · BICT', source.submitted_at
 from current_session
 cross join (
   values
-    ('Kavindi Wickramasinghe', 'DEMO-E-001', 'kavindi.demo@fot.ruh.ac.lk', '077 100 0001', array['Programming & Algorithms'], array['Web Development', 'Cloud Computing'], 'Guidance with first-year study planning and web development.', '2026-08-20 04:31:42+00'::timestamptz),
-    ('Sahan Dissanayake', 'DEMO-E-002', 'sahan.demo@fot.ruh.ac.lk', '077 100 0002', array['Data Science'], array['AI / Machine Learning', 'Mobile Development'], 'Looking for a technical learning roadmap.', '2026-08-20 04:31:48+00'::timestamptz),
-    ('Nimesha Herath', 'DEMO-E-003', 'nimesha.demo@fot.ruh.ac.lk', '077 100 0003', array['Mathematics', 'Data Science'], array['AI / Machine Learning'], 'Need help selecting an AI path.', '2026-08-20 04:32:05+00'::timestamptz),
-    ('Ravindu Peris', 'DEMO-E-004', 'ravindu.demo@fot.ruh.ac.lk', '077 100 0004', array['Software Engineering'], array['UI / UX Design'], 'Would like design and project guidance.', '2026-08-20 04:32:11+00'::timestamptz),
-    ('Chamodi Senanayake', 'DEMO-E-005', 'chamodi.demo@fot.ruh.ac.lk', '077 100 0005', array['Networking'], array['Embedded Systems / IoT'], 'Interested in hands-on IoT projects.', '2026-08-20 04:33:27+00'::timestamptz),
-    ('Isuru Bandara', 'DEMO-E-006', 'isuru.demo@fot.ruh.ac.lk', '077 100 0006', array['Operating Systems'], array['Cyber Security'], 'Need advice on cyber security foundations.', '2026-08-20 04:34:02+00'::timestamptz),
-    ('Hiruni Madushani', 'DEMO-E-007', 'hiruni.demo@fot.ruh.ac.lk', '077 100 0007', array['Programming & Algorithms'], array['Mobile Development'], 'Looking for Android development mentorship.', '2026-08-20 04:34:40+00'::timestamptz),
-    ('Dineth Kulasekara', 'DEMO-E-008', 'dineth.demo@fot.ruh.ac.lk', '077 100 0008', array['Databases'], array['Web Development'], 'Need help with databases and backend work.', '2026-08-20 04:35:16+00'::timestamptz)
-) as source(full_name, student_id, email, phone, academic_interests, technical_interests, guidance_needed, submitted_at)
+    ('Kavindi Wickramasinghe', 'DEMO-E-001', 'kavindi.demo@fot.ruh.ac.lk', '077 100 0001', '2026-08-20 04:31:42+00'::timestamptz),
+    ('Sahan Dissanayake', 'DEMO-E-002', 'sahan.demo@fot.ruh.ac.lk', '077 100 0002', '2026-08-20 04:31:48+00'::timestamptz),
+    ('Nimesha Herath', 'DEMO-E-003', 'nimesha.demo@fot.ruh.ac.lk', '077 100 0003', '2026-08-20 04:32:05+00'::timestamptz),
+    ('Ravindu Peris', 'DEMO-E-004', 'ravindu.demo@fot.ruh.ac.lk', '077 100 0004', '2026-08-20 04:32:11+00'::timestamptz),
+    ('Chamodi Senanayake', 'DEMO-E-005', 'chamodi.demo@fot.ruh.ac.lk', '077 100 0005', '2026-08-20 04:33:27+00'::timestamptz),
+    ('Isuru Bandara', 'DEMO-E-006', 'isuru.demo@fot.ruh.ac.lk', '077 100 0006', '2026-08-20 04:34:02+00'::timestamptz),
+    ('Hiruni Madushani', 'DEMO-E-007', 'hiruni.demo@fot.ruh.ac.lk', '077 100 0007', '2026-08-20 04:34:40+00'::timestamptz),
+    ('Dineth Kulasekara', 'DEMO-E-008', 'dineth.demo@fot.ruh.ac.lk', '077 100 0008', '2026-08-20 04:35:16+00'::timestamptz)
+) as source(full_name, student_id, email, phone, submitted_at)
 on conflict (session_id, student_id) do update set
   full_name = excluded.full_name,
   email = excluded.email,
   phone = excluded.phone,
-  academic_interests = excluded.academic_interests,
-  technical_interests = excluded.technical_interests,
-  guidance_needed = excluded.guidance_needed,
   preference_submitted_at = excluded.preference_submitted_at;
 
 insert into public.mentor_preferences (mentee_id, mentor_id, priority, submitted_at)

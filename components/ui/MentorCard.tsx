@@ -27,8 +27,6 @@ export interface MentorCardProps {
   id: string;
   fullName: string;
   batch: string | null;
-  academicInterests: string[];
-  technicalInterests: string[];
   profilePhotoUrl: string | null;
   index: number;
   /** Selection priority (1-3), undefined = not selected */
@@ -117,11 +115,7 @@ export function MentorCard({
         <h4 className="mc-name">{fullName}</h4>
         {batch && <p className="mc-batch">{batch}</p>}
 
-        {/* Accent bar */}
-        <div
-          className="mc-accent"
-          style={isSelected ? { background: PRIO_COLORS[prioIdx >= 0 ? prioIdx : 0] } : undefined}
-        />
+
       </div>
     </div>
   );

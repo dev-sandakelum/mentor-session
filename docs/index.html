@@ -3,930 +3,1451 @@
   <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ICTSC Mentor Session Management System</title>
+  <title>ICTSC Mentor Session</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --indigo:#3730a3;
-      --indigo-dark:#312e81;
-      --indigo-light:#4f46e5;
-      --indigo-soft:#eef2ff;
-      --amber:#f59e0b;
-      --amber-soft:#fef3c7;
-      --green:#059669;
-      --green-soft:#d1fae5;
-      --red:#dc2626;
-      --red-soft:#fee2e2;
-      --gray-50:#f8fafc;
-      --gray-100:#f1f5f9;
-      --gray-200:#e2e8f0;
-      --gray-400:#94a3b8;
-      --gray-500:#64748b;
-      --gray-700:#334155;
-      --gray-900:#0f172a;
-      --radius:14px;
-      --shadow:0 1px 3px rgba(15,23,42,.06), 0 4px 16px rgba(15,23,42,.06);
-      --shadow-lg:0 8px 30px rgba(15,23,42,.12);
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',system-ui,sans-serif;background:var(--gray-50);color:var(--gray-900);line-height:1.55;}
-    a{color:var(--indigo-light);text-decoration:none}
+  :root{
+    --bg:#f7f8fb; --surface:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --brand:#4f46e5; --brand-2:#7c3aed; --brand-soft:#eef2ff; --brand-ink:#3730a3;
+    --green:#059669; --green-soft:#ecfdf5; --amber:#d97706; --amber-soft:#fffbeb;
+    --red:#dc2626; --red-soft:#fef2f2; --indigo:#4f46e5; --indigo-soft:#eef2ff;
+    --gray-soft:#f1f5f9; --radius:14px; --shadow:0 1px 3px rgba(15,23,42,.06),0 8px 24px -12px rgba(15,23,42,.12);
+    --shadow-lg:0 4px 12px rgba(15,23,42,.08),0 24px 48px -12px rgba(15,23,42,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased}
+  img{max-width:100%;display:block}
+  button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font:inherit;color:inherit}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  :focus-visible{outline:3px solid #a5b4fc;outline-offset:2px;border-radius:6px}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
   
-    /* ===== Top bar ===== */
-    .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--gray-200);box-shadow:0 1px 2px rgba(15,23,42,.04)}
-    .topbar-inner{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-    .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;color:var(--indigo-dark)}
-    .brand .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--indigo-light),var(--indigo-dark));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;box-shadow:var(--shadow)}
-    .brand small{display:block;font-weight:500;color:var(--gray-500);font-size:11px}
-    .nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
-    .nav button{border:none;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--gray-500);padding:8px 12px;border-radius:9px;cursor:pointer;transition:.15s}
-    .nav button:hover{background:var(--gray-100);color:var(--gray-900)}
-    .nav button.active{background:var(--indigo-soft);color:var(--indigo)}
-    .nav button.admin-tab.active{background:var(--amber-soft);color:#92400e}
+  /* ============ Shell ============ */
+  .site-header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 20px;min-height:64px}
+  .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+  .brand:hover{text-decoration:none}
+  .brand-logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px;flex-shrink:0}
+  .brand-name{font-weight:700;font-size:15px;line-height:1.2}
+  .brand-sub{font-size:11.5px;color:var(--muted)}
+  .nav-desktop{display:flex;gap:4px;align-items:center}
+  .nav-link{display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border-radius:10px;font-size:14px;font-weight:500;color:var(--muted);text-decoration:none}
+  .nav-link:hover{background:var(--gray-soft);color:var(--ink);text-decoration:none}
+  .nav-link.active{background:var(--brand-soft);color:var(--brand-ink);font-weight:600}
+  .nav-link.admin-link{border:1.5px dashed #c7d2fe;color:var(--brand)}
+  .nav-link.admin-link.active,.nav-link.admin-link:hover{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .hamburger{display:none;width:44px;height:44px;border-radius:10px;place-items:center;border:1px solid var(--line);background:var(--surface)}
+  .hamburger svg{width:22px;height:22px}
+  @media(max-width:639px){.nav-desktop{display:none}.hamburger{display:grid}}
+  /* drawer */
+  .drawer-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:98;opacity:0;pointer-events:none;transition:opacity .25s}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(320px,85vw);background:var(--surface);z-index:99;transform:translateX(105%);transition:transform .28s cubic-bezier(.3,.9,.3,1);display:flex;flex-direction:column;box-shadow:var(--shadow-lg)}
+  .drawer.open{transform:translateX(0)}
+  .drawer-backdrop.open{opacity:1;pointer-events:auto}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .drawer nav{display:flex;flex-direction:column;padding:12px;gap:4px}
+  .drawer .nav-link{min-height:48px;font-size:15px}
+  .drawer-close{width:44px;height:44px;border-radius:10px;display:grid;place-items:center}
+  .drawer-close:hover{background:var(--gray-soft)}
   
-    .screen{display:none;animation:fadein .25s ease}
-    .screen.active{display:block}
-    @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-    .container{max-width:1180px;margin:0 auto;padding:32px 20px 64px}
+  .page{max-width:1200px;margin:0 auto;padding:28px 20px 64px;min-height:calc(100vh - 64px - 120px)}
+  .site-footer{border-top:1px solid var(--line);background:var(--surface)}
+  .footer-inner{max-width:1200px;margin:0 auto;padding:28px 20px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;color:var(--muted);font-size:13.5px}
+  .footer-links{display:flex;gap:18px;flex-wrap:wrap}
   
-    /* ===== Generic UI ===== */
-    .card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px}
-    .btn{display:inline-flex;align-items:center;gap:8px;border:none;font-family:inherit;font-size:14px;font-weight:600;padding:11px 20px;border-radius:10px;cursor:pointer;transition:.15s}
-    .btn-primary{background:var(--indigo-light);color:#fff}
-    .btn-primary:hover{background:var(--indigo)}
-    .btn-amber{background:var(--amber);color:#fff}
-    .btn-amber:hover{background:#d97706}
-    .btn-outline{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo-light)}
-    .btn-outline:hover{background:var(--indigo-soft)}
-    .btn-ghost{background:var(--gray-100);color:var(--gray-700)}
-    .btn-ghost:hover{background:var(--gray-200)}
-    .btn-danger{background:#fff;color:var(--red);border:1.5px solid var(--red)}
-    .btn-danger:hover{background:var(--red-soft)}
-    .btn-sm{padding:7px 14px;font-size:13px;border-radius:8px}
-    .btn:disabled{opacity:.45;cursor:not-allowed}
+  /* ============ Primitives ============ */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 18px;border-radius:11px;font-weight:600;font-size:14px;border:1px solid transparent;transition:transform .08s,box-shadow .15s,background .15s;user-select:none}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:hover:not(:disabled){background:#4338ca}
+  .btn-secondary{background:var(--surface);border-color:var(--line);color:var(--ink)}
+  .btn-secondary:hover:not(:disabled){background:var(--gray-soft)}
+  .btn-ghost{color:var(--muted)}
+  .btn-ghost:hover:not(:disabled){background:var(--gray-soft);color:var(--ink)}
+  .btn-danger{background:var(--red);color:#fff}
+  .btn-danger:hover:not(:disabled){background:#b91c1c}
+  .btn-danger-soft{background:var(--red-soft);color:var(--red);border-color:#fecaca}
+  .btn-green{background:var(--green);color:#fff}
+  .btn-green:hover:not(:disabled){background:#047857}
+  .btn-sm{min-height:36px;padding:6px 12px;font-size:13px;border-radius:9px}
+  .spinner{width:16px;height:16px;border:2.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .pill-green{background:var(--green-soft);color:var(--green)}
+  .pill-indigo{background:var(--indigo-soft);color:var(--indigo)}
+  .pill-amber{background:var(--amber-soft);color:var(--amber)}
+  .pill-gray{background:var(--gray-soft);color:var(--muted)}
+  .pill-red{background:var(--red-soft);color:var(--red)}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:13.5px;font-weight:600}
+  .field .hint{font-size:12px;color:var(--muted)}
+  .field .err{font-size:12.5px;color:var(--red);font-weight:500;display:none}
+  .field.invalid .err{display:block}
+  .field.invalid input{border-color:var(--red);background:var(--red-soft)}
+  input[type=text],input[type=tel],input[type=email],input[type=password],input[type=number],input[type=date],select,textarea{
+    width:100%;min-height:46px;padding:10px 14px;border:1.5px solid var(--line);border-radius:11px;background:var(--surface);transition:border-color .15s,box-shadow .15s}
+  textarea{min-height:96px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,70,229,.14)}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:639px){.form-grid{grid-template-columns:1fr}}
+  .form-note{background:var(--brand-soft);border:1px solid #c7d2fe;color:var(--brand-ink);border-radius:12px;padding:12px 16px;font-size:13.5px}
+  .section-title{font-size:20px;font-weight:700;margin-bottom:4px}
+  .section-sub{color:var(--muted);font-size:14px;margin-bottom:20px}
   
-    .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px;letter-spacing:.4px;text-transform:uppercase}
-    .pill-green{background:var(--green-soft);color:var(--green)}
-    .pill-indigo{background:var(--indigo-soft);color:var(--indigo)}
-    .pill-amber{background:var(--amber-soft);color:#92400e}
-    .pill-gray{background:var(--gray-100);color:var(--gray-500)}
-    .pill-red{background:var(--red-soft);color:var(--red)}
-    .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  /* skeletons */
+  @keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+  .sk{background:linear-gradient(90deg,#eef1f6 25%,#f8fafc 50%,#eef1f6 75%);background-size:800px 100%;animation:shimmer 1.4s infinite linear;border-radius:8px}
+  .sk-card{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:12px}
+  .sk-avatar{width:100%;aspect-ratio:16/10;border-radius:10px}
+  .sk-line{height:14px}
   
-    .section-title{font-size:20px;font-weight:800;margin-bottom:4px}
-    .section-sub{color:var(--gray-500);font-size:14px;margin-bottom:22px}
-    h3.card-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-    .icon{width:18px;height:18px;flex:none}
-    .muted{color:var(--gray-500)}
+  /* toasts */
+  .toast-wrap{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:10px;width:min(440px,calc(100vw - 32px))}
+  .toast{display:flex;align-items:flex-start;gap:10px;padding:13px 16px;border-radius:13px;background:#1e293b;color:#f1f5f9;font-size:14px;box-shadow:var(--shadow-lg);animation:toastIn .25s cubic-bezier(.3,1.2,.4,1)}
+  @keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1}}
+  .toast.success{background:#064e3b}.toast.error{background:#7f1d1d}.toast.warning{background:#78350f}
+  .toast .t-icon{flex-shrink:0;font-size:15px;margin-top:1px}
+  .toast .t-close{margin-left:auto;opacity:.7;font-size:18px;line-height:1;padding:2px 4px;flex-shrink:0}
+  .toast .t-close:hover{opacity:1}
   
-    /* ===== Hero ===== */
-    .hero{background:linear-gradient(135deg,var(--indigo-dark) 0%,var(--indigo-light) 70%,#6366f1 100%);color:#fff;border-radius:20px;padding:56px 44px;position:relative;overflow:hidden;box-shadow:var(--shadow-lg)}
-    .hero::after{content:"";position:absolute;right:-120px;top:-120px;width:380px;height:380px;border-radius:50%;background:rgba(255,255,255,.08)}
-    .hero::before{content:"";position:absolute;right:60px;bottom:-160px;width:300px;height:300px;border-radius:50%;background:rgba(245,158,11,.18)}
-    .hero .kicker{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:600;margin-bottom:18px;backdrop-filter:blur(4px)}
-    .hero h1{font-size:clamp(28px,4.5vw,44px);font-weight:800;line-height:1.15;max-width:640px}
-    .hero h1 em{font-style:normal;color:#fcd34d}
-    .hero p{margin:16px 0 28px;max-width:560px;color:#e0e7ff;font-size:15.5px}
-    .hero .cta{display:flex;gap:12px;flex-wrap:wrap;position:relative;z-index:2}
-    .hero .btn-white{background:#fff;color:var(--indigo)}
-    .hero .btn-white:hover{background:#eef2ff}
-    .hero .btn-glass{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35)}
-    .hero .btn-glass:hover{background:rgba(255,255,255,.24)}
+  /* offline banner */
+  .offline-banner{display:none;background:#78350f;color:#fef3c7;text-align:center;font-size:13px;font-weight:600;padding:8px 16px}
+  body.offline .offline-banner{display:block}
   
-    .how-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:28px}
-    .how-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
-    .how-card .num{width:38px;height:38px;border-radius:10px;background:var(--indigo-soft);color:var(--indigo);font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:15px}
-    .how-card.amber .num{background:var(--amber-soft);color:#92400e}
-    .how-card h4{font-size:14.5px;margin-bottom:6px}
-    .how-card p{font-size:13px;color:var(--gray-500)}
+  /* ============ Home ============ */
+  .hero{padding:56px 0 40px;text-align:center;max-width:760px;margin:0 auto}
+  .hero h1{font-size:clamp(30px,5.5vw,52px);font-weight:800;line-height:1.12;letter-spacing:-.02em}
+  .hero h1 .grad{background:linear-gradient(90deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{margin:18px auto 28px;color:var(--muted);font-size:16.5px;max-width:600px}
+  .hero-ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .hero-ctas .btn{min-width:190px;min-height:50px;font-size:15px}
+  @media(max-width:479px){.hero-ctas{flex-direction:column}.hero-ctas .btn{width:100%}}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--brand-soft);color:var(--brand-ink);font-size:12.5px;font-weight:700;padding:6px 14px;border-radius:999px;margin-bottom:20px;letter-spacing:.03em;text-transform:uppercase}
+  .how-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px}
+  @media(max-width:1023px){.how-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:639px){.how-grid{grid-template-columns:1fr}}
+  .how-card{padding:22px;display:flex;flex-direction:column;gap:10px}
+  .how-num{width:38px;height:38px;border-radius:11px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:800;font-size:16px}
+  .how-card h3{font-size:15.5px}
+  .how-card p{font-size:13.5px;color:var(--muted)}
+  .home-section{margin-top:56px}
+  /* stepper */
+  .stepper{display:flex;align-items:flex-start;gap:0;margin-top:28px;overflow:visible}
+  .step{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;min-width:0}
+  .step-dot{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;border:2.5px solid var(--line);background:var(--surface);color:var(--muted);z-index:1;transition:all .2s}
+  .step.done .step-dot{background:var(--green);border-color:var(--green);color:#fff}
+  .step.current .step-dot{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 0 0 5px rgba(79,70,229,.18)}
+  .step-label{margin-top:10px;font-size:12.5px;font-weight:600;color:var(--muted);padding:0 4px}
+  .step.done .step-label{color:var(--green)}
+  .step.current .step-label{color:var(--brand)}
+  .step::before{content:"";position:absolute;top:18px;left:calc(-50% + 19px);right:calc(50% + 19px);height:2.5px;background:var(--line)}
+  .step:first-child::before{display:none}
+  .step.done::before,.step.current::before{background:var(--green)}
+  @media(max-width:639px){
+    .stepper{flex-direction:column;align-items:stretch;gap:0}
+    .step{flex-direction:row;align-items:center;text-align:left;gap:14px;padding:10px 0}
+    .step-label{margin-top:0}
+    .step::before{top:auto;bottom:calc(100% - 10px);left:18px;right:auto;width:2.5px;height:24px}
+  }
   
-    /* lifecycle stepper */
-    .lifecycle{display:flex;flex-wrap:wrap;gap:0;margin-top:16px;align-items:center}
-    .life-step{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--gray-500);padding:6px 0}
-    .life-step .bubble{width:26px;height:26px;border-radius:50%;background:var(--gray-100);border:2px solid var(--gray-200);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gray-400);flex:none}
-    .life-step.done .bubble{background:var(--green);border-color:var(--green);color:#fff}
-    .life-step.done{color:var(--gray-700)}
-    .life-step.current .bubble{background:var(--indigo-light);border-color:var(--indigo-light);color:#fff;box-shadow:0 0 0 4px var(--indigo-soft)}
-    .life-step.current{color:var(--indigo)}
-    .life-arrow{color:var(--gray-300,#cbd5e1);margin:0 10px;font-size:14px;color:var(--gray-400)}
+  /* ============ Mentor grid ============ */
+  .filter-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:22px}
+  .search-box{position:relative;flex:1;min-width:200px;max-width:340px}
+  .search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--muted)}
+  .search-box input{padding-left:40px}
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{min-height:38px;padding:6px 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;color:var(--muted);transition:all .15s}
+  .chip:hover{border-color:#c7d2fe}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+  .toggle-chip{display:inline-flex;align-items:center;gap:8px}
+  .mentor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:18px}
+  @media(max-width:639px){.mentor-grid{grid-template-columns:1fr}}
+  .mentor-card{position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column}
+  .mentor-card.selectable{cursor:pointer}
+  .mentor-card.selectable:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg)}
+  .mentor-card.full{cursor:not-allowed;opacity:.72}
+  .mentor-card .accent{height:5px;background:transparent;transition:background .2s}
+  .mentor-card.sel-1 .accent{background:var(--amber)}
+  .mentor-card.sel-2 .accent{background:var(--indigo)}
+  .mentor-card.sel-3 .accent{background:#64748b}
+  .mc-photo{aspect-ratio:16/10;position:relative;display:grid;place-items:center;color:#fff;font-size:34px;font-weight:800;letter-spacing:.02em}
+  .mc-index{position:absolute;top:10px;left:10px;background:rgba(15,23,42,.62);color:#fff;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;backdrop-filter:blur(4px)}
+  .mc-pri{position:absolute;top:10px;right:10px;font-size:12px;font-weight:800;padding:4px 11px;border-radius:999px;color:#fff;box-shadow:var(--shadow)}
+  .mc-pri.p1{background:var(--amber)}.mc-pri.p2{background:var(--indigo)}.mc-pri.p3{background:#64748b}
+  .mc-body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .mc-name{font-weight:700;font-size:15.5px}
+  .mc-batch{font-size:12.5px;color:var(--muted)}
+  .mc-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px}
+  .mc-tag{font-size:11px;font-weight:600;background:var(--gray-soft);color:var(--muted);padding:2px 8px;border-radius:6px}
+  .mc-spots{margin-top:auto;padding-top:10px;display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}
+  .spots-bar{flex:1;height:6px;border-radius:99px;background:var(--gray-soft);overflow:hidden}
+  .spots-fill{height:100%;border-radius:99px;background:var(--green);transition:width .4s}
+  .spots-fill.low{background:var(--amber)}
+  .spots-fill.none{background:var(--red)}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty-state .big{font-size:40px;margin-bottom:12px}
+  .pager{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:26px}
+  .pager .btn{min-width:44px}
   
-    /* ===== Forms ===== */
-    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-    .form-grid .full{grid-column:1 / -1}
-    label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--gray-700)}
-    label .req{color:var(--red)}
-    input[type=text],input[type=email],input[type=tel],select,textarea{width:100%;font-family:inherit;font-size:14px;padding:10px 13px;border:1.5px solid var(--gray-200);border-radius:10px;background:#fff;color:var(--gray-900);transition:.15s;outline:none}
-    input:focus,select:focus,textarea:focus{border-color:var(--indigo-light);box-shadow:0 0 0 3px var(--indigo-soft)}
-    textarea{resize:vertical;min-height:84px}
-    .hint{font-size:12px;color:var(--gray-400);margin-top:5px}
-    .form-note{background:var(--indigo-soft);border:1px solid #c7d2fe;border-radius:10px;padding:13px 16px;font-size:13px;color:var(--indigo-dark);margin-bottom:22px;display:flex;gap:10px;align-items:flex-start}
+  /* ============ Prefs ============ */
+  .pref-layout{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start}
+  .pref-summary{position:sticky;top:84px}
+  .pref-slot{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px dashed var(--line);border-radius:12px;margin-bottom:10px;min-height:60px}
+  .pref-slot.filled{border-style:solid;background:var(--gray-soft)}
+  .pref-slot .slot-star{font-size:18px;flex-shrink:0;width:30px;text-align:center}
+  .pref-slot .slot-info{flex:1;min-width:0}
+  .pref-slot .slot-name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pref-slot .slot-empty{color:var(--muted);font-size:13.5px}
+  .pref-slot .slot-x{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted);flex-shrink:0}
+  .pref-slot .slot-x:hover{background:var(--red-soft);color:var(--red)}
+  @media(max-width:899px){
+    .pref-layout{grid-template-columns:1fr;padding-bottom:76px}
+    .pref-summary{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:60;border-radius:18px 18px 0 0;box-shadow:0 -8px 32px rgba(15,23,42,.18);transition:transform .3s cubic-bezier(.3,.9,.3,1);transform:translateY(calc(100% - 62px))}
+    .pref-summary.expanded{transform:translateY(0)}
+    .sheet-handle{display:flex!important}
+  }
+  .sheet-handle{display:none;width:100%;align-items:center;justify-content:space-between;padding:16px 20px;font-weight:700;font-size:14.5px;min-height:62px}
+  .sheet-handle .chev{transition:transform .3s}
+  .pref-summary.expanded .sheet-handle .chev{transform:rotate(180deg)}
+  .pref-summary-body{padding:18px 20px 20px}
+  @media(min-width:900px){.pref-summary-body{padding:20px}.sheet-handle{display:none}}
+  .confirm-screen{max-width:560px;margin:40px auto;text-align:center;padding:44px 32px}
+  .confirm-check{width:72px;height:72px;border-radius:50%;background:var(--green-soft);color:var(--green);display:grid;place-items:center;font-size:34px;margin:0 auto 18px}
+  .locked-list{margin:22px 0;text-align:left}
+  .locked-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--gray-soft)}
+  .locked-item .rank{font-weight:800;color:var(--brand);width:36px}
   
-    /* ===== Mentor cards / preferences ===== */
-    .pref-layout{display:grid;grid-template-columns:1fr 330px;gap:24px;align-items:start}
-    .mentor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:14px}
-    .mentor-card{background:#fff;border:1.5px solid var(--gray-200);border-radius:var(--radius);padding:18px;cursor:pointer;transition:.15s;position:relative;box-shadow:var(--shadow)}
-    .mentor-card:hover{border-color:var(--indigo-light);transform:translateY(-2px);box-shadow:var(--shadow-lg)}
-    .mentor-card.full{opacity:.55;cursor:not-allowed}
-    .mentor-card.full:hover{transform:none;border-color:var(--gray-200);box-shadow:var(--shadow)}
-    .mentor-card.selected{border-color:var(--indigo-light);background:var(--indigo-soft)}
-    .mentor-card .avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;margin-bottom:10px}
-    .mentor-card h4{font-size:14px;font-weight:700}
-    .mentor-card .batch{font-size:12px;color:var(--gray-500);margin-bottom:8px}
-    .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
-    .tag{font-size:10.5px;font-weight:600;background:var(--gray-100);color:var(--gray-500);padding:3px 8px;border-radius:6px}
-    .cap-row{display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:600;color:var(--gray-500)}
-    .cap-bar{flex:1;height:6px;border-radius:99px;background:var(--gray-100);overflow:hidden}
-    .cap-bar span{display:block;height:100%;border-radius:99px;background:var(--green)}
-    .cap-bar span.half{width:50%;background:var(--amber)}
-    .cap-bar span.fullbar{width:100%;background:var(--red)}
-    .cap-bar span.empty{width:0}
-    .prio-badge{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:9px;display:none;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;box-shadow:var(--shadow)}
-    .mentor-card.selected .prio-badge{display:flex}
-    .prio-badge.p1{background:var(--amber)}
-    .prio-badge.p2{background:var(--indigo-light)}
-    .prio-badge.p3{background:var(--gray-500)}
+  /* conflict banner */
+  .conflict-banner{background:var(--amber-soft);border:1.5px solid #fcd34d;border-radius:12px;padding:14px 16px;margin-bottom:18px;font-size:13.5px;display:none}
+  .conflict-banner.show{display:block}
+  .conflict-banner strong{color:var(--amber)}
   
-    .pref-summary{position:sticky;top:78px}
-    .pref-slot{border:1.5px dashed var(--gray-200);border-radius:12px;padding:13px 15px;margin-bottom:11px;background:var(--gray-50)}
-    .pref-slot.filled{border-style:solid;background:#fff;border-color:var(--gray-200)}
-    .pref-slot.filled.first{border-color:var(--amber);background:var(--amber-soft)}
-    .pref-slot .slot-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);display:flex;align-items:center;gap:6px}
-    .pref-slot.filled.first .slot-label{color:#92400e}
-    .pref-slot .slot-name{font-size:14.5px;font-weight:700;margin-top:3px;color:var(--gray-400)}
-    .pref-slot.filled .slot-name{color:var(--gray-900)}
-    .pref-slot .slot-clear{float:right;border:none;background:transparent;color:var(--gray-400);cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;padding:2px 4px}
-    .pref-slot .slot-clear:hover{color:var(--red)}
+  /* ============ Dashboard ============ */
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:899px){.dash-grid{grid-template-columns:1fr}}
+  .dash-col{display:flex;flex-direction:column;gap:20px}
+  .hero-card{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border:none}
+  .hero-card .mc-batch,.hero-card .kv-label{color:rgba(255,255,255,.75)}
+  .card-pad{padding:20px 22px}
+  .card-title{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .kv{display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .kv:last-child{border-bottom:none}
+  .kv-label{color:var(--muted);font-size:13px}
+  .hero-card .kv{border-color:rgba(255,255,255,.18)}
+  .group-member{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .group-member:last-child{border-bottom:none}
+  .gm-avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0}
+  .gm-info{flex:1;min-width:0}
+  .gm-name{font-weight:600;font-size:14px}
+  .gm-meta{font-size:12px;color:var(--muted)}
+  .stars{display:flex;gap:6px;border:none;padding:0}
+  .stars legend{font-size:13.5px;font-weight:600;margin-bottom:8px}
+  .star-btn{width:44px;height:44px;font-size:26px;color:#cbd5e1;display:grid;place-items:center;border-radius:10px;transition:transform .1s,color .15s}
+  .star-btn:hover{transform:scale(1.15)}
+  .star-btn.on{color:var(--amber)}
+  .lookup-card{max-width:480px;margin:36px auto}
   
-    .submitted-box{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1.5px solid #a7f3d0;border-radius:var(--radius);padding:28px;text-align:center}
-    .submitted-box .check{width:56px;height:56px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;box-shadow:0 6px 16px rgba(5,150,105,.3)}
-    .ts{font-family:ui-monospace,'SF Mono',Consolas,monospace;font-weight:700;background:#fff;border:1px solid var(--gray-200);border-radius:8px;padding:6px 14px;display:inline-block;margin:8px 0;font-size:14px}
+  /* ============ Admin ============ */
+  .admin-topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+  .tab-strip{display:flex;gap:6px;border-bottom:2px solid var(--line);margin-bottom:24px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tab-strip::-webkit-scrollbar{display:none}
+  .tab-btn{padding:12px 18px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;min-height:48px}
+  .tab-btn:hover{color:var(--ink)}
+  .tab-btn.active{color:var(--brand);border-bottom-color:var(--brand)}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  @media(max-width:1023px){.stat-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:639px){.stat-grid{grid-template-columns:repeat(2,1fr)}}
+  .stat-card{padding:16px 18px}
+  .stat-val{font-size:26px;font-weight:800;letter-spacing:-.02em}
+  .stat-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+  .load-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .load-row:last-child{border:none}
+  .load-name{width:160px;font-size:13.5px;font-weight:600;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .load-bar{flex:1;height:10px;background:var(--gray-soft);border-radius:99px;overflow:hidden}
+  .load-fill{height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:99px;transition:width .6s cubic-bezier(.3,.9,.3,1)}
+  .load-count{font-size:12.5px;font-weight:700;color:var(--muted);width:44px;text-align:right;flex-shrink:0}
+  @media(max-width:639px){.load-name{width:100px}}
+  /* responsive table */
+  .rtable{width:100%;border-collapse:collapse;font-size:13.5px}
+  .rtable th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:11px 14px;border-bottom:2px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+  .rtable th.nosort{cursor:default}
+  .rtable td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .rtable tr:last-child td{border-bottom:none}
+  .rtable tbody tr:hover{background:#fafbfe}
+  .row-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12.5px;flex-shrink:0}
+  .cell-person{display:flex;align-items:center;gap:11px}
+  .table-cards{display:none}
+  @media(max-width:899px){
+    .rtable{display:none}
+    .table-cards{display:flex;flex-direction:column;gap:12px}
+  }
+  .tcard{padding:16px;display:flex;flex-direction:column;gap:10px}
+  .tcard-head{display:flex;align-items:center;gap:12px}
+  .tcard-kv{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+  .tcard-kv .k{color:var(--muted)}
+  .tcard-actions{display:flex;gap:8px;margin-top:4px}
+  .table-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .mono{font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--muted)}
+  .alloc-controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  @media(max-width:639px){.alloc-controls .btn{flex:1 1 45%}}
   
-    /* ===== Dashboards ===== */
-    .dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:22px;align-items:start}
-    .assign-hero{background:linear-gradient(135deg,var(--indigo-dark),var(--indigo-light));color:#fff;border-radius:var(--radius);padding:28px;box-shadow:var(--shadow-lg);position:relative;overflow:hidden}
-    .assign-hero::after{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.08)}
-    .assign-hero .label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:#c7d2fe;font-weight:700}
-    .assign-hero h2{font-size:26px;font-weight:800;margin:6px 0 2px}
-    .assign-hero .sub{color:#e0e7ff;font-size:14px}
-    .star-pill{display:inline-flex;align-items:center;gap:7px;background:var(--amber);color:#fff;font-weight:700;font-size:13px;padding:7px 15px;border-radius:999px;margin-top:14px;box-shadow:0 4px 12px rgba(245,158,11,.4)}
-    .info-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--gray-100);font-size:13.5px}
-    .info-row:last-child{border-bottom:none}
-    .info-row .icon{color:var(--indigo-light);margin-top:1px}
-    .info-row b{display:block;font-size:12px;color:var(--gray-500);font-weight:600}
-  
-    .mentee-item{display:flex;gap:14px;align-items:center;padding:14px;border:1px solid var(--gray-200);border-radius:12px;margin-bottom:11px;background:#fff}
-    .mentee-item .avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex:none}
-    .mentee-item h4{font-size:14px}
-    .mentee-item .meta{font-size:12.5px;color:var(--gray-500)}
-  
-    .stars{display:flex;gap:6px;margin:8px 0 14px}
-    .stars button{border:none;background:transparent;cursor:pointer;padding:2px;color:var(--gray-200);transition:.1s}
-    .stars button svg{width:26px;height:26px}
-    .stars button.on{color:var(--amber)}
-    .stars button:hover{transform:scale(1.15)}
-  
-    /* ===== Admin ===== */
-    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:13px;margin-bottom:22px}
-    .stat{background:#fff;border:1px solid var(--gray-200);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
-    .stat .v{font-size:26px;font-weight:800;line-height:1.1}
-    .stat .k{font-size:12px;font-weight:600;color:var(--gray-500);margin-top:3px}
-    .stat.accent .v{color:var(--indigo)}
-    .stat.amber .v{color:var(--amber)}
-    .stat.green .v{color:var(--green)}
-    table{width:100%;border-collapse:collapse;font-size:13.5px}
-    th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--gray-400);font-weight:700;padding:9px 12px;border-bottom:1.5px solid var(--gray-200)}
-    td{padding:11px 12px;border-bottom:1px solid var(--gray-100)}
-    tr:last-child td{border-bottom:none}
-    tr:hover td{background:var(--gray-50)}
-    .admin-controls{display:flex;flex-wrap:wrap;gap:10px}
-    .load-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--gray-100);font-size:13.5px}
-    .load-row:last-child{border:none}
-    .load-row .name{width:170px;font-weight:600}
-    .load-row .bar{flex:1;height:8px;border-radius:99px;background:var(--gray-100);overflow:hidden}
-    .load-row .bar span{display:block;height:100%;border-radius:99px;background:var(--indigo-light)}
-    .load-row .count{width:80px;text-align:right;font-weight:600;color:var(--gray-500);font-size:12.5px}
-  
-    /* modal */
-    .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:100;align-items:center;justify-content:center;padding:20px}
-    .modal-backdrop.open{display:flex}
-    .modal{background:#fff;border-radius:16px;max-width:440px;width:100%;padding:28px;box-shadow:var(--shadow-lg);animation:fadein .2s ease}
-    .modal h3{font-size:17px;margin-bottom:8px;display:flex;gap:10px;align-items:center}
-    .modal p{font-size:14px;color:var(--gray-500);margin-bottom:20px}
-    .modal .actions{display:flex;gap:10px;justify-content:flex-end}
-  
-    /* toast */
-    .toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:var(--gray-900);color:#fff;font-size:13.5px;font-weight:600;padding:12px 22px;border-radius:12px;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:.25s;z-index:200}
-    .toast.show{opacity:1;transform:translate(-50%,0)}
-  
-    footer{border-top:1px solid var(--gray-200);background:#fff;padding:22px;text-align:center;font-size:13px;color:var(--gray-500)}
-    footer b{color:var(--indigo)}
-  
-    @media (max-width:900px){
-      .pref-layout,.dash-grid{grid-template-columns:1fr}
-      .form-grid{grid-template-columns:1fr}
-      .pref-summary{position:static}
-    }
+  /* ============ Modals ============ */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:100;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+  .modal-backdrop.open{display:flex}
+  .modal{background:var(--surface);border-radius:18px;width:640px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .22s cubic-bezier(.3,1.1,.4,1)}
+  @keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1}}
+  @media(max-width:639px){
+    .modal-backdrop{padding:0;align-items:flex-end}
+    .modal{width:100%;max-height:94vh;border-radius:20px 20px 0 0;animation:sheetIn .28s cubic-bezier(.3,.9,.3,1)}
+    @keyframes sheetIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  }
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0}
+  .modal-body{padding:20px 24px}
+  .modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:0 24px 22px;flex-wrap:wrap}
+  @media(max-width:639px){.modal-foot .btn{flex:1}}
+  .modal-err{display:none;background:var(--red-soft);color:var(--red);border:1px solid #fecaca;border-radius:10px;padding:10px 14px;font-size:13px;margin:0 24px 14px;font-weight:500}
+  .modal-err.show{display:block}
+  .warn-icon{width:52px;height:52px;border-radius:50%;background:var(--red-soft);color:var(--red);display:grid;place-items:center;font-size:24px;margin-bottom:14px}
+  /* multiselect */
+  .mselect{position:relative}
+  .mselect-box{min-height:46px;border:1.5px solid var(--line);border-radius:11px;padding:7px 10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;cursor:pointer;background:var(--surface)}
+  .mselect-box .placeholder{color:#94a3b8;font-size:14px;padding-left:4px}
+  .ms-chip{background:var(--brand-soft);color:var(--brand-ink);font-size:12px;font-weight:600;border-radius:7px;padding:3px 8px;display:inline-flex;align-items:center;gap:6px}
+  .ms-chip button{font-size:13px;line-height:1;opacity:.7}
+  .mselect-menu{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);z-index:20;max-height:220px;overflow-y:auto;display:none;padding:6px}
+  .mselect.open .mselect-menu{display:block}
+  .mselect-opt{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13.5px;cursor:pointer;min-height:40px}
+  .mselect-opt:hover{background:var(--gray-soft)}
+  .mselect-opt.on{color:var(--brand-ink);font-weight:600}
+  .photo-drop{border:2px dashed var(--line);border-radius:12px;padding:18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .photo-preview{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#94a3b8,#64748b);display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px;flex-shrink:0}
+  /* login */
+  .login-wrap{max-width:420px;margin:48px auto}
+  .retry-box{text-align:center;padding:48px 20px;color:var(--muted)}
+  .route{display:none}.route.active{display:block}
+  .hidden{display:none!important}
+  .checking-box{display:flex;flex-direction:column;align-items:center;gap:16px;padding:64px 20px;color:var(--muted)}
+  .checking-box .spinner{width:28px;height:28px;border-width:3px;color:var(--brand)}
   </style>
   </head>
   <body>
   
-  <!-- ======================= TOP BAR ======================= -->
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <div class="logo">SC</div>
-        <div>ICTSC Mentor Session<small>Faculty of Technology · University of Ruhuna</small></div>
-      </div>
-      <nav class="nav" id="mainNav">
-        <button data-screen="home" class="active" onclick="showScreen('home',this)">Home</button>
-        <button data-screen="mentee-reg" onclick="showScreen('mentee-reg',this)">Mentee Registration</button>
-        <button data-screen="mentor-reg" onclick="showScreen('mentor-reg',this)">Mentor Registration</button>
-        <button data-screen="prefs" onclick="showScreen('prefs',this)">Preference Selection</button>
-        <button data-screen="mentee-dash" onclick="showScreen('mentee-dash',this)">Mentee Dashboard</button>
-        <button data-screen="mentor-dash" onclick="showScreen('mentor-dash',this)">Mentor Dashboard</button>
-        <button data-screen="admin" class="admin-tab" onclick="showScreen('admin',this)">Admin</button>
-      </nav>
+  <div class="offline-banner" role="status">⚠️ You appear to be offline — changes can't be saved right now. We'll retry when you're back.</div>
+  
+  <!-- ===== Header ===== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#/" class="brand" aria-label="ICTSC Mentor Session — Home">
+        <div class="brand-logo">IC</div>
+        <div>
+          <div class="brand-name">ICTSC Mentor Session</div>
+          <div class="brand-sub">Senior-mentee pairing programme</div>
+        </div>
+      </a>
+      <nav class="nav-desktop" id="navDesktop" aria-label="Primary"></nav>
+      <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
     </div>
   </header>
   
-  <!-- ======================= 1. HOME ======================= -->
-  <section class="screen active" id="screen-home">
-    <div class="container">
-      <div class="hero">
-        <span class="kicker">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
-          ICT Students' Circle · Mentor Session 2026
-        </span>
-        <h1>Find your senior mentor. <em>Grow together.</em></h1>
-        <p>The ICTSC Mentor Session connects junior students with experienced seniors for academic guidance, study advice, technical direction and real university experience — matched fairly, transparently and automatically.</p>
-        <div class="cta">
-          <button class="btn btn-white" onclick="navTo('mentor-reg')">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Register as Mentor
-          </button>
-          <button class="btn btn-glass" onclick="navTo('mentee-reg')">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Register as Mentee
-          </button>
-        </div>
-      </div>
+  <!-- ===== Mobile drawer ===== -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer" aria-label="Menu" aria-hidden="true">
+    <div class="drawer-head">
+      <strong>Menu</strong>
+      <button class="drawer-close" id="drawerClose" aria-label="Close menu">✕</button>
+    </div>
+    <nav id="navDrawer"></nav>
+  </aside>
   
+  <main class="page" id="app">
+  
+  <!-- ================= HOME ================= -->
+  <section class="route" id="route-home">
+    <div class="hero">
+      <span class="eyebrow">✦ ICTSC · 2026 Intake</span>
+      <h1>Find the senior who'll <span class="grad">shape your journey</span></h1>
+      <p>The ICTSC Mentor Session pairs new mentees with experienced senior mentors. Pick your top three mentors — allocation is first-come, first-served, with a fair random fallback for everyone else.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#/mentor">Browse Mentors</a>
+        <a class="btn btn-secondary" href="#/mentee">Register as Mentee</a>
+      </div>
+    </div>
+  
+    <div class="home-section">
+      <h2 class="section-title" style="text-align:center">How it works</h2>
+      <p class="section-sub" style="text-align:center">Four simple rules keep it fair for everyone.</p>
       <div class="how-grid">
-        <div class="how-card">
-          <div class="num">1</div>
-          <h4>Pick 3 Ranked Mentors</h4>
-          <p>Every mentee chooses a 1st, 2nd and 3rd priority mentor from the approved senior mentor pool.</p>
-        </div>
-        <div class="how-card">
-          <div class="num">2</div>
-          <h4>First Come, First Served</h4>
-          <p>Preferences are processed strictly by server-side submission time — the earlier you submit, the earlier you're matched.</p>
-        </div>
-        <div class="how-card amber">
-          <div class="num">3</div>
-          <h4>Max 2 Mentees / Mentor</h4>
-          <p>Small groups keep mentoring personal. Once a mentor has two mentees, they're marked full.</p>
-        </div>
-        <div class="how-card">
-          <div class="num">4</div>
-          <h4>Random Fallback</h4>
-          <p>If all three of your choices fill up, the system fairly assigns you to a mentor with remaining capacity.</p>
-        </div>
+        <div class="card how-card"><div class="how-num">1</div><h3>Pick your top 3</h3><p>Browse the mentor directory and rank your three favourite mentors in order.</p></div>
+        <div class="card how-card"><div class="how-num">2</div><h3>Submission order matters</h3><p>Preferences are processed first-come, first-served — earlier submissions win contested spots.</p></div>
+        <div class="card how-card"><div class="how-num">3</div><h3>2-mentee cap</h3><p>Each mentor takes a limited number of mentees, so groups stay small and personal.</p></div>
+        <div class="card how-card"><div class="how-num">4</div><h3>Random fallback</h3><p>If all three picks fill up, you're randomly matched with a mentor who still has room.</p></div>
       </div>
+    </div>
   
-      <div class="card" style="margin-top:28px">
-        <h3 class="card-title">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
-          Mentor Session Lifecycle
-        </h3>
-        <div class="lifecycle">
-          <span class="life-step done"><span class="bubble">✓</span> Create Session</span><span class="life-arrow">→</span>
-          <span class="life-step done"><span class="bubble">✓</span> Configure Batches</span><span class="life-arrow">→</span>
-          <span class="life-step done"><span class="bubble">✓</span> Open Registration</span><span class="life-arrow">→</span>
-          <span class="life-step current"><span class="bubble">4</span> Collect Preferences</span><span class="life-arrow">→</span>
-          <span class="life-step"><span class="bubble">5</span> FCFS Allocation</span><span class="life-arrow">→</span>
-          <span class="life-step"><span class="bubble">6</span> Random Fallback</span><span class="life-arrow">→</span>
-          <span class="life-step"><span class="bubble">7</span> Publish Results</span><span class="life-arrow">→</span>
-          <span class="life-step"><span class="bubble">8</span> Session &amp; Feedback</span>
-        </div>
+    <div class="home-section">
+      <h2 class="section-title" style="text-align:center">Mentor Session Lifecycle</h2>
+      <p class="section-sub" style="text-align:center">Where we are right now.</p>
+      <div class="card" style="padding:28px 22px">
+        <ol class="stepper" id="lifecycleStepper" style="list-style:none"></ol>
       </div>
     </div>
   </section>
   
-  <!-- ======================= 2. MENTEE REGISTRATION ======================= -->
-  <section class="screen" id="screen-mentee-reg">
-    <div class="container" style="max-width:820px">
-      <h2 class="section-title">Mentee Registration</h2>
-      <p class="section-sub">Mentor Session 2026 · Junior Batch (11th) · Registration is <span class="pill pill-green"><span class="dot"></span> Open</span></p>
-      <div class="card">
-        <div class="form-note">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          <span>After registering, you'll choose your <b>top 3 mentors</b>. Preferences are processed <b>First Come, First Served</b> and each mentor can accept a maximum of <b>two mentees</b>.</span>
-        </div>
+  <!-- ================= MENTOR DIRECTORY ================= -->
+  <section class="route" id="route-mentor">
+    <h1 class="section-title">Senior Mentor Directory</h1>
+    <p class="section-sub">Meet the seniors volunteering this session. Capacity updates live.</p>
+    <div class="form-note" style="margin-bottom:20px">👋 Browsing only — to pick your mentors, <a href="#/mentee">register as a mentee</a> first.</div>
+    <div id="mentorDirFilter"></div>
+    <div id="mentorDirGrid" class="mentor-grid" aria-live="polite"></div>
+    <div id="mentorDirPager" class="pager"></div>
+  </section>
+  
+  <!-- ================= MENTEE REGISTRATION ================= -->
+  <section class="route" id="route-mentee">
+    <div style="max-width:620px;margin:0 auto">
+      <h1 class="section-title">Mentee Registration</h1>
+      <p class="section-sub">Step 1 of 2 — tell us who you are.</p>
+      <div class="form-note" style="margin-bottom:20px">⚡ Allocation is <strong>first-come, first-served</strong> and each mentor takes a maximum of <strong>2 mentees</strong> — register and submit your preferences early!</div>
+      <form class="card" style="padding:26px" id="regForm" novalidate>
         <div class="form-grid">
-          <div><label>Full Name <span class="req">*</span></label><input type="text" placeholder="e.g., Kavindi Wickramasinghe"></div>
-          <div><label>Student ID <span class="req">*</span></label><input type="text" placeholder="e.g., TG/2025/1234"></div>
-          <div><label>University Email <span class="req">*</span></label><input type="email" placeholder="tg2025xxxx@fot.ruh.ac.lk"></div>
-          <div><label>Contact Number <span class="req">*</span></label><input type="tel" placeholder="07X XXX XXXX"></div>
-          <div>
-            <label>Batch <span class="req">*</span></label>
-            <select><option>11th Batch (Junior)</option><option>10th Batch</option></select>
+          <div class="field" style="grid-column:1/-1" data-field="name">
+            <label for="regName">Full Name <span style="color:var(--red)">*</span></label>
+            <input type="text" id="regName" placeholder="e.g. Nethmi Perera" required autocomplete="name">
+            <span class="err">Please enter your full name.</span>
           </div>
-          <div>
-            <label>Degree Program <span class="req">*</span></label>
-            <select><option>Select program…</option><option>BICT (Hons)</option><option>BET (Hons)</option><option>BBST (Hons)</option></select>
+          <div class="field" data-field="sid">
+            <label for="regSid">Student ID <span style="color:var(--red)">*</span></label>
+            <input type="text" id="regSid" placeholder="e.g. ICT/2026/041" required>
+            <span class="err" id="regSidErr">Please enter your Student ID.</span>
           </div>
-          <div class="full"><label>Academic Interests</label><input type="text" placeholder="e.g., Programming, Databases, Networking"></div>
-          <div class="full"><label>Areas Where Guidance Is Required <span class="req">*</span></label><textarea placeholder="e.g., How to balance coursework, choosing a specialization, preparing for the first semester exams…"></textarea></div>
-          <div class="full"><label>Technical Interests</label><input type="text" placeholder="e.g., Web Development, AI/ML, Cyber Security, UI/UX"></div>
-          <div class="full" style="display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:4px">
-            <button class="btn btn-ghost" onclick="navTo('home')">Cancel</button>
-            <button class="btn btn-primary" onclick="toast('Registration submitted! You can now select your mentor preferences.');navTo('prefs')">
-              Register &amp; Choose Mentors
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-            </button>
+          <div class="field" data-field="phone">
+            <label for="regPhone">Phone Number <span style="color:var(--red)">*</span></label>
+            <input type="tel" id="regPhone" placeholder="07X XXX XXXX" required autocomplete="tel">
+            <span class="hint">Used only for session reminders &amp; account recovery.</span>
+            <span class="err">Enter a valid phone number (10 digits).</span>
           </div>
         </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap">
+          <a class="btn btn-ghost" href="#/">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="regSubmit" style="min-width:150px">Register</button>
+        </div>
+      </form>
+    </div>
+  </section>
+  
+  <!-- ================= PREFS ================= -->
+  <section class="route" id="route-prefs">
+    <div id="prefsPickView">
+      <h1 class="section-title">Choose Your 3 Mentors</h1>
+      <p class="section-sub">Tap a card to pick — your first pick becomes ⭐ 1st preference. Drafts save automatically.</p>
+      <div class="conflict-banner" id="conflictBanner"></div>
+      <div class="pref-layout">
+        <div>
+          <div id="prefsFilter"></div>
+          <div id="prefsGrid" class="mentor-grid" aria-live="polite"></div>
+        </div>
+        <aside class="card pref-summary" id="prefSummary">
+          <button class="sheet-handle" id="sheetHandle" aria-expanded="false">
+            <span id="sheetCount">0/3 selected</span>
+            <span class="chev">▾</span>
+          </button>
+          <div class="pref-summary-body">
+            <h2 style="font-size:15.5px;margin-bottom:14px">Your Preferences</h2>
+            <div id="prefSlots"></div>
+            <button class="btn btn-primary" id="prefSubmit" style="width:100%;margin-top:8px" disabled>Confirm &amp; Submit</button>
+            <button class="btn btn-ghost btn-sm" id="prefClear" style="width:100%;margin-top:8px">Clear all</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+    <div id="prefsDoneView" class="hidden">
+      <div class="card confirm-screen">
+        <div class="confirm-check">✓</div>
+        <h1 class="section-title">Preferences Submitted ✓</h1>
+        <p class="section-sub" id="prefsDoneTime"></p>
+        <div class="locked-list" id="lockedList"></div>
+        <p style="font-size:13.5px;color:var(--muted)">Your picks are locked in. Allocation runs first-come, first-served — check your dashboard for the result once it's published.</p>
+        <a class="btn btn-primary" href="#/mentee/dashboard" style="margin-top:20px">Go to my dashboard</a>
       </div>
     </div>
   </section>
   
-  <!-- ======================= 7. MENTOR REGISTRATION ======================= -->
-  <section class="screen" id="screen-mentor-reg">
-    <div class="container" style="max-width:820px">
-      <h2 class="section-title">Mentor Registration</h2>
-      <p class="section-sub">Mentor Session 2026 · Senior Batch (9th) · Registration is <span class="pill pill-green"><span class="dot"></span> Open</span></p>
-      <div class="card">
-        <div class="form-note">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:1px"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg>
-          <span>As a mentor you'll guide <b>1–2 junior students</b> through their first year — academics, campus life and technical direction. Registrations are reviewed and approved by ICTSC organizers.</span>
-        </div>
-        <div class="form-grid">
-          <div><label>Full Name <span class="req">*</span></label><input type="text" placeholder="e.g., Tharindu Jayasooriya"></div>
-          <div><label>Student ID <span class="req">*</span></label><input type="text" placeholder="e.g., TG/2022/0456"></div>
-          <div><label>University Email <span class="req">*</span></label><input type="email" placeholder="tg2022xxxx@fot.ruh.ac.lk"></div>
-          <div><label>Contact Number <span class="req">*</span></label><input type="tel" placeholder="07X XXX XXXX"></div>
-          <div>
-            <label>Batch <span class="req">*</span></label>
-            <select><option>9th Batch (Senior)</option><option>8th Batch</option></select>
+  <!-- ================= MENTEE DASHBOARD ================= -->
+  <section class="route" id="route-dashboard">
+    <div id="dashLookupView" class="hidden">
+      <div class="card lookup-card card-pad">
+        <h1 class="section-title">Look up my assignment</h1>
+        <p class="section-sub">No session found on this device — no problem. Verify with your Student ID and phone number to get back in.</p>
+        <form id="lookupForm" novalidate>
+          <div class="field" style="margin-bottom:14px" data-field="lsid">
+            <label for="lookSid">Student ID</label>
+            <input type="text" id="lookSid" placeholder="ICT/2026/041" required>
+            <span class="err">Enter your Student ID.</span>
           </div>
-          <div>
-            <label>Degree Program <span class="req">*</span></label>
-            <select><option>Select program…</option><option>BICT (Hons)</option><option>BET (Hons)</option><option>BBST (Hons)</option></select>
+          <div class="field" style="margin-bottom:20px" data-field="lphone">
+            <label for="lookPhone">Phone Number</label>
+            <input type="tel" id="lookPhone" placeholder="07X XXX XXXX" required>
+            <span class="err">Enter the phone number you registered with.</span>
           </div>
-          <div class="full"><label>Academic Interests</label><input type="text" placeholder="e.g., Software Engineering, Data Science"></div>
-          <div class="full"><label>Technical Interests</label><input type="text" placeholder="e.g., React, Cloud, DevOps, Mobile Development"></div>
-          <div>
-            <label>Preferred Communication Method <span class="req">*</span></label>
-            <select><option>WhatsApp</option><option>Email</option><option>Phone Call</option><option>In-Person</option></select>
-          </div>
-          <div><label>Profile Photo <span class="muted">(optional)</span></label><input type="text" placeholder="Upload photo…" readonly style="cursor:pointer;background:var(--gray-50)"></div>
-          <div class="full" style="display:flex;gap:12px;align-items:center;justify-content:flex-end;margin-top:4px">
-            <button class="btn btn-ghost" onclick="navTo('home')">Cancel</button>
-            <button class="btn btn-primary" onclick="toast('Mentor registration submitted for ICTSC approval ✓')">Submit for Approval</button>
-          </div>
-        </div>
+          <button class="btn btn-primary" style="width:100%" id="lookupBtn">Find my dashboard</button>
+        </form>
+        <p style="font-size:13px;color:var(--muted);margin-top:16px;text-align:center">New here? <a href="#/mentee">Register as a mentee</a></p>
       </div>
     </div>
-  </section>
   
-  <!-- ======================= 3. PREFERENCE SELECTION ======================= -->
-  <section class="screen" id="screen-prefs">
-    <div class="container">
-      <div id="prefChoosing">
-        <h2 class="section-title">Choose your top 3 mentors</h2>
-        <p class="section-sub">Your preferences will be processed according to the order in which you submit your application. Each mentor can accept a maximum of two mentees. <b>Click a mentor card</b> to assign your next priority slot.</p>
-  
-        <div class="pref-layout">
-          <div class="mentor-grid" id="mentorGrid"><!-- mentor cards injected by JS --></div>
-  
-          <aside class="pref-summary">
-            <div class="card">
-              <h3 class="card-title">
-                <svg class="icon" viewBox="0 0 24 24" fill="var(--amber)" stroke="var(--amber)" stroke-width="1"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg>
-                Your Preferences
-              </h3>
-              <div class="pref-slot" id="slot1">
-                <span class="slot-label">⭐ 1st Priority</span>
-                <div class="slot-name">Not selected yet</div>
-              </div>
-              <div class="pref-slot" id="slot2">
-                <span class="slot-label">2nd Priority</span>
-                <div class="slot-name">Not selected yet</div>
-              </div>
-              <div class="pref-slot" id="slot3">
-                <span class="slot-label">3rd Priority</span>
-                <div class="slot-name">Not selected yet</div>
-              </div>
-              <p class="hint" style="margin:4px 0 14px">You must select three different mentors. Once submitted, your preferences are locked and your FCFS position is fixed.</p>
-              <button class="btn btn-primary" id="confirmBtn" style="width:100%;justify-content:center" disabled onclick="submitPrefs()">Confirm &amp; Submit</button>
-              <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:8px" onclick="clearPrefs()">Clear all</button>
-            </div>
-          </aside>
-        </div>
-      </div>
-  
-      <!-- post-submission state -->
-      <div id="prefSubmitted" style="display:none;max-width:560px;margin:0 auto">
-        <div class="submitted-box">
-          <div class="check">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>
-          </div>
-          <h2 class="section-title" style="color:var(--green)">Preferences Submitted ✓</h2>
-          <p class="muted" style="font-size:14px;margin:6px 0">Submitted:</p>
-          <div class="ts">20 August 2026, 10:31:42.183</div>
-          <p style="font-size:14px;font-weight:600;margin-top:10px">🔒 Your preferences are locked.</p>
-          <p class="muted" style="font-size:13.5px;margin-top:6px">Allocation will be processed according to<br><b>First Come, First Served.</b></p>
-        </div>
-        <div class="card" style="margin-top:18px">
-          <h3 class="card-title">Your locked preferences</h3>
-          <div class="pref-slot filled first"><span class="slot-label">⭐ 1st Priority</span><div class="slot-name" id="lockName1">—</div></div>
-          <div class="pref-slot filled"><span class="slot-label">2nd Priority</span><div class="slot-name" id="lockName2">—</div></div>
-          <div class="pref-slot filled"><span class="slot-label">3rd Priority</span><div class="slot-name" id="lockName3">—</div></div>
-          <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="resetPrefScreen()">↺ Demo: reset this screen</button>
-        </div>
+    <div id="dashPendingView" class="hidden">
+      <div class="card confirm-screen">
+        <div class="confirm-check" style="background:var(--amber-soft);color:var(--amber)">⏳</div>
+        <h1 class="section-title">Allocation Pending</h1>
+        <p class="section-sub">Your preferences are in. The organising committee will run allocation soon — your mentor will appear here the moment it's published.</p>
+        <p style="font-size:13px;color:var(--muted)">💡 Tip: we recommend enabling the email/SMS ping so you don't need to keep refreshing.</p>
       </div>
     </div>
-  </section>
   
-  <!-- ======================= 4. MENTEE DASHBOARD ======================= -->
-  <section class="screen" id="screen-mentee-dash">
-    <div class="container">
-      <h2 class="section-title">Welcome back, Kavindi 👋</h2>
-      <p class="section-sub">Mentor Session 2026 · <span class="pill pill-indigo"><span class="dot"></span> Published</span></p>
-  
+    <div id="dashMainView" class="hidden">
+      <h1 class="section-title">My Dashboard</h1>
+      <p class="section-sub" id="dashHello"></p>
       <div class="dash-grid">
-        <div>
-          <div class="assign-hero">
-            <span class="label">Your Mentor</span>
-            <h2>Tharindu Jayasooriya</h2>
-            <div class="sub">9th Batch · BICT (Hons) · Web Development, Cloud Computing</div>
-            <span class="star-pill">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg>
-              Assignment: 1st Choice
-            </span>
+        <div class="dash-col">
+          <div class="card hero-card card-pad">
+            <div class="card-title" style="color:rgba(255,255,255,.85)">🎓 Your Mentor</div>
+            <div style="font-size:24px;font-weight:800" id="dashMentorName"></div>
+            <div class="mc-batch" id="dashMentorBatch" style="margin:4px 0 12px;font-size:13.5px"></div>
+            <span class="pill" style="background:rgba(255,255,255,.2);color:#fff" id="dashMethod"></span>
           </div>
-  
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
-              Mentor Contact
-            </h3>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><div><b>Email</b>tharindu.j@fot.ruh.ac.lk</div></div>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8.1 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.6 2z"/></svg><div><b>WhatsApp (preferred)</b>071 234 5678</div></div>
+          <div class="card card-pad">
+            <div class="card-title">📞 Mentor Contact</div>
+            <div id="dashContact"></div>
           </div>
-  
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
-              Your Mentor Group
-            </h3>
-            <div class="mentee-item">
-              <div class="avatar" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">SD</div>
-              <div>
-                <h4>Sahan Dissanayake <span class="pill pill-gray" style="margin-left:6px">Other mentee</span></h4>
-                <div class="meta">11th Batch · BICT (Hons) · Interests: Mobile Development</div>
-              </div>
-            </div>
-            <p class="hint">You share your mentor group with one other mentee. Say hi at the first session!</p>
+          <div class="card card-pad">
+            <div class="card-title">👥 Mentor Group</div>
+            <div id="dashGroup"></div>
           </div>
         </div>
-  
-        <div>
-          <div class="card">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
-              Session Details
-            </h3>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><div><b>Date &amp; Time</b>Saturday, 5 September 2026 · 9:00 AM</div></div>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><div><b>Venue</b>Main Auditorium, Faculty of Technology</div></div>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><div><b>Group</b>Group 14 · Table C-3</div></div>
+        <div class="dash-col">
+          <div class="card card-pad">
+            <div class="card-title">📅 Session Details</div>
+            <div id="dashSession"></div>
           </div>
-  
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 21l2-4.9a8.4 8.4 0 1 1 16-4.6z"/></svg>
-              Session Feedback
-            </h3>
-            <label>How useful was the Mentor Session?</label>
-            <div class="stars" data-group="mentee">
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-            </div>
-            <label>Comments &amp; suggestions</label>
-            <textarea placeholder="How helpful was your mentor? Would you participate again?"></textarea>
-            <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="toast('Thank you! Feedback submitted ✓')">Submit Feedback</button>
+          <div class="card card-pad">
+            <div class="card-title">💬 Session Feedback</div>
+            <form id="feedbackForm">
+              <fieldset class="stars" style="display:block;margin-bottom:14px">
+                <legend>How was your session?</legend>
+                <div style="display:flex;gap:4px" id="starRow" role="radiogroup" aria-label="Rating out of 5"></div>
+              </fieldset>
+              <div class="field" style="margin-bottom:16px">
+                <label for="fbComments">Comments</label>
+                <textarea id="fbComments" placeholder="What worked well? What could improve?"></textarea>
+              </div>
+              <button class="btn btn-primary" id="fbSubmit" style="width:100%">Submit Feedback</button>
+            </form>
+            <div id="feedbackDone" class="hidden" style="text-align:center;padding:16px 0;color:var(--green);font-weight:600">✓ Feedback submitted — thank you!</div>
           </div>
         </div>
       </div>
     </div>
   </section>
   
-  <!-- ======================= 5. MENTOR DASHBOARD ======================= -->
-  <section class="screen" id="screen-mentor-dash">
-    <div class="container">
-      <h2 class="section-title">Mentor Dashboard</h2>
-      <p class="section-sub">Mentor Session 2026 · <span class="pill pill-indigo"><span class="dot"></span> Published</span></p>
+  <!-- ================= ADMIN ================= -->
+  <section class="route" id="route-admin">
+    <div id="adminChecking" class="checking-box">
+      <div class="spinner"></div>
+      <span>Checking your session…</span>
+    </div>
   
-      <div class="dash-grid">
-        <div>
-          <div class="card">
-            <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-              <div class="avatar" style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--indigo-light),var(--indigo-dark));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px">TJ</div>
-              <div style="flex:1;min-width:200px">
-                <h3 style="font-size:18px">Tharindu Jayasooriya <span class="pill pill-green" style="margin-left:6px">Approved</span></h3>
-                <div class="muted" style="font-size:13.5px">9th Batch · BICT (Hons) · TG/2022/0456</div>
-                <div class="tags" style="margin-top:8px;margin-bottom:0">
-                  <span class="tag">Web Development</span><span class="tag">Cloud Computing</span><span class="tag">DevOps</span><span class="tag">Career Guidance</span>
-                </div>
-              </div>
-              <div style="text-align:right">
-                <div style="font-size:12px;color:var(--gray-500);font-weight:600">Capacity</div>
-                <div style="font-size:22px;font-weight:800;color:var(--green)">2 / 2</div>
-              </div>
-            </div>
+    <div id="adminLogin" class="hidden">
+      <div class="card login-wrap card-pad">
+        <h1 class="section-title">Admin Sign In</h1>
+        <p class="section-sub">Organising committee access only.</p>
+        <form id="loginForm" novalidate>
+          <div class="field" style="margin-bottom:14px">
+            <label for="admEmail">Email</label>
+            <input type="email" id="admEmail" placeholder="admin@ictsc.lk" autocomplete="username" required>
           </div>
+          <div class="field" style="margin-bottom:20px">
+            <label for="admPass">Password</label>
+            <input type="password" id="admPass" autocomplete="current-password" required>
+          </div>
+          <div class="modal-err" id="loginErr" style="margin:0 0 14px"></div>
+          <button class="btn btn-primary" style="width:100%" id="loginBtn">Sign in</button>
+        </form>
+        <p class="hint" style="margin-top:14px;text-align:center;color:var(--muted);font-size:12px">Demo: any email + any password signs in</p>
+      </div>
+    </div>
   
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2 20v-.5a7 7 0 0 1 14 0v.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16 20v-.3a5.5 5.5 0 0 1 6-5.4"/></svg>
-              My Mentees
-            </h3>
-            <div class="mentee-item">
-              <div class="avatar" style="background:linear-gradient(135deg,#f472b6,#a855f7)">KW</div>
-              <div style="flex:1">
-                <h4>1. Kavindi Wickramasinghe</h4>
-                <div class="meta">Batch: 11th (Junior) · BICT (Hons) · Interests: Web Development</div>
-              </div>
-              <span class="pill pill-amber">⭐ 1st Choice</span>
-            </div>
-            <div class="mentee-item">
-              <div class="avatar" style="background:linear-gradient(135deg,#0ea5e9,#6366f1)">SD</div>
-              <div style="flex:1">
-                <h4>2. Sahan Dissanayake</h4>
-                <div class="meta">Batch: 11th (Junior) · BICT (Hons) · Interests: AI, Mobile Development</div>
-              </div>
-              <span class="pill pill-indigo">2nd Choice</span>
-            </div>
-            <button class="btn btn-outline btn-sm" onclick="toast('Opening WhatsApp group chat… (mock)')">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 21l2-4.9a8.4 8.4 0 1 1 16-4.6z"/></svg>
-              Message my mentee group
-            </button>
+    <div id="adminMain" class="hidden">
+      <div class="admin-topbar">
+        <div>
+          <h1 class="section-title">Admin Dashboard</h1>
+          <p style="color:var(--muted);font-size:13.5px">Signed in as <strong>admin@ictsc.lk</strong></p>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-secondary btn-sm" id="adminRefresh">⟳ Refresh data</button>
+          <button class="btn btn-ghost btn-sm" id="adminSignout">Sign out</button>
+        </div>
+      </div>
+      <div class="tab-strip" role="tablist" id="adminTabs">
+        <button class="tab-btn active" data-tab="overview" role="tab">Overview</button>
+        <button class="tab-btn" data-tab="mentors" role="tab">Mentors</button>
+        <button class="tab-btn" data-tab="mentees" role="tab">Mentees</button>
+        <button class="tab-btn" data-tab="allocation" role="tab">Allocation</button>
+        <button class="tab-btn" data-tab="logs" role="tab">Logs</button>
+      </div>
+  
+      <!-- Overview -->
+      <div class="admin-tab" id="tab-overview">
+        <div class="stat-grid" id="statGrid"></div>
+        <div class="dash-grid">
+          <div class="card card-pad">
+            <div class="card-title">📅 Session Details</div>
+            <div class="kv"><span class="kv-label">Title</span><strong>ICTSC Mentor Session 2026</strong></div>
+            <div class="kv"><span class="kv-label">Date &amp; Time</span><strong>Sat 12 Sep 2026 · 9:00 AM</strong></div>
+            <div class="kv"><span class="kv-label">Venue</span><strong>Main Auditorium, Block C</strong></div>
+            <div class="kv"><span class="kv-label">Status</span><span class="pill pill-green"><span class="dot"></span>Registration open</span></div>
+          </div>
+          <div class="card card-pad">
+            <div class="card-title">📊 Mentor Load</div>
+            <div id="mentorLoad"></div>
           </div>
         </div>
+      </div>
   
-        <div>
-          <div class="card">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
-              Session Details
-            </h3>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><div><b>Date &amp; Time</b>Saturday, 5 September 2026 · 9:00 AM</div></div>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg><div><b>Venue</b>Main Auditorium, Faculty of Technology</div></div>
-            <div class="info-row"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><div><b>Assigned Group</b>Group 14 · Table C-3</div></div>
+      <!-- Mentors -->
+      <div class="admin-tab hidden" id="tab-mentors">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+            <input type="text" id="mentorSearch" placeholder="Search mentors…" aria-label="Search mentors">
           </div>
-  
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 21l2-4.9a8.4 8.4 0 1 1 16-4.6z"/></svg>
-              Mentor Feedback
-            </h3>
-            <label>How was your mentoring experience?</label>
-            <div class="stars">
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-              <button onclick="rate(this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.6.7-4.9 4.5 1.3 6.5L12 16.9 6.1 20l1.3-6.5L2.5 9l6.6-.7z"/></svg></button>
-            </div>
-            <label>Suggestions for future Mentor Sessions</label>
-            <textarea placeholder="Was communication effective? Would you mentor again?"></textarea>
-            <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="toast('Thank you! Feedback submitted ✓')">Submit Feedback</button>
-          </div>
+          <span class="pill pill-indigo" id="mentorCountPill"></span>
+          <button class="btn btn-primary btn-sm" style="margin-left:auto" id="addMentorBtn">+ Add mentor</button>
         </div>
+        <div class="card" style="overflow:hidden">
+          <table class="rtable" id="mentorsTable">
+            <thead><tr>
+              <th data-sort="name">Mentor ⇅</th><th class="nosort">Contact</th><th class="nosort">Batch</th><th class="nosort">Interests</th><th data-sort="cap">Capacity ⇅</th><th class="nosort">Actions</th>
+            </tr></thead>
+            <tbody id="mentorsTbody"></tbody>
+          </table>
+          <div class="table-cards" id="mentorsCards" style="padding:14px"></div>
+        </div>
+      </div>
+  
+      <!-- Mentees -->
+      <div class="admin-tab hidden" id="tab-mentees">
+        <div class="table-toolbar">
+          <div class="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+            <input type="text" id="menteeSearch" placeholder="Search by name or ID…" aria-label="Search mentees">
+          </div>
+          <span class="pill pill-indigo" id="menteeCountPill"></span>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <table class="rtable">
+            <thead><tr><th class="nosort">Mentee</th><th class="nosort">Contact</th><th class="nosort">Batch</th><th class="nosort">Preference</th><th class="nosort">Assigned Mentor</th></tr></thead>
+            <tbody id="menteesTbody"></tbody>
+          </table>
+          <div class="table-cards" id="menteesCards" style="padding:14px"></div>
+        </div>
+      </div>
+  
+      <!-- Allocation -->
+      <div class="admin-tab hidden" id="tab-allocation">
+        <div class="card card-pad" style="margin-bottom:20px">
+          <div class="card-title">⚙️ Allocation Controls</div>
+          <div class="alloc-controls">
+            <button class="btn btn-secondary" data-alloc="preview">Preview FCFS</button>
+            <button class="btn btn-primary" data-alloc="commit">Commit FCFS</button>
+            <button class="btn btn-green" data-alloc="fallback">Commit with Fallback</button>
+            <button class="btn btn-danger-soft" data-alloc="reset">Reset Allocation</button>
+          </div>
+          <p class="hint" style="color:var(--muted);font-size:12.5px;margin-top:10px">Preview is a dry-run and saves nothing. Commit actions are logged and disable while running.</p>
+        </div>
+        <div class="card" style="overflow:hidden;margin-bottom:20px">
+          <div class="card-pad" style="padding-bottom:0"><div class="card-title">✅ Allocation Results</div></div>
+          <table class="rtable">
+            <thead><tr><th class="nosort">Student</th><th class="nosort">Submitted</th><th class="nosort">Mentor</th><th class="nosort">Method</th></tr></thead>
+            <tbody id="allocTbody"></tbody>
+          </table>
+          <div class="table-cards" id="allocCards" style="padding:14px"></div>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <div class="card-pad" style="padding-bottom:0"><div class="card-title">🕳️ Unmatched Pool</div></div>
+          <table class="rtable">
+            <thead><tr><th class="nosort">Student</th><th class="nosort">Preferences</th></tr></thead>
+            <tbody id="unmatchedTbody"></tbody>
+          </table>
+          <div class="table-cards" id="unmatchedCards" style="padding:14px"></div>
+        </div>
+      </div>
+  
+      <!-- Logs -->
+      <div class="admin-tab hidden" id="tab-logs">
+        <div class="table-toolbar">
+          <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px">From <input type="date" id="logFrom" style="min-height:40px"></label>
+          <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px">To <input type="date" id="logTo" style="min-height:40px"></label>
+        </div>
+        <div class="card" style="overflow:hidden">
+          <table class="rtable">
+            <thead><tr><th class="nosort">Timestamp</th><th class="nosort">Action</th><th class="nosort">Detail</th></tr></thead>
+            <tbody id="logsTbody"></tbody>
+          </table>
+          <div class="table-cards" id="logsCards" style="padding:14px"></div>
+        </div>
+        <div class="pager" id="logsPager"></div>
       </div>
     </div>
   </section>
   
-  <!-- ======================= 6. ADMIN DASHBOARD ======================= -->
-  <section class="screen" id="screen-admin">
-    <div class="container">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:4px">
-        <h2 class="section-title" style="margin:0">Mentor Session 2026 — Admin</h2>
-        <span class="pill pill-green"><span class="dot"></span> PUBLISHED</span>
+  </main>
+  
+  <!-- ===== Footer ===== -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <strong style="color:var(--ink)">ICTSC Mentor Session</strong><br>
+        Built by the ICT Students' Council · © 2026
       </div>
-      <p class="section-sub">Senior Batch: 9th · Junior Batch: 11th · Session: 5 Sep 2026, Main Auditorium</p>
-  
-      <!-- lifecycle states -->
-      <div class="card" style="padding:16px 22px;margin-bottom:22px">
-        <div class="lifecycle">
-          <span class="life-step done"><span class="bubble">✓</span> DRAFT</span><span class="life-arrow">→</span>
-          <span class="life-step done"><span class="bubble">✓</span> OPEN</span><span class="life-arrow">→</span>
-          <span class="life-step done"><span class="bubble">✓</span> CLOSED</span><span class="life-arrow">→</span>
-          <span class="life-step done"><span class="bubble">✓</span> ALLOCATING</span><span class="life-arrow">→</span>
-          <span class="life-step done"><span class="bubble">✓</span> ALLOCATED</span><span class="life-arrow">→</span>
-          <span class="life-step current"><span class="bubble">6</span> PUBLISHED</span><span class="life-arrow">→</span>
-          <span class="life-step"><span class="bubble">7</span> COMPLETED</span>
-        </div>
-      </div>
-  
-      <!-- stats -->
-      <div class="stats-grid">
-        <div class="stat accent"><div class="v">40</div><div class="k">Total Mentors</div></div>
-        <div class="stat accent"><div class="v">72</div><div class="k">Total Mentees</div></div>
-        <div class="stat"><div class="v">80</div><div class="k">Total Capacity</div></div>
-        <div class="stat green"><div class="v">72</div><div class="k">Assigned</div></div>
-        <div class="stat"><div class="v">0</div><div class="k">Unassigned</div></div>
-        <div class="stat"><div class="v">8</div><div class="k">Available Capacity</div></div>
-        <div class="stat amber"><div class="v">51</div><div class="k">1st Choice ⭐</div></div>
-        <div class="stat"><div class="v">14</div><div class="k">2nd Choice</div></div>
-        <div class="stat"><div class="v">5</div><div class="k">3rd Choice</div></div>
-        <div class="stat"><div class="v">2</div><div class="k">Random Fallback</div></div>
-        <div class="stat"><div class="v">0</div><div class="k">Admin Assigned</div></div>
-        <div class="stat green"><div class="v">97.2%</div><div class="k">Top-3 Satisfaction</div></div>
-      </div>
-  
-      <!-- controls -->
-      <div class="card" style="margin-bottom:22px">
-        <h3 class="card-title">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-          Allocation Controls
-        </h3>
-        <div class="admin-controls">
-          <button class="btn btn-primary btn-sm" onclick="toast('FCFS preference allocation started… 72 mentees queued by submission time.')">
-            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>
-            Run FCFS Allocation
-          </button>
-          <button class="btn btn-amber btn-sm" onclick="toast('Random fallback: 2 unmatched mentees assigned to mentors with free capacity.')">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
-            Run Random Fallback
-          </button>
-          <button class="btn btn-outline btn-sm" onclick="toast('Allocation preview generated below.')">Preview Allocation</button>
-          <button class="btn btn-outline btn-sm" onclick="toast('Allocation finalized and locked ✓')">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-            Finalize Allocation
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="toast('Manual assignment editor opened (mock).')">Manual Assign</button>
-          <button class="btn btn-danger btn-sm" onclick="openModal()">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-            Reset Allocation
-          </button>
-        </div>
-      </div>
-  
-      <div class="dash-grid">
-        <div>
-          <!-- allocation preview table -->
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
-              <h3 class="card-title" style="margin:0">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><path d="M3 5h18M3 12h18M3 19h18"/></svg>
-                Allocation Preview
-              </h3>
-              <span class="pill pill-gray">Showing 8 of 72</span>
-            </div>
-            <div style="overflow-x:auto">
-            <table>
-              <thead><tr><th>Student</th><th>Submitted</th><th>Mentor</th><th>Method</th></tr></thead>
-              <tbody>
-                <tr><td>Kavindi Wickramasinghe</td><td class="muted">10:31:42.183</td><td>Tharindu Jayasooriya</td><td><span class="pill pill-amber">⭐ 1st Choice</span></td></tr>
-                <tr><td>Sahan Dissanayake</td><td class="muted">10:31:48.902</td><td>Tharindu Jayasooriya</td><td><span class="pill pill-indigo">2nd Choice</span></td></tr>
-                <tr><td>Nimesha Herath</td><td class="muted">10:32:05.114</td><td>Ishara Gunawardena</td><td><span class="pill pill-amber">⭐ 1st Choice</span></td></tr>
-                <tr><td>Ravindu Peris</td><td class="muted">10:32:11.560</td><td>Dulani Rathnayake</td><td><span class="pill pill-amber">⭐ 1st Choice</span></td></tr>
-                <tr><td>Chamodi Senanayake</td><td class="muted">10:33:27.031</td><td>Kasun Weerasinghe</td><td><span class="pill pill-indigo">3rd Choice</span></td></tr>
-                <tr><td>Isuru Bandara</td><td class="muted">10:34:02.775</td><td>Sanduni Fernando</td><td><span class="pill pill-gray">Randomly Assigned</span></td></tr>
-                <tr><td>Hiruni Madushani</td><td class="muted">10:34:40.218</td><td>Pasindu Amarasinghe</td><td><span class="pill pill-indigo">2nd Choice</span></td></tr>
-                <tr><td>Dineth Kulasekara</td><td class="muted">10:35:16.644</td><td>Ishara Gunawardena</td><td><span class="pill pill-green">Admin Assigned</span></td></tr>
-              </tbody>
-            </table>
-            </div>
-          </div>
-  
-          <!-- unmatched pool -->
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
-              Unmatched Pool
-            </h3>
-            <p class="muted" style="font-size:13.5px;margin-bottom:12px">Mentees whose 3 preferred mentors were full after FCFS allocation. Resolved via random fallback — <b>0 currently unassigned</b> due to insufficient capacity.</p>
-            <div style="overflow-x:auto">
-            <table>
-              <thead><tr><th>Student</th><th>Preferences (all full)</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr><td>Isuru Bandara</td><td class="muted">T. Jayasooriya → I. Gunawardena → D. Rathnayake</td><td><span class="pill pill-gray">Randomly Assigned</span></td></tr>
-                <tr><td>Malsha Ekanayake</td><td class="muted">D. Rathnayake → K. Weerasinghe → T. Jayasooriya</td><td><span class="pill pill-gray">Randomly Assigned</span></td></tr>
-              </tbody>
-            </table>
-            </div>
-          </div>
-        </div>
-  
-        <div>
-          <!-- mentor load -->
-          <div class="card">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>
-              Mentor Load
-            </h3>
-            <div class="load-row"><span class="name">Tharindu Jayasooriya</span><div class="bar"><span style="width:100%"></span></div><span class="count">2 / 2 · Full</span></div>
-            <div class="load-row"><span class="name">Ishara Gunawardena</span><div class="bar"><span style="width:100%"></span></div><span class="count">2 / 2 · Full</span></div>
-            <div class="load-row"><span class="name">Dulani Rathnayake</span><div class="bar"><span style="width:100%"></span></div><span class="count">2 / 2 · Full</span></div>
-            <div class="load-row"><span class="name">Kasun Weerasinghe</span><div class="bar"><span style="width:100%"></span></div><span class="count">2 / 2 · Full</span></div>
-            <div class="load-row"><span class="name">Sanduni Fernando</span><div class="bar"><span style="width:50%;background:var(--amber)"></span></div><span class="count">1 / 2</span></div>
-            <div class="load-row"><span class="name">Pasindu Amarasinghe</span><div class="bar"><span style="width:50%;background:var(--amber)"></span></div><span class="count">1 / 2</span></div>
-            <div class="load-row"><span class="name">Nadeesha Silva</span><div class="bar"><span style="width:0"></span></div><span class="count">0 / 2</span></div>
-            <p class="hint" style="margin-top:10px">Showing 7 of 40 mentors · <a href="#" onclick="toast('Full mentor load report (mock)');return false">View all</a></p>
-          </div>
-  
-          <!-- exports -->
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
-              Export Data
-            </h3>
-            <p class="muted" style="font-size:13px;margin-bottom:14px">Export mentor lists, mentee lists, assignments, preference data, unmatched participants and feedback reports.</p>
-            <div class="admin-controls">
-              <button class="btn btn-ghost btn-sm" onclick="toast('Exporting CSV… (mock)')">⬇ CSV</button>
-              <button class="btn btn-ghost btn-sm" onclick="toast('Exporting Excel… (mock)')">⬇ Excel</button>
-              <button class="btn btn-ghost btn-sm" onclick="toast('Exporting PDF… (mock)')">⬇ PDF</button>
-            </div>
-          </div>
-  
-          <!-- allocation log -->
-          <div class="card" style="margin-top:20px">
-            <h3 class="card-title">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              Allocation Log
-            </h3>
-            <div class="load-row" style="font-size:12.5px"><span style="flex:1"><b>10:40:02</b> — FCFS allocation completed · 70 assigned</span></div>
-            <div class="load-row" style="font-size:12.5px"><span style="flex:1"><b>10:41:15</b> — Random fallback run · 2 assigned</span></div>
-            <div class="load-row" style="font-size:12.5px"><span style="flex:1"><b>10:45:30</b> — Allocation finalized by admin</span></div>
-            <div class="load-row" style="font-size:12.5px"><span style="flex:1"><b>11:00:00</b> — Results published to participants</span></div>
-          </div>
-        </div>
+      <div class="footer-links">
+        <a href="#/">Home</a><a href="#/mentor">Mentors</a><a href="#/mentee">Register</a><a href="#/admin">Admin</a>
       </div>
     </div>
-  </section>
-  
-  <footer>
-    <b>ICT Students' Circle</b> · Faculty of Technology · University of Ruhuna — Mentor Session Management System (UI Prototype)
   </footer>
   
-  <!-- ======================= RESET CONFIRM MODAL ======================= -->
-  <div class="modal-backdrop" id="resetModal" onclick="if(event.target===this)closeModal()">
-    <div class="modal">
-      <h3>
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" style="width:22px;height:22px"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
-        Reset Allocation?
-      </h3>
-      <p>This will <b>permanently delete all 72 current assignments</b> for Mentor Session 2026, including FCFS, random fallback and manual assignments. Registration data and FCFS submission timestamps will be preserved. This action is logged and cannot be undone.</p>
-      <div class="actions">
-        <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
-        <button class="btn btn-sm" style="background:var(--red);color:#fff" onclick="closeModal();toast('Allocation reset. All assignments removed — session moved to CLOSED.')">Yes, Reset Allocation</button>
+  <!-- ===== Mentor Form Modal ===== -->
+  <div class="modal-backdrop" id="mentorModalBk">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mentorModalTitle">
+      <div class="modal-head">
+        <h2 id="mentorModalTitle" style="font-size:18px">Add Mentor</h2>
+        <button class="drawer-close" data-close="mentorModalBk" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field"><label>Full Name</label><input type="text" id="mfName" placeholder="e.g. Kasun Silva"></div>
+          <div class="field"><label>Student ID</label><input type="text" id="mfSid" placeholder="ICT/2023/012"></div>
+          <div class="field"><label>University Email</label><input type="email" id="mfEmail" placeholder="name@uni.lk"></div>
+          <div class="field"><label>Contact Number</label><input type="tel" id="mfPhone" placeholder="07X XXX XXXX"></div>
+          <div class="field"><label>Batch</label>
+            <select id="mfBatch"><option>ICT 2022</option><option>ICT 2023</option><option>ICT 2024</option></select></div>
+          <div class="field"><label>Communication</label>
+            <select id="mfComm"><option>WhatsApp</option><option>Email</option><option>In person</option><option>Discord</option></select></div>
+          <div class="field"><label>Capacity (1–10)</label><input type="number" id="mfCap" min="1" max="10" value="2"></div>
+          <div class="field" style="grid-column:1/-1"><label>Academic Interests</label><div class="mselect" id="msAcademic"></div></div>
+          <div class="field" style="grid-column:1/-1"><label>Technical Interests</label><div class="mselect" id="msTech"></div></div>
+          <div class="field" style="grid-column:1/-1">
+            <label>Profile Photo</label>
+            <div class="photo-drop">
+              <div class="photo-preview" id="mfPhotoPrev">?</div>
+              <div style="flex:1;min-width:160px">
+                <div style="font-size:13px;font-weight:600">Upload a photo</div>
+                <div class="hint">Resized &amp; compressed on your device before upload — mobile-data friendly.</div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button type="button" class="btn btn-secondary btn-sm" id="mfPhotoBtn">Choose file</button>
+                <button type="button" class="btn btn-ghost btn-sm" id="mfPhotoRemove">Remove</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-err" id="mfErr"></div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" data-close="mentorModalBk">Cancel</button>
+        <button class="btn btn-primary" id="mfSave" style="min-width:140px">Add mentor</button>
       </div>
     </div>
   </div>
   
-  <div class="toast" id="toast"></div>
+  <!-- ===== Reset / destructive modal ===== -->
+  <div class="modal-backdrop" id="resetModalBk">
+    <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="rmTitle" style="width:440px">
+      <div class="modal-body" style="padding:26px">
+        <div class="warn-icon">⚠️</div>
+        <h2 id="rmTitle" style="font-size:17px;margin-bottom:8px">Are you sure?</h2>
+        <p id="rmBody" style="font-size:14px;color:var(--muted)"></p>
+      </div>
+      <div class="modal-foot" style="padding-bottom:24px">
+        <button class="btn btn-ghost" data-close="resetModalBk">Cancel</button>
+        <button class="btn btn-danger" id="rmConfirm" style="min-width:130px">Confirm</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
   
   <script>
-  /* ---------- screen navigation ---------- */
-  function showScreen(name, btn){
-    document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
-    var target = document.getElementById('screen-'+name);
-    if(target) target.classList.add('active');
-    document.querySelectorAll('#mainNav button').forEach(function(b){b.classList.remove('active');});
-    if(btn){ btn.classList.add('active'); }
-    else{
-      var nb = document.querySelector('#mainNav button[data-screen="'+name+'"]');
-      if(nb) nb.classList.add('active');
+  /* ================================================================
+     ICTSC Mentor Session — single-file UI/UX prototype
+     Hash routing · mock data · all interactions simulated client-side
+  ================================================================ */
+  'use strict';
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const GRADS=[['#6366f1','#8b5cf6'],['#0ea5e9','#6366f1'],['#10b981','#0ea5e9'],['#f59e0b','#ef4444'],['#ec4899','#8b5cf6'],['#14b8a6','#22c55e'],['#f43f5e','#f59e0b'],['#8b5cf6','#ec4899']];
+  const grad=i=>`linear-gradient(135deg,${GRADS[i%GRADS.length][0]},${GRADS[i%GRADS.length][1]})`;
+  const initials=n=>n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  
+  /* ---------- Mock data ---------- */
+  const BATCHES=['ICT 2022','ICT 2023','ICT 2024'];
+  const FIRST=['Kasun','Nethmi','Tharindu','Ishara','Dilini','Sahan','Ruwanthi','Pasindu','Hiruni','Chamath','Sanduni','Ravindu','Amaya','Lakshan','Sewmini','Yasiru','Nadeesha','Dinuka','Thisari','Malith','Oshadi','Janith','Kavindi','Supun'];
+  const LAST=['Silva','Perera','Fernando','Jayasinghe','Bandara','Wickramasinghe','Gunasekara','Rathnayake','Dissanayake','Herath','Weerasinghe','Karunaratne'];
+  const ACADEMIC=['Algorithms','Databases','Networking','AI / ML','HCI','Software Eng.','Cybersecurity','Data Science','Maths'];
+  const TECHNICAL=['React','Node.js','Python','Flutter','DevOps','Cloud (AWS)','UI/UX Design','Java','Rust','Game Dev'];
+  function seedRand(s){return ()=> (s=Math.imul(48271,s)%2147483647)/2147483647;}
+  const rnd=seedRand(42);
+  const pick=(arr,r)=>arr[Math.floor(r()*arr.length)];
+  const MENTORS=Array.from({length:34},(_,i)=>{
+    const name=pick(FIRST,rnd)+' '+pick(LAST,rnd);
+    const cap=2+Math.floor(rnd()*3);
+    const used=Math.min(cap,Math.floor(rnd()*(cap+1.4)));
+    return {id:'m'+(i+1),name,batch:pick(BATCHES,rnd),cap,used,
+      email:name.toLowerCase().replace(/[^a-z]/g,'.')+'@uni.lk',
+      phone:'07'+Math.floor(rnd()*9)+' '+String(Math.floor(rnd()*900+100))+' '+String(Math.floor(rnd()*9000+1000)),
+      comm:pick(['WhatsApp','Email','Discord','In person'],rnd),
+      academic:[pick(ACADEMIC,rnd),pick(ACADEMIC,rnd)].filter((v,ix,a)=>a.indexOf(v)===ix),
+      tech:[pick(TECHNICAL,rnd),pick(TECHNICAL,rnd)].filter((v,ix,a)=>a.indexOf(v)===ix)};
+  });
+  const MENTEES=Array.from({length:23},(_,i)=>{
+    const name=pick(FIRST,rnd)+' '+pick(LAST,rnd);
+    const assigned=rnd()>0.35?pick(MENTORS,rnd):null;
+    return {id:'ICT/2026/'+String(i+1).padStart(3,'0'),name,batch:'ICT 2026',
+      phone:'07'+Math.floor(rnd()*9)+' '+String(Math.floor(rnd()*900+100))+' '+String(Math.floor(rnd()*9000+1000)),
+      interests:pick(ACADEMIC,rnd),submitted:rnd()>0.25,
+      subTime:`Aug ${20+Math.floor(rnd()*6)}, ${9+Math.floor(rnd()*8)}:${String(Math.floor(rnd()*60)).padStart(2,'0')} AM`,
+      mentor:assigned,method:assigned?(rnd()>0.3?'FCFS':'Random'):null};
+  });
+  const LOGS=Array.from({length:64},(_,i)=>{
+    const acts=[['Mentor added','New mentor profile created'],['Preference submitted','Mentee locked 3 preferences'],['Allocation preview','Dry-run FCFS executed'],['Allocation committed','FCFS allocation saved'],['Mentee registered','New mentee onboarded'],['Photo uploaded','Mentor avatar updated'],['Allocation reset','All assignments cleared']];
+    const a=pick(acts,rnd);
+    return {ts:`2026-08-${String(27-Math.floor(i/4)).padStart(2,'0')} ${String(8+(i%12)).padStart(2,'0')}:${String(Math.floor(rnd()*60)).padStart(2,'0')}`,action:a[0],detail:a[1]+` (#${1000+i})`};
+  });
+  
+  /* ---------- Toasts ---------- */
+  function toast(msg,type='info'){
+    const icons={info:'ℹ️',success:'✅',error:'⛔',warning:'⚠️'};
+    const el=document.createElement('div');
+    el.className='toast '+type;
+    el.setAttribute('role',type==='error'||type==='warning'?'alert':'status');
+    if(type==='error'||type==='warning')el.setAttribute('aria-live','assertive');
+    el.innerHTML=`<span class="t-icon">${icons[type]}</span><span>${msg}</span><button class="t-close" aria-label="Dismiss">×</button>`;
+    el.querySelector('.t-close').onclick=()=>el.remove();
+    $('#toastWrap').appendChild(el);
+    if(type==='info'||type==='success')setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),320)},2800);
+  }
+  
+  /* ---------- Busy button helper ---------- */
+  async function busy(btn,label,fn){
+    const orig=btn.innerHTML;
+    btn.disabled=true;btn.innerHTML=`<span class="spinner"></span> ${label}`;
+    try{await fn();}finally{btn.disabled=false;btn.innerHTML=orig;}
+  }
+  
+  /* ---------- Nav / routing ---------- */
+  const NAVSETS={
+    home:[['#/','Home'],['#/mentee','Mentee'],['#/mentor','Mentors'],['#/admin','Admin','admin-link']],
+    mentor:[['#/mentor','Mentor Directory']],
+    mentee:[['#/mentee','Mentee Registration'],['#/mentee/prefs','Preference Selection'],['#/mentee/dashboard','Mentee Dashboard']],
+    admin:[['#/admin','Admin Dashboard','admin-link']]
+  };
+  function routeKey(){
+    const h=location.hash||'#/';
+    if(h.startsWith('#/admin'))return'admin';
+    if(h.startsWith('#/mentor'))return'mentor';
+    if(h.startsWith('#/mentee'))return'mentee';
+    return'home';
+  }
+  function renderNav(){
+    const key=routeKey(),h=location.hash||'#/';
+    const html=NAVSETS[key].map(([href,label,cls])=>
+      `<a href="${href}" class="nav-link ${cls||''} ${h===href?'active':''}">${label}</a>`).join('');
+    $('#navDesktop').innerHTML=html;
+    $('#navDrawer').innerHTML=NAVSETS.home.map(([href,label,cls])=>
+      `<a href="${href}" class="nav-link ${cls||''} ${h===href?'active':''}">${label}</a>`).join('')+
+      (key==='mentee'?'<hr style="border:none;border-top:1px solid var(--line);margin:8px 0">'+
+        NAVSETS.mentee.map(([href,label])=>`<a href="${href}" class="nav-link ${h===href?'active':''}">${label}</a>`).join(''):'');
+  }
+  function route(){
+    const h=location.hash||'#/';
+    const map={'#/':'home','#/mentor':'mentor','#/mentee':'mentee','#/mentee/prefs':'prefs','#/mentee/dashboard':'dashboard','#/admin':'admin'};
+    const id=map[h]||'home';
+    $$('.route').forEach(r=>r.classList.remove('active'));
+    $('#route-'+id).classList.add('active');
+    renderNav();closeDrawer();
+    window.scrollTo({top:0,behavior:'instant'});
+    if(id==='mentor')initMentorDir();
+    if(id==='prefs')initPrefs();
+    if(id==='dashboard')initDashboard();
+    if(id==='admin')initAdmin();
+  }
+  window.addEventListener('hashchange',route);
+  
+  /* ---------- Drawer ---------- */
+  let lastFocus=null;
+  function openDrawer(){lastFocus=document.activeElement;$('#drawer').classList.add('open');$('#drawerBackdrop').classList.add('open');$('#drawer').setAttribute('aria-hidden','false');$('#hamburgerBtn').setAttribute('aria-expanded','true');$('#drawerClose').focus();}
+  function closeDrawer(){$('#drawer').classList.remove('open');$('#drawerBackdrop').classList.remove('open');$('#drawer').setAttribute('aria-hidden','true');$('#hamburgerBtn').setAttribute('aria-expanded','false');if(lastFocus)lastFocus.focus?.();}
+  $('#hamburgerBtn').onclick=openDrawer;
+  $('#drawerClose').onclick=closeDrawer;
+  $('#drawerBackdrop').onclick=closeDrawer;
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();$$('.modal-backdrop.open').forEach(m=>m.classList.remove('open'));}});
+  
+  /* ---------- Lifecycle stepper ---------- */
+  const STEPS=['Mentors onboarded','Registration opens','Mentees register','Preferences submitted','Allocation run','Results published','Session day','Feedback collected'];
+  const CURRENT_STEP=3;
+  $('#lifecycleStepper').innerHTML=STEPS.map((s,i)=>{
+    const cls=i<CURRENT_STEP?'done':i===CURRENT_STEP?'current':'';
+    const mark=i<CURRENT_STEP?'✓':i+1;
+    return `<li class="step ${cls}"><span class="step-dot">${mark}</span><span class="step-label">${s}</span></li>`;
+  }).join('');
+  
+  /* ---------- FilterBar factory ---------- */
+  function makeFilterBar(container,onChange){
+    container.innerHTML=`
+      <div class="filter-bar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
+          <input type="text" placeholder="Search mentors…" aria-label="Search mentors">
+        </div>
+        <div class="chip-row">
+          ${BATCHES.map(b=>`<button class="chip" data-batch="${b}">${b}</button>`).join('')}
+          <button class="chip toggle-chip" data-open="1">◯ Has open spots</button>
+        </div>
+      </div>`;
+    const state={q:'',batch:null,open:false};
+    let deb;
+    container.querySelector('input').addEventListener('input',e=>{clearTimeout(deb);deb=setTimeout(()=>{state.q=e.target.value.toLowerCase();onChange(state);},300);});
+    container.querySelectorAll('[data-batch]').forEach(c=>c.onclick=()=>{
+      const on=c.classList.contains('on');
+      container.querySelectorAll('[data-batch]').forEach(x=>x.classList.remove('on'));
+      if(!on){c.classList.add('on');state.batch=c.dataset.batch;}else state.batch=null;
+      onChange(state);});
+    const og=container.querySelector('[data-open]');
+    og.onclick=()=>{state.open=!state.open;og.classList.toggle('on',state.open);og.textContent=(state.open?'● ':'◯ ')+'Has open spots';onChange(state);};
+    return state;
+  }
+  function filterMentors(state){
+    return MENTORS.filter(m=>
+      (!state.q||m.name.toLowerCase().includes(state.q)||m.tech.join(' ').toLowerCase().includes(state.q)||m.academic.join(' ').toLowerCase().includes(state.q))&&
+      (!state.batch||m.batch===state.batch)&&
+      (!state.open||m.used<m.cap));
+  }
+  function spotsHTML(m){
+    const left=m.cap-m.used,pct=(m.used/m.cap)*100;
+    const cls=left===0?'none':left===1?'low':'';
+    const txt=left===0?'Full':`${left} of ${m.cap} spot${m.cap>1?'s':''} left`;
+    return `<div class="mc-spots"><div class="spots-bar"><div class="spots-fill ${cls}" style="width:${pct}%"></div></div><span style="color:${left===0?'var(--red)':left===1?'var(--amber)':'var(--green)'}">${txt}</span></div>`;
+  }
+  function skeletonGrid(el,n=8){
+    el.innerHTML=Array.from({length:n},()=>`<div class="sk-card"><div class="sk sk-avatar"></div><div class="sk sk-line" style="width:65%"></div><div class="sk sk-line" style="width:40%"></div></div>`).join('');
+  }
+  
+  /* ================= Mentor Directory ================= */
+  const PAGE_SIZE=12;
+  let dirInit=false,dirState=null,dirPage=0;
+  function initMentorDir(){
+    if(dirInit){renderDir();return;}
+    dirInit=true;
+    dirState=makeFilterBar($('#mentorDirFilter'),()=>{dirPage=0;renderDir();});
+    skeletonGrid($('#mentorDirGrid'));
+    setTimeout(renderDir,650);
+  }
+  function renderDir(){
+    const list=filterMentors(dirState||{q:'',batch:null,open:false});
+    const grid=$('#mentorDirGrid');
+    if(!list.length){
+      grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><div class="big">${MENTORS.length? '🔍':'🌱'}</div><p>${MENTORS.length?'No mentors match your filters — try widening the search.':'No mentors yet — check back soon!'}</p></div>`;
+      $('#mentorDirPager').innerHTML='';return;
     }
-    window.scrollTo({top:0,behavior:'smooth'});
+    const pages=Math.ceil(list.length/PAGE_SIZE);
+    dirPage=Math.min(dirPage,pages-1);
+    const slice=list.slice(dirPage*PAGE_SIZE,(dirPage+1)*PAGE_SIZE);
+    grid.innerHTML=slice.map((m,ix)=>`
+      <article class="card mentor-card ${m.used>=m.cap?'full':''}" style="cursor:default">
+        <div class="accent"></div>
+        <div class="mc-photo" style="background:${grad(MENTORS.indexOf(m))}">
+          ${initials(m.name)}<span class="mc-index">#${MENTORS.indexOf(m)+1}</span>
+        </div>
+        <div class="mc-body">
+          <div class="mc-name">${m.name}</div>
+          <div class="mc-batch">${m.batch} · ${m.comm}</div>
+          <div class="mc-tags">${[...m.academic,...m.tech].slice(0,4).map(t=>`<span class="mc-tag">${t}</span>`).join('')}</div>
+          ${spotsHTML(m)}
+        </div>
+      </article>`).join('');
+    $('#mentorDirPager').innerHTML=pages>1?
+      `<button class="btn btn-secondary btn-sm" ${dirPage===0?'disabled':''} onclick="dirPage--;renderDir()">‹</button>
+       <span style="font-size:13px;color:var(--muted)">Page ${dirPage+1} of ${pages}</span>
+       <button class="btn btn-secondary btn-sm" ${dirPage===pages-1?'disabled':''} onclick="dirPage++;renderDir()">›</button>`:'';
   }
-  function navTo(name){ showScreen(name, null); }
+  window.renderDir=renderDir;
   
-  /* ---------- toast ---------- */
-  var toastTimer=null;
-  function toast(msg){
-    var t=document.getElementById('toast');
-    t.textContent=msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer=setTimeout(function(){t.classList.remove('show');},2800);
-  }
-  
-  /* ---------- reset modal ---------- */
-  function openModal(){document.getElementById('resetModal').classList.add('open');}
-  function closeModal(){document.getElementById('resetModal').classList.remove('open');}
-  
-  /* ---------- feedback stars ---------- */
-  function rate(btn){
-    var group=btn.parentElement;
-    var btns=Array.prototype.slice.call(group.children);
-    var idx=btns.indexOf(btn);
-    btns.forEach(function(b,i){ b.classList.toggle('on', i<=idx); });
-  }
-  
-  /* ---------- mentor preference selection ---------- */
-  var mentors=[
-    {id:1, name:'Tharindu Jayasooriya', batch:'9th Batch · BICT', tags:['Web Dev','Cloud'],   cap:0, grad:'linear-gradient(135deg,#6366f1,#312e81)'},
-    {id:2, name:'Ishara Gunawardena',   batch:'9th Batch · BICT', tags:['AI / ML','Python'],  cap:0, grad:'linear-gradient(135deg,#0ea5e9,#1d4ed8)'},
-    {id:3, name:'Dulani Rathnayake',    batch:'9th Batch · BBST', tags:['UI/UX','Research'],  cap:1, grad:'linear-gradient(135deg,#f472b6,#9d174d)'},
-    {id:4, name:'Kasun Weerasinghe',    batch:'9th Batch · BET',  tags:['IoT','Embedded'],    cap:1, grad:'linear-gradient(135deg,#22c55e,#166534)'},
-    {id:5, name:'Sanduni Fernando',     batch:'9th Batch · BICT', tags:['Cyber Sec','Linux'], cap:1, grad:'linear-gradient(135deg,#f59e0b,#b45309)'},
-    {id:6, name:'Pasindu Amarasinghe',  batch:'9th Batch · BICT', tags:['Mobile','Flutter'],  cap:0, grad:'linear-gradient(135deg,#a855f7,#6b21a8)'},
-    {id:7, name:'Nadeesha Silva',       batch:'9th Batch · BBST', tags:['Data Sci','Stats'],  cap:0, grad:'linear-gradient(135deg,#14b8a6,#0f766e)'},
-    {id:8, name:'Ruwan Ekanayake',      batch:'9th Batch · BET',  tags:['Networking','CCNA'], cap:2, grad:'linear-gradient(135deg,#64748b,#334155)'},
-    {id:9, name:'Hansika Perera',       batch:'9th Batch · BICT', tags:['DevOps','Career'],   cap:0, grad:'linear-gradient(135deg,#ef4444,#991b1b)'}
-  ];
-  var picks=[]; // ordered mentor ids: [p1,p2,p3]
-  
-  function initials(n){return n.split(' ').map(function(w){return w[0];}).slice(0,2).join('');}
-  
-  function renderMentors(){
-    var grid=document.getElementById('mentorGrid');
-    grid.innerHTML='';
-    mentors.forEach(function(m){
-      var isFull=m.cap>=2;
-      var pIdx=picks.indexOf(m.id); // 0,1,2 or -1
-      var card=document.createElement('div');
-      card.className='mentor-card'+(isFull?' full':'')+(pIdx>-1?' selected':'');
-      var barClass = m.cap===0?'empty':(m.cap===1?'half':'fullbar');
-      var capLabel = m.cap+'/2'+(isFull?' · Full':'');
-      card.innerHTML=
-        '<div class="prio-badge p'+(pIdx+1)+'">'+(pIdx===0?'★1':(pIdx===1?'2':'3'))+'</div>'+
-        '<div class="avatar" style="background:'+m.grad+'">'+initials(m.name)+'</div>'+
-        '<h4>'+m.name+'</h4>'+
-        '<div class="batch">'+m.batch+'</div>'+
-        '<div class="tags">'+m.tags.map(function(t){return '<span class="tag">'+t+'</span>';}).join('')+'</div>'+
-        '<div class="cap-row"><div class="cap-bar"><span class="'+barClass+'"></span></div>'+capLabel+'</div>';
-      card.onclick=function(){toggleMentor(m.id, isFull);};
-      grid.appendChild(card);
+  /* ================= Registration ================= */
+  const store={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}},del:k=>{try{localStorage.removeItem(k)}catch{}}};
+  function setFieldError(sel,bad){$(sel).classList.toggle('invalid',bad);return !bad;}
+  $('#regName').addEventListener('blur',e=>setFieldError('[data-field=name]',!e.target.value.trim()));
+  $('#regPhone').addEventListener('blur',e=>setFieldError('[data-field=phone]',!/^\d[\d\s-]{8,}$/.test(e.target.value.trim())));
+  $('#regSid').addEventListener('blur',e=>setFieldError('[data-field=sid]',!e.target.value.trim()));
+  $('#regForm').addEventListener('submit',async e=>{
+    e.preventDefault();
+    const ok=[setFieldError('[data-field=name]',!$('#regName').value.trim()),
+      setFieldError('[data-field=sid]',!$('#regSid').value.trim()),
+      setFieldError('[data-field=phone]',!/^\d[\d\s-]{8,}$/.test($('#regPhone').value.trim()))].every(Boolean);
+    if(!ok)return;
+    const sid=$('#regSid').value.trim();
+    await busy($('#regSubmit'),'Submitting…',async()=>{
+      await sleep(900);
+      if(sid.toUpperCase()==='ICT/2026/001'){ // simulated duplicate
+        $('#regSidErr').innerHTML=`This Student ID is already registered — <a href="#/mentee/dashboard">go to your dashboard?</a>`;
+        setFieldError('[data-field=sid]',true);
+        toast('This Student ID is already registered.','error');return;
+      }
+      store.set('mentee-session-mentee-id',sid);
+      store.set('mentee-session-name',$('#regName').value.trim());
+      toast(`Registered! Your Student ID <strong>${sid}</strong> is your recovery key — keep it handy.`,'success');
+      location.hash='#/mentee/prefs';
     });
-  }
+  });
   
-  function toggleMentor(id, isFull){
-    var idx=picks.indexOf(id);
-    if(idx>-1){ picks.splice(idx,1); }
-    else{
-      if(isFull){ toast('This mentor is full (2/2) and cannot be selected.'); return; }
-      if(picks.length>=3){ toast('You already picked 3 mentors — remove one to change your selection.'); return; }
-      picks.push(id);
-    }
-    renderMentors();
+  /* ================= Preferences ================= */
+  let prefsInit=false,prefsState=null,picks=[];
+  const DRAFT_KEY='mentee-pref-draft';
+  function initPrefs(){
+    if(store.get('mentee-prefs-submitted')){showPrefsDone(JSON.parse(store.get('mentee-prefs-submitted')));return;}
+    $('#prefsDoneView').classList.add('hidden');$('#prefsPickView').classList.remove('hidden');
+    picks=JSON.parse(store.get(DRAFT_KEY)||'[]').filter(id=>MENTORS.find(m=>m.id===id));
+    if(!prefsInit){
+      prefsInit=true;
+      prefsState=makeFilterBar($('#prefsFilter'),renderPrefsGrid);
+      skeletonGrid($('#prefsGrid'));
+      setTimeout(()=>{renderPrefsGrid();if(picks.length)toast('Restored your saved draft picks.','info');},600);
+    }else{renderPrefsGrid();}
     renderSlots();
   }
-  
-  function mentorById(id){ return mentors.filter(function(m){return m.id===id;})[0]; }
-  
-  function renderSlots(){
-    for(var i=0;i<3;i++){
-      var slot=document.getElementById('slot'+(i+1));
-      var nameEl=slot.querySelector('.slot-name');
-      var old=slot.querySelector('.slot-clear');
-      if(old) old.remove();
-      if(picks[i]){
-        slot.classList.add('filled');
-        if(i===0) slot.classList.add('first');
-        nameEl.textContent=mentorById(picks[i]).name;
-        var clr=document.createElement('button');
-        clr.className='slot-clear'; clr.textContent='✕ remove';
-        (function(id){ clr.onclick=function(e){e.stopPropagation();toggleMentor(id,false);}; })(picks[i]);
-        slot.insertBefore(clr, slot.firstChild);
-      }else{
-        slot.classList.remove('filled','first');
-        nameEl.textContent='Not selected yet';
-      }
+  function renderPrefsGrid(){
+    const list=filterMentors(prefsState||{q:'',batch:null,open:false});
+    const grid=$('#prefsGrid');
+    if(!list.length){grid.innerHTML=`<div class="empty-state" style="grid-column:1/-1"><div class="big">🔍</div><p>No mentors match your filters.</p></div>`;return;}
+    grid.innerHTML=list.map(m=>{
+      const pi=picks.indexOf(m.id);
+      const full=m.used>=m.cap&&pi<0;
+      const priLabels=['★ 1st','2nd','3rd'];
+      return `<article class="card mentor-card selectable ${full?'full':''} ${pi>=0?'sel-'+(pi+1):''}"
+        tabindex="0" role="button" aria-pressed="${pi>=0}" aria-disabled="${full}" data-mid="${m.id}">
+        <div class="accent"></div>
+        <div class="mc-photo" style="background:${grad(MENTORS.indexOf(m))}">
+          ${initials(m.name)}<span class="mc-index">#${MENTORS.indexOf(m)+1}</span>
+          ${pi>=0?`<span class="mc-pri p${pi+1}">${priLabels[pi]}</span>`:''}
+        </div>
+        <div class="mc-body">
+          <div class="mc-name">${m.name}</div>
+          <div class="mc-batch">${m.batch} · ${m.comm}</div>
+          <div class="mc-tags">${[...m.academic,...m.tech].slice(0,4).map(t=>`<span class="mc-tag">${t}</span>`).join('')}</div>
+          ${spotsHTML(m)}
+        </div>
+      </article>`;}).join('');
+    grid.querySelectorAll('.mentor-card').forEach(c=>{
+      const act=()=>togglePick(c.dataset.mid);
+      c.onclick=act;
+      c.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();act();}};
+    });
+  }
+  function togglePick(id){
+    const m=MENTORS.find(x=>x.id===id);
+    const idx=picks.indexOf(id);
+    if(idx>=0){picks.splice(idx,1);}
+    else{
+      if(m.used>=m.cap){toast(`This mentor is full — pick someone with open spots.`,'warning');return;}
+      if(picks.length>=3){toast('You already picked 3 mentors — remove one to swap.','warning');return;}
+      picks.push(id);
     }
-    document.getElementById('confirmBtn').disabled=(picks.length!==3);
+    store.set(DRAFT_KEY,JSON.stringify(picks));
+    renderPrefsGrid();renderSlots();
+  }
+  function renderSlots(){
+    const stars=['⭐','2️⃣','3️⃣'],names=['1st','2nd','3rd'];
+    $('#prefSlots').innerHTML=[0,1,2].map(i=>{
+      const m=picks[i]?MENTORS.find(x=>x.id===picks[i]):null;
+      return `<div class="pref-slot ${m?'filled':''}">
+        <span class="slot-star">${stars[i]}</span>
+        <div class="slot-info">${m?`<div class="slot-name">${m.name}</div><div class="gm-meta">${names[i]} preference</div>`:`<span class="slot-empty">Not selected yet</span>`}</div>
+        ${m?`<button class="slot-x" aria-label="Remove ${m.name}" onclick="togglePick('${m.id}')">✕</button>`:''}
+      </div>`;}).join('');
+    $('#sheetCount').textContent=`${picks.length}/3 selected`;
+    $('#prefSubmit').disabled=picks.length!==3;
+  }
+  window.togglePick=togglePick;
+  $('#prefClear').onclick=()=>{picks=[];store.set(DRAFT_KEY,'[]');renderPrefsGrid();renderSlots();toast('Selections cleared.','info');};
+  $('#sheetHandle').onclick=()=>{
+    const s=$('#prefSummary'),ex=s.classList.toggle('expanded');
+    $('#sheetHandle').setAttribute('aria-expanded',ex);
+  };
+  let conflictSimulated=false;
+  $('#prefSubmit').onclick=()=>busy($('#prefSubmit'),'Submitting…',async()=>{
+    await sleep(1100);
+    if(!conflictSimulated){ // simulate one FCFS 409 race to demo the swap flow
+      conflictSimulated=true;
+      const victim=MENTORS.find(m=>picks.includes(m.id));
+      victim.used=victim.cap;
+      picks=picks.filter(id=>id!==victim.id);
+      store.set(DRAFT_KEY,JSON.stringify(picks));
+      $('#conflictBanner').classList.add('show');
+      $('#conflictBanner').innerHTML=`⚡ <strong>${victim.name}</strong> just filled up while you were choosing (first-come, first-served). Your other two picks are safe — swap in one more mentor to continue.`;
+      renderPrefsGrid();renderSlots();
+      toast(`${victim.name} is now full — please swap that one pick.`,'error');
+      $('#prefSummary').classList.remove('expanded');
+      return;
+    }
+    const payload={time:new Date().toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}),picks:[...picks]};
+    store.set('mentee-prefs-submitted',JSON.stringify(payload));
+    store.del(DRAFT_KEY);
+    toast('Preferences submitted ✓','success');
+    showPrefsDone(payload);
+  });
+  function showPrefsDone(payload){
+    $('#prefsPickView').classList.add('hidden');
+    $('#prefsDoneView').classList.remove('hidden');
+    $('#prefsDoneTime').textContent='Submitted '+payload.time;
+    $('#lockedList').innerHTML=payload.picks.map((id,i)=>{
+      const m=MENTORS.find(x=>x.id===id);
+      return `<div class="locked-item"><span class="rank">${['1st','2nd','3rd'][i]}</span><div><div style="font-weight:600;font-size:14px">${m?m.name:id}</div><div class="gm-meta">${m?m.batch:''}</div></div></div>`;
+    }).join('');
   }
   
-  function clearPrefs(){ picks=[]; renderMentors(); renderSlots(); }
-  
-  function submitPrefs(){
-    if(picks.length!==3) return;
-    document.getElementById('lockName1').textContent=mentorById(picks[0]).name;
-    document.getElementById('lockName2').textContent=mentorById(picks[1]).name;
-    document.getElementById('lockName3').textContent=mentorById(picks[2]).name;
-    document.getElementById('prefChoosing').style.display='none';
-    document.getElementById('prefSubmitted').style.display='block';
-    window.scrollTo({top:0,behavior:'smooth'});
-    toast('Preferences submitted — FCFS position recorded ✓');
+  /* ================= Mentee Dashboard ================= */
+  let starVal=0;
+  function initDashboard(){
+    ['dashLookupView','dashPendingView','dashMainView'].forEach(id=>$('#'+id).classList.add('hidden'));
+    const sid=store.get('mentee-session-mentee-id');
+    if(!sid){$('#dashLookupView').classList.remove('hidden');return;}
+    if(!store.get('mentee-prefs-submitted')&&!store.get('mentee-demo-published')){$('#dashPendingView').classList.remove('hidden');
+      // for demo purposes, publish after prefs exist
+      return;}
+    renderDashboard(sid);
   }
-  
-  function resetPrefScreen(){
-    document.getElementById('prefSubmitted').style.display='none';
-    document.getElementById('prefChoosing').style.display='block';
-    clearPrefs();
+  function renderDashboard(sid){
+    $('#dashMainView').classList.remove('hidden');
+    const name=store.get('mentee-session-name')||'Mentee';
+    $('#dashHello').textContent=`Welcome back, ${name} (${sid}) — your allocation is published. 🎉`;
+    const payload=JSON.parse(store.get('mentee-prefs-submitted')||'null');
+    const mentor=(payload&&MENTORS.find(m=>m.id===payload.picks[0]))||MENTORS[0];
+    $('#dashMentorName').textContent=mentor.name;
+    $('#dashMentorBatch').textContent=`${mentor.batch} · ${[...mentor.academic,...mentor.tech].slice(0,3).join(' · ')}`;
+    $('#dashMethod').textContent='Matched via FCFS · 1st preference';
+    $('#dashContact').innerHTML=`
+      <div class="kv"><span class="kv-label">Email</span><strong>${mentor.email}</strong></div>
+      <div class="kv"><span class="kv-label">Preferred channel</span><span class="pill pill-indigo">${mentor.comm}</span></div>
+      <div class="kv"><span class="kv-label">Phone</span><strong>${mentor.phone}</strong></div>`;
+    const others=MENTEES.slice(0,2);
+    $('#dashGroup').innerHTML=others.map((o,i)=>`
+      <div class="group-member">
+        <div class="gm-avatar" style="background:${grad(i+3)}">${initials(o.name)}</div>
+        <div class="gm-info"><div class="gm-name">${o.name}</div><div class="gm-meta">${o.batch} · ${o.interests}</div></div>
+        <span class="pill pill-gray">Other mentee</span>
+      </div>`).join('');
+    $('#dashSession').innerHTML=`
+      <div class="kv"><span class="kv-label">Date &amp; Time</span><strong>Sat 12 Sep 2026 · 9:00 AM</strong></div>
+      <div class="kv"><span class="kv-label">Venue</span><strong>Main Auditorium, Block C</strong></div>
+      <div class="kv"><span class="kv-label">Status</span><span class="pill pill-green"><span class="dot"></span>Confirmed</span></div>`;
+    // stars
+    $('#starRow').innerHTML=[1,2,3,4,5].map(n=>`<button type="button" class="star-btn ${n<=starVal?'on':''}" data-star="${n}" role="radio" aria-checked="${n===starVal}" aria-label="${n} star${n>1?'s':''}">★</button>`).join('');
+    $$('#starRow .star-btn').forEach(b=>b.onclick=()=>{starVal=+b.dataset.star;renderDashboard(sid);});
   }
+  $('#feedbackForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    if(!starVal){toast('Pick a star rating first.','warning');return;}
+    busy($('#fbSubmit'),'Submitting…',async()=>{
+      await sleep(900);
+      $('#feedbackForm').classList.add('hidden');
+      $('#feedbackDone').classList.remove('hidden');
+      toast('Feedback submitted','success');
+    });
+  });
+  $('#lookSid').addEventListener('blur',e=>setFieldError('[data-field=lsid]',!e.target.value.trim()));
+  $('#lookPhone').addEventListener('blur',e=>setFieldError('[data-field=lphone]',!e.target.value.trim()));
+  $('#lookupForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const ok=[setFieldError('[data-field=lsid]',!$('#lookSid').value.trim()),
+      setFieldError('[data-field=lphone]',!$('#lookPhone').value.trim())].every(Boolean);
+    if(!ok)return;
+    busy($('#lookupBtn'),'Looking up…',async()=>{
+      await sleep(1000);
+      store.set('mentee-session-mentee-id',$('#lookSid').value.trim());
+      store.set('mentee-session-name','Recovered Mentee');
+      store.set('mentee-demo-published','1');
+      toast('Welcome back — session restored on this device.','success');
+      initDashboard();
+    });
+  });
   
-  renderMentors();
-  renderSlots();
+  /* ================= Admin ================= */
+  let adminAuthed=false,adminInit=false;
+  function initAdmin(){
+    $('#adminChecking').classList.remove('hidden');
+    $('#adminLogin').classList.add('hidden');
+    $('#adminMain').classList.add('hidden');
+    setTimeout(()=>{ // silent session check
+      $('#adminChecking').classList.add('hidden');
+      if(adminAuthed||store.get('admin-session')==='1'){adminAuthed=true;showAdmin();}
+      else $('#adminLogin').classList.remove('hidden');
+    },700);
+  }
+  $('#loginForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const err=$('#loginErr');err.classList.remove('show');
+    if(!$('#admEmail').value.trim()||!$('#admPass').value){err.textContent='Enter both email and password.';err.classList.add('show');return;}
+    busy($('#loginBtn'),'Signing in…',async()=>{
+      await sleep(900);
+      adminAuthed=true;store.set('admin-session','1');
+      toast('Signed in.','success');
+      $('#adminLogin').classList.add('hidden');showAdmin();
+    });
+  });
+  $('#adminSignout').onclick=()=>{adminAuthed=false;store.del('admin-session');toast('Signed out.','info');initAdmin();};
+  $('#adminRefresh').onclick=()=>busy($('#adminRefresh'),'Refreshing…',async()=>{await sleep(800);renderAdminAll();toast('Data refreshed.','success');});
+  function showAdmin(){
+    $('#adminMain').classList.remove('hidden');
+    if(!adminInit){adminInit=true;renderAdminAll();}
+  }
+  $('#adminTabs').addEventListener('click',e=>{
+    const b=e.target.closest('.tab-btn');if(!b)return;
+    $$('.tab-btn').forEach(t=>t.classList.remove('active'));b.classList.add('active');
+    $$('.admin-tab').forEach(t=>t.classList.add('hidden'));
+    $('#tab-'+b.dataset.tab).classList.remove('hidden');
+    b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+  });
+  function renderAdminAll(){renderStats();renderLoad();renderMentorsTable();renderMenteesTable();renderAlloc();renderLogs();}
+  function renderStats(){
+    const totCap=MENTORS.reduce((a,m)=>a+m.cap,0),used=MENTORS.reduce((a,m)=>a+m.used,0);
+    const assigned=MENTEES.filter(m=>m.mentor).length;
+    const stats=[['Mentors',MENTORS.length],['Mentees',MENTEES.length],['Total capacity',totCap],['Spots used',used],
+      ['Prefs submitted',MENTEES.filter(m=>m.submitted).length],['Prefs pending',MENTEES.filter(m=>!m.submitted).length],
+      ['Assigned',assigned],['Unmatched',MENTEES.length-assigned],
+      ['Full mentors',MENTORS.filter(m=>m.used>=m.cap).length],['Open mentors',MENTORS.filter(m=>m.used<m.cap).length],
+      ['FCFS matches',MENTEES.filter(m=>m.method==='FCFS').length],['Random matches',MENTEES.filter(m=>m.method==='Random').length]];
+    $('#statGrid').innerHTML=stats.map(([l,v])=>`<div class="card stat-card"><div class="stat-val">${v}</div><div class="stat-label">${l}</div></div>`).join('');
+  }
+  function renderLoad(){
+    $('#mentorLoad').innerHTML=MENTORS.slice(0,10).map(m=>`
+      <div class="load-row">
+        <span class="load-name">${m.name}</span>
+        <div class="load-bar"><div class="load-fill" style="width:${(m.used/m.cap)*100}%"></div></div>
+        <span class="load-count">${m.used} / ${m.cap}</span>
+      </div>`).join('')+`<p class="hint" style="color:var(--muted);font-size:12px;margin-top:10px">Showing top 10 · full list in the Mentors tab</p>`;
+  }
+  /* Mentors table */
+  let mSortKey='name',mSortDir=1;
+  function renderMentorsTable(){
+    const q=($('#mentorSearch').value||'').toLowerCase();
+    let list=MENTORS.filter(m=>m.name.toLowerCase().includes(q)||m.email.includes(q));
+    list.sort((a,b)=>mSortKey==='cap'?(a.cap-b.cap)*mSortDir:a.name.localeCompare(b.name)*mSortDir);
+    $('#mentorCountPill').textContent=list.length+' mentors';
+    $('#mentorsTbody').innerHTML=list.map(m=>`<tr>
+      <td><div class="cell-person"><div class="row-avatar" style="background:${grad(MENTORS.indexOf(m))}">${initials(m.name)}</div><div><div style="font-weight:600">${m.name}</div><div class="mono">${m.email}</div></div></div></td>
+      <td class="mono">${m.phone}<br>${m.comm}</td>
+      <td>${m.batch}</td>
+      <td style="max-width:220px">${[...m.academic,...m.tech].slice(0,3).map(t=>`<span class="mc-tag">${t}</span>`).join(' ')}</td>
+      <td><span class="pill ${m.used>=m.cap?'pill-red':'pill-green'}">${m.used} / ${m.cap}</span></td>
+      <td><div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="openMentorModal('${m.id}')">Edit</button>
+        <button class="btn btn-danger-soft btn-sm" onclick="confirmDeleteMentor('${m.id}')">Delete</button></div></td>
+    </tr>`).join('');
+    $('#mentorsCards').innerHTML=list.map(m=>`<div class="card tcard">
+      <div class="tcard-head"><div class="row-avatar" style="background:${grad(MENTORS.indexOf(m))}">${initials(m.name)}</div>
+        <div style="flex:1"><div style="font-weight:700">${m.name}</div><div class="gm-meta">${m.batch}</div></div>
+        <span class="pill ${m.used>=m.cap?'pill-red':'pill-green'}">${m.used}/${m.cap}</span></div>
+      <div class="tcard-kv"><span class="k">Contact</span><span>${m.phone} · ${m.comm}</span></div>
+      <div class="tcard-kv"><span class="k">Interests</span><span style="text-align:right">${[...m.academic,...m.tech].slice(0,3).join(', ')}</span></div>
+      <div class="tcard-actions"><button class="btn btn-secondary btn-sm" style="flex:1" onclick="openMentorModal('${m.id}')">Edit</button>
+      <button class="btn btn-danger-soft btn-sm" style="flex:1" onclick="confirmDeleteMentor('${m.id}')">Delete</button></div>
+    </div>`).join('');
+  }
+  $('#mentorSearch').addEventListener('input',()=>renderMentorsTable());
+  $('#mentorsTable thead').addEventListener('click',e=>{
+    const th=e.target.closest('th[data-sort]');if(!th)return;
+    if(mSortKey===th.dataset.sort)mSortDir*=-1;else{mSortKey=th.dataset.sort;mSortDir=1;}
+    renderMentorsTable();
+  });
+  /* Mentees table */
+  function renderMenteesTable(){
+    const q=($('#menteeSearch').value||'').toLowerCase();
+    const list=MENTEES.filter(m=>m.name.toLowerCase().includes(q)||m.id.toLowerCase().includes(q));
+    $('#menteeCountPill').textContent=list.length+' mentees';
+    const prefPill=m=>m.submitted?'<span class="pill pill-green"><span class="dot"></span>Submitted</span>':'<span class="pill pill-amber"><span class="dot"></span>Pending</span>';
+    const asgPill=m=>m.mentor?`<strong>${m.mentor.name}</strong> <span class="pill ${m.method==='FCFS'?'pill-indigo':'pill-amber'}">${m.method}</span>`:'<span class="pill pill-gray">Unassigned</span>';
+    $('#menteesTbody').innerHTML=list.map(m=>`<tr>
+      <td><div style="font-weight:600">${m.name}</div><div class="mono">${m.id}</div></td>
+      <td class="mono">${m.phone}</td><td>${m.batch}</td><td>${prefPill(m)}</td><td>${asgPill(m)}</td></tr>`).join('');
+    $('#menteesCards').innerHTML=list.map(m=>`<div class="card tcard">
+      <div class="tcard-head"><div style="flex:1"><div style="font-weight:700">${m.name}</div><div class="gm-meta mono">${m.id} · ${m.phone}</div></div>${prefPill(m)}</div>
+      <div class="tcard-kv"><span class="k">Assigned</span><span>${asgPill(m)}</span></div>
+    </div>`).join('');
+  }
+  $('#menteeSearch').addEventListener('input',renderMenteesTable);
+  /* Allocation */
+  function renderAlloc(){
+    const matched=MENTEES.filter(m=>m.mentor);
+    const un=MENTEES.filter(m=>!m.mentor);
+    $('#allocTbody').innerHTML=matched.map(m=>`<tr>
+      <td><div style="font-weight:600">${m.name}</div><div class="mono">${m.id}</div></td>
+      <td class="mono">${m.subTime}</td><td>${m.mentor.name}</td>
+      <td><span class="pill ${m.method==='FCFS'?'pill-indigo':'pill-amber'}">${m.method}</span></td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:28px">No allocation committed yet.</td></tr>';
+    $('#allocCards').innerHTML=matched.map(m=>`<div class="card tcard">
+      <div class="tcard-head"><div style="flex:1"><div style="font-weight:700">${m.name}</div><div class="gm-meta mono">${m.id}</div></div>
+      <span class="pill ${m.method==='FCFS'?'pill-indigo':'pill-amber'}">${m.method}</span></div>
+      <div class="tcard-kv"><span class="k">Mentor</span><span>${m.mentor.name}</span></div>
+      <div class="tcard-kv"><span class="k">Submitted</span><span class="mono">${m.subTime}</span></div></div>`).join('');
+    const prefRow=()=>MENTORS.slice(0,3).map(x=>x.name.split(' ')[0]).join(' → ');
+    $('#unmatchedTbody').innerHTML=un.map(m=>`<tr>
+      <td><div style="font-weight:600">${m.name}</div><div class="mono">${m.id}</div></td>
+      <td class="mono">${m.submitted?prefRow():'— no preferences submitted —'}</td></tr>`).join('')||'<tr><td colspan="2" style="text-align:center;color:var(--muted);padding:28px">Everyone is matched 🎉</td></tr>';
+    $('#unmatchedCards').innerHTML=un.map(m=>`<div class="card tcard">
+      <div style="font-weight:700">${m.name} <span class="gm-meta mono">${m.id}</span></div>
+      <div class="tcard-kv"><span class="k">Prefs</span><span class="mono">${m.submitted?prefRow():'none'}</span></div></div>`).join('');
+  }
+  $$('.alloc-controls .btn').forEach(b=>b.onclick=()=>{
+    const kind=b.dataset.alloc;
+    if(kind==='reset'){openResetModal('Reset allocation?','Every assignment will be cleared and mentees return to the unmatched pool. This can\'t be undone.','Reset allocation',async()=>{
+        MENTEES.forEach(m=>{m.mentor=null;m.method=null;});
+        renderAdminAll();toast('Allocation reset — all assignments cleared.','success');});
+      return;}
+    const labels={preview:'Previewing…',commit:'Committing…',fallback:'Committing…'};
+    const all=$$('.alloc-controls .btn');
+    all.forEach(x=>x.disabled=true);
+    busy(b,labels[kind],async()=>{
+      await sleep(1300);
+      if(kind==='preview'){toast('Preview complete: 14 FCFS matches, 5 unmatched. Nothing saved.','info');}
+      else{
+        MENTEES.forEach((m,i)=>{if(!m.mentor&&(kind==='fallback'||m.submitted)){m.mentor=MENTORS[i%MENTORS.length];m.method=kind==='fallback'&&!m.submitted?'Random':'FCFS';}});
+        renderAdminAll();
+        toast(kind==='fallback'?'Committed with fallback — every mentee now has a mentor.':'FCFS allocation committed.','success');
+      }
+    }).finally(()=>all.forEach(x=>x.disabled=false));
+  });
+  /* Logs */
+  let logPage=0;const LOG_PAGE=15;
+  function renderLogs(){
+    const from=$('#logFrom').value,to=$('#logTo').value;
+    const list=LOGS.filter(l=>{
+      const d=l.ts.slice(0,10);
+      return(!from||d>=from)&&(!to||d<=to);});
+    const pages=Math.max(1,Math.ceil(list.length/LOG_PAGE));
+    logPage=Math.min(logPage,pages-1);
+    const slice=list.slice(logPage*LOG_PAGE,(logPage+1)*LOG_PAGE);
+    $('#logsTbody').innerHTML=slice.map(l=>`<tr><td class="mono" style="white-space:nowrap">${l.ts}</td><td><strong>${l.action}</strong></td><td style="color:var(--muted)">${l.detail}</td></tr>`).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:28px">No log entries in this range.</td></tr>';
+    $('#logsCards').innerHTML=slice.map(l=>`<div class="card tcard"><div style="font-weight:700">${l.action}</div><div class="gm-meta">${l.detail}</div><div class="mono">${l.ts}</div></div>`).join('');
+    $('#logsPager').innerHTML=pages>1?
+      `<button class="btn btn-secondary btn-sm" ${logPage===0?'disabled':''} onclick="logPage--;renderLogs()">‹</button>
+       <span style="font-size:13px;color:var(--muted)">Page ${logPage+1} of ${pages}</span>
+       <button class="btn btn-secondary btn-sm" ${logPage===pages-1?'disabled':''} onclick="logPage++;renderLogs()">›</button>`:'';
+  }
+  window.renderLogs=renderLogs;
+  $('#logFrom').addEventListener('change',()=>{logPage=0;renderLogs();});
+  $('#logTo').addEventListener('change',()=>{logPage=0;renderLogs();});
+  
+  /* ---------- MultiSelect ---------- */
+  function makeMultiSelect(el,options,placeholder){
+    const state={sel:new Set()};
+    function render(){
+      el.innerHTML=`<div class="mselect-box" tabindex="0" role="combobox" aria-expanded="${el.classList.contains('open')}">
+        ${state.sel.size?[...state.sel].map(o=>`<span class="ms-chip">${o}<button type="button" data-rm="${o}" aria-label="Remove ${o}">×</button></span>`).join(''):`<span class="placeholder">${placeholder}</span>`}
+      </div>
+      <div class="mselect-menu" role="listbox">${options.map(o=>`<div class="mselect-opt ${state.sel.has(o)?'on':''}" data-opt="${o}" role="option" aria-selected="${state.sel.has(o)}">${state.sel.has(o)?'✓':'○'} ${o}</div>`).join('')}</div>`;
+      el.querySelector('.mselect-box').onclick=e=>{if(e.target.dataset.rm){state.sel.delete(e.target.dataset.rm);render();el.classList.add('open');return;}el.classList.toggle('open');render0();};
+      el.querySelectorAll('.mselect-opt').forEach(o=>o.onclick=()=>{const v=o.dataset.opt;state.sel.has(v)?state.sel.delete(v):state.sel.add(v);render();el.classList.add('open');render0();});
+    }
+    function render0(){const open=el.classList.contains('open');el.querySelector('.mselect-box')?.setAttribute('aria-expanded',open);}
+    render();
+    document.addEventListener('click',e=>{if(!el.contains(e.target))el.classList.remove('open');});
+    return state;
+  }
+  const msAcademic=makeMultiSelect($('#msAcademic'),ACADEMIC,'Select academic interests…');
+  const msTech=makeMultiSelect($('#msTech'),TECHNICAL,'Select technical interests…');
+  
+  /* ---------- Mentor modal ---------- */
+  let editingMentor=null;
+  function openMentorModal(id){
+    editingMentor=id?MENTORS.find(m=>m.id===id):null;
+    $('#mentorModalTitle').textContent=editingMentor?'Edit Mentor':'Add Mentor';
+    $('#mfSave').textContent=editingMentor?'Save changes':'Add mentor';
+    $('#mfErr').classList.remove('show');
+    $('#mfName').value=editingMentor?.name||'';
+    $('#mfSid').value=editingMentor?'ICT/2023/0'+(MENTORS.indexOf(editingMentor)+10):'';
+    $('#mfEmail').value=editingMentor?.email||'';
+    $('#mfPhone').value=editingMentor?.phone||'';
+    $('#mfBatch').value=editingMentor?.batch||'ICT 2023';
+    $('#mfComm').value=editingMentor?.comm||'WhatsApp';
+    $('#mfCap').value=editingMentor?.cap||2;
+    msAcademic.sel.clear();msTech.sel.clear();
+    if(editingMentor){editingMentor.academic.forEach(a=>msAcademic.sel.add(a));editingMentor.tech.forEach(t=>msTech.sel.add(t));}
+    $('#msAcademic .mselect-box')?.click();$('#msAcademic').classList.remove('open'); // re-render chips
+    $('#msTech .mselect-box')?.click();$('#msTech').classList.remove('open');
+    $('#mfPhotoPrev').textContent=editingMentor?initials(editingMentor.name):'?';
+    $('#mfPhotoPrev').style.background=editingMentor?grad(MENTORS.indexOf(editingMentor)):'';
+    $('#mentorModalBk').classList.add('open');
+    $('#mfName').focus();
+  }
+  window.openMentorModal=openMentorModal;
+  $('#addMentorBtn').onclick=()=>openMentorModal(null);
+  $('#mfPhotoBtn').onclick=()=>toast('Photo picker opens here — image is resized client-side before upload.','info');
+  $('#mfPhotoRemove').onclick=()=>{$('#mfPhotoPrev').textContent='?';$('#mfPhotoPrev').style.background='';toast('Photo removed.','info');};
+  $('#mfSave').onclick=()=>{
+    const name=$('#mfName').value.trim();
+    if(!name||!$('#mfEmail').value.trim()){
+      $('#mfErr').textContent='Full Name and University Email are required.';
+      $('#mfErr').classList.add('show');return;}
+    busy($('#mfSave'),'Saving…',async()=>{
+      await sleep(900);
+      if(editingMentor){Object.assign(editingMentor,{name,email:$('#mfEmail').value.trim(),phone:$('#mfPhone').value.trim(),batch:$('#mfBatch').value,comm:$('#mfComm').value,cap:+$('#mfCap').value,academic:[...msAcademic.sel],tech:[...msTech.sel]});toast('Mentor updated.','success');}
+      else{MENTORS.push({id:'m'+(MENTORS.length+1),name,batch:$('#mfBatch').value,cap:+$('#mfCap').value,used:0,email:$('#mfEmail').value.trim(),phone:$('#mfPhone').value.trim(),comm:$('#mfComm').value,academic:[...msAcademic.sel],tech:[...msTech.sel]});toast('Mentor added.','success');}
+      $('#mentorModalBk').classList.remove('open');
+      renderAdminAll();
+    });
+  };
+  
+  /* ---------- Reset modal ---------- */
+  let rmAction=null;
+  function openResetModal(title,body,confirmLabel,action){
+    $('#rmTitle').textContent=title;$('#rmBody').textContent=body;
+    $('#rmConfirm').textContent=confirmLabel;rmAction=action;
+    $('#resetModalBk').classList.add('open');
+    $('#rmConfirm').focus();
+  }
+  window.openResetModal=openResetModal;
+  function confirmDeleteMentor(id){
+    const m=MENTORS.find(x=>x.id===id);
+    openResetModal('Delete mentor?',`${m.name} will be removed from the directory. Any assigned mentees return to the unmatched pool.`,'Delete mentor',async()=>{
+      MENTORS.splice(MENTORS.indexOf(m),1);
+      MENTEES.forEach(x=>{if(x.mentor===m){x.mentor=null;x.method=null;}});
+      renderAdminAll();toast(`Mentor ${m.name} deleted.`,'success');
+    });
+  }
+  window.confirmDeleteMentor=confirmDeleteMentor;
+  $('#rmConfirm').onclick=()=>busy($('#rmConfirm'),'Working…',async()=>{
+    await sleep(900);await rmAction?.();$('#resetModalBk').classList.remove('open');
+  });
+  /* backdrop close */
+  $$('.modal-backdrop').forEach(bk=>{
+    bk.addEventListener('click',e=>{if(e.target===bk)bk.classList.remove('open');});
+  });
+  $$('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).classList.remove('open'));
+  
+  /* ---------- Offline banner ---------- */
+  window.addEventListener('offline',()=>{document.body.classList.add('offline');});
+  window.addEventListener('online',()=>{document.body.classList.remove('offline');toast('You\'re back online.','success');});
+  
+  /* boot */
+  route();
   </script>
   </body>
   </html>

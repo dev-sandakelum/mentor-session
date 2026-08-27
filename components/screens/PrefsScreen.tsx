@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { getJson, postJson } from "@/lib/client-api";
 import { useToast } from "../ToastProvider";
+import { getMenteeId } from "@/lib/mentee-session";
 import { MentorCard } from "../ui/MentorCard";
 
 interface Mentor {
   id: string;
   fullName: string;
   batch: string | null;
-  academicInterests: string[];
-  technicalInterests: string[];
   profilePhotoUrl: string | null;
   capacity: number;
   allocatedCount: number;
@@ -49,7 +48,7 @@ export function PrefsScreen() {
   };
 
   const submitPrefs = async () => {
-    const menteeId = window.localStorage.getItem("mentor-session-mentee-id");
+    const menteeId = getMenteeId();
     if (!menteeId) return showToast("Register as a mentee before selecting mentors.");
     if (picks.length !== 3) return;
     setSubmitting(true);
@@ -110,8 +109,6 @@ export function PrefsScreen() {
                 id={mentor.id}
                 fullName={mentor.fullName}
                 batch={mentor.batch}
-                academicInterests={mentor.academicInterests}
-                technicalInterests={mentor.technicalInterests}
                 profilePhotoUrl={mentor.profilePhotoUrl}
                 index={index}
                 priority={isSelected ? priorityIndex + 1 : undefined}

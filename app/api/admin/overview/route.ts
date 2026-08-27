@@ -7,10 +7,9 @@ export async function GET(request: Request) {
   try {
     requireAdmin(request);
     const supabase = getSupabaseAdmin();
-    const session = await getCurrentSession();
-    const [{ data: mentors, error: mentorError }, { data: mentees, error: menteeError }, { data: allocations, error: allocationError }, { data: preferences, error: preferenceError }, { data: logs, error: logError }] = await Promise.all([
-      supabase.from("mentors").select("id, full_name, student_id, email, phone, batch, communication_method, academic_interests, technical_interests, profile_photo_url, capacity").eq("session_id", session.id).order("full_name"),
-      supabase.from("mentees").select("id, full_name, student_id, email, phone, batch, academic_interests, technical_interests, guidance_needed, preference_submitted_at").eq("session_id", session.id).order("full_name"),
+    const session = await getCurrentSession();    const [{ data: mentors, error: mentorError }, { data: mentees, error: menteeError }, { data: allocations, error: allocationError }, { data: preferences, error: preferenceError }, { data: logs, error: logError }] = await Promise.all([
+      supabase.from("mentors").select("id, full_name, student_id, email, phone, batch, communication_method, profile_photo_url, capacity").eq("session_id", session.id).order("full_name"),
+      supabase.from("mentees").select("id, full_name, student_id, email, phone, batch, preference_submitted_at").eq("session_id", session.id).order("full_name"),
       supabase.from("allocations").select("mentee_id, mentor_id, method, matched_priority, allocated_at").eq("session_id", session.id).order("allocated_at"),
       supabase.from("mentor_preferences").select("mentee_id, mentor_id, priority"),
       supabase.from("allocation_logs").select("id, action, detail, created_at").eq("session_id", session.id).order("created_at", { ascending: false }).limit(8),
