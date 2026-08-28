@@ -31,13 +31,33 @@ export function HomeScreen() {
           </svg>
           ICT Students&apos; Circle · Mentor Session 2026
         </span>
-        <h1>Find your senior mentor. <em>Grow together.</em></h1>
+
+        <h1>Find your senior<br />mentor. <em>Grow together.</em></h1>
+
         <p>
-          The Mentor Session connects junior students with experienced
-          seniors for academic guidance, study advice, technical direction and
-          real university experience — matched fairly, transparently and
-          automatically.
+          Connecting junior students with experienced seniors for academic
+          guidance, study advice, and technical direction — matched fairly
+          and automatically.
         </p>
+
+        {/* Stats strip */}
+        <div className="hero-stats" aria-hidden="true">
+          <div className="hero-stat">
+            <span className="hero-stat-num">2</span>
+            <span className="hero-stat-label">Mentees / Mentor</span>
+          </div>
+          <div className="hero-stat-divider" />
+          <div className="hero-stat">
+            <span className="hero-stat-num">3</span>
+            <span className="hero-stat-label">Preference Picks</span>
+          </div>
+          <div className="hero-stat-divider" />
+          <div className="hero-stat">
+            <span className="hero-stat-num">FCFS</span>
+            <span className="hero-stat-label">Fair Matching</span>
+          </div>
+        </div>
+
         <div className="cta">
           <Link href="/mentor" className="btn btn-white">
             <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
