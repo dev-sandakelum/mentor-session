@@ -2126,7 +2126,7 @@ footer b {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  max-width: 860px;
+  max-width: 560px;
   margin: 0 auto;
   padding: 48px 24px 80px;
 }
@@ -2189,14 +2189,14 @@ footer b {
     0 8px 32px rgba(15, 23, 42, 0.07);
 }
 
-/* Form grid — two columns */
+/* Form grid — single column (card is narrow by design) */
 .mreg-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px 24px;
+  grid-template-columns: 1fr;
+  gap: 18px;
 }
 .mreg-field-full {
-  grid-column: 1 / -1;
+  grid-column: 1;
 }
 
 /* Field */
@@ -2303,13 +2303,6 @@ footer b {
   .mreg-card {
     padding: 20px 16px 20px;
     border-radius: 16px;
-  }
-  .mreg-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .mreg-field-full {
-    grid-column: 1;
   }
   .mreg-actions {
     flex-direction: column;
