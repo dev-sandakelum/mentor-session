@@ -431,6 +431,14 @@ h3.card-title {
   font-weight: 800;
   color: #fcd34d;
   line-height: 1;
+  /* start invisible; .hero-stat-in triggers the pop-in */
+  opacity: 0;
+  transform: translateY(6px) scale(0.85);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.hero-stat-num.hero-stat-in {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 .hero-stat-label {
   font-size: 11.5px;
@@ -445,6 +453,17 @@ h3.card-title {
   background: rgba(255,255,255,0.15);
   align-self: stretch;
   margin: 2px 0;
+}
+
+/* ── Lifecycle spin icon ── */
+@keyframes lc-spin {
+  to { transform: rotate(360deg); }
+}
+.lc-spin {
+  animation: lc-spin 2s linear infinite;
+  transform-origin: center;
+  display: inline-block;
+  flex: none;
 }
 .hero .cta {
   display: flex;

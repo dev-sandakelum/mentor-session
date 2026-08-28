@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LifecycleStepper } from "../ui/LifecycleStepper";
+import { HeroStats } from "../ui/HeroStats";
 import type { LifecycleStep } from "../ui/LifecycleStepper";
 
 const HOW_CARDS = [
@@ -40,23 +41,8 @@ export function HomeScreen() {
           and automatically.
         </p>
 
-        {/* Stats strip */}
-        <div className="hero-stats" aria-hidden="true">
-          <div className="hero-stat">
-            <span className="hero-stat-num">2</span>
-            <span className="hero-stat-label">Mentees / Mentor</span>
-          </div>
-          <div className="hero-stat-divider" />
-          <div className="hero-stat">
-            <span className="hero-stat-num">3</span>
-            <span className="hero-stat-label">Preference Picks</span>
-          </div>
-          <div className="hero-stat-divider" />
-          <div className="hero-stat">
-            <span className="hero-stat-num">FCFS</span>
-            <span className="hero-stat-label">Fair Matching</span>
-          </div>
-        </div>
+        {/* Stats strip — animated count-up on scroll */}
+        <HeroStats />
 
         <div className="cta">
           <Link href="/mentor" className="btn btn-white">
@@ -88,7 +74,7 @@ export function HomeScreen() {
       {/* Lifecycle */}
       <div className="card" style={{ marginTop: 28 }}>
         <h3 className="card-title">
-          <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" strokeWidth="2" aria-hidden="true">
+          <svg className="icon lc-spin" viewBox="0 0 24 24" fill="none" stroke="var(--indigo-light)" strokeWidth="2" aria-hidden="true">
             <path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8" />
           </svg>
           Mentor Session Lifecycle
