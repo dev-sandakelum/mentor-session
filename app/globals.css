@@ -2179,25 +2179,37 @@ footer b {
 /* Responsive */
 @media (max-width: 600px) {
   .mreg-page {
-    padding: 32px 16px 80px;
+    padding: 24px 16px 72px;
     justify-content: flex-start;
   }
   .mreg-card {
-    padding: 24px 18px 22px;
+    padding: 20px 16px 20px;
+    border-radius: 16px;
   }
   .mreg-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
   .mreg-field-full {
     grid-column: 1;
   }
   .mreg-actions {
-    flex-direction: column-reverse;
+    flex-direction: column;
+    gap: 10px;
   }
   .mreg-btn-cancel,
   .mreg-btn-submit {
     width: 100%;
     justify-content: center;
+  }
+  .mreg-card-header {
+    gap: 12px;
+  }
+  .mreg-card-title {
+    font-size: 15px;
+  }
+  .mreg-card-sub {
+    font-size: 12px;
   }
 }
 
@@ -2225,12 +2237,13 @@ footer b {
 .mreg-sid-box {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: #fff;
   border: 1.5px solid var(--gray-200);
   border-radius: 14px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   transition: border-color 0.15s, box-shadow 0.15s;
+  flex-wrap: wrap;
 }
 .mreg-sid-box:focus-within {
   border-color: var(--indigo-light);
@@ -2245,22 +2258,22 @@ footer b {
 .mreg-sid-seg-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 .mreg-sid-chip {
   background: var(--gray-100);
   color: var(--gray-700);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  padding: 6px 14px;
-  border-radius: 9px;
+  padding: 5px 10px;
+  border-radius: 8px;
   user-select: none;
   white-space: nowrap;
   letter-spacing: 0.2px;
 }
 .mreg-sid-slash {
   color: var(--gray-400);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 400;
   flex: none;
 }
@@ -2331,13 +2344,18 @@ footer b {
   .mreg-sid-box {
     flex-wrap: wrap;
     gap: 6px;
+    padding: 10px 12px;
   }
   .mreg-sid-chip {
-    font-size: 13px;
-    padding: 5px 10px;
+    font-size: 12px;
+    padding: 4px 8px;
   }
   .mreg-sid-digit-input {
-    min-width: 70px;
+    min-width: 0;
+    flex: 1 1 80px;
+  }
+  .mreg-sid-lock {
+    display: none; /* hide the lock badge on small screens — the hint text covers it */
   }
 }
 
