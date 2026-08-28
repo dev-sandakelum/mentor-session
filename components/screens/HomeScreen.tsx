@@ -10,14 +10,14 @@ const HOW_CARDS = [
 ];
 
 const LIFECYCLE_STEPS: LifecycleStep[] = [
-  { label: "Create Session",       status: "done" },
-  { label: "Configure Batches",    status: "done" },
-  { label: "Open Registration",    status: "done" },
-  { label: "Collect Preferences",  status: "current", number: 4 },
-  { label: "FCFS Allocation",      status: "pending", number: 5 },
-  { label: "Random Fallback",      status: "pending", number: 6 },
-  { label: "Publish Results",      status: "pending", number: 7 },
-  { label: "Session & Feedback",   status: "pending", number: 8 },
+  { label: "Create Session",       status: "done",    sub: "Session configured"          },
+  { label: "Configure Batches",    status: "done",    sub: "Mentor pool ready"            },
+  { label: "Open Registration",    status: "done",    sub: "Mentors & mentees registered" },
+  { label: "Collect Preferences",  status: "current", number: 4, sub: "In progress now"  },
+  { label: "FCFS Allocation",      status: "pending", number: 5, sub: "Automated matching"},
+  { label: "Random Fallback",      status: "pending", number: 6, sub: "Fill remaining spots"},
+  { label: "Publish Results",      status: "pending", number: 7, sub: "Notify participants"},
+  { label: "Session & Feedback",   status: "pending", number: 8, sub: "Event + survey"    },
 ];
 
 export function HomeScreen() {

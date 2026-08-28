@@ -547,42 +547,63 @@ h3.card-title {
 /* ===== Lifecycle stepper ===== */
 .lifecycle {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0;
-  margin-top: 16px;
-  align-items: center;
+  margin-top: 20px;
+  position: relative;
+}
+/* Continuous vertical track */
+.lifecycle::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--gray-100);
+  z-index: 0;
 }
 .life-step {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
+  gap: 14px;
+  font-size: 13.5px;
   font-weight: 600;
-  color: var(--gray-500);
+  color: var(--gray-400);
   padding: 6px 0;
+  position: relative;
+  z-index: 1;
 }
 .life-step .bubble {
-  width: 26px;
-  height: 26px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: var(--gray-100);
+  background: var(--gray-50);
   border: 2px solid var(--gray-200);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--gray-400);
   flex: none;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
+/* Done */
 .life-step.done .bubble {
-  background: var(--green);
-  border-color: var(--green);
-  color: #fff;
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #16a34a;
 }
 .life-step.done {
-  color: var(--gray-700);
+  color: var(--gray-600);
 }
+.life-step.done .bubble::after {
+  content: "✓";
+  font-size: 13px;
+  font-weight: 800;
+}
+/* Current */
 .life-step.current .bubble {
   background: var(--indigo-light);
   border-color: var(--indigo-light);
@@ -590,12 +611,34 @@ h3.card-title {
   box-shadow: 0 0 0 4px var(--indigo-soft);
 }
 .life-step.current {
-  color: var(--indigo);
+  color: var(--indigo-dark);
+  font-weight: 700;
 }
+/* Active track fill — color done steps' track segment */
+.life-step.done + .life-step .bubble,
+.life-step.done ~ .life-step.done .bubble {
+  /* handled by class already */
+}
+/* Hide the old arrow — no longer used */
 .life-arrow {
-  margin: 0 10px;
-  font-size: 14px;
+  display: none;
+}
+/* Step label detail */
+.life-step-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.life-step-sub {
+  font-size: 11.5px;
+  font-weight: 500;
   color: var(--gray-400);
+}
+.life-step.current .life-step-sub {
+  color: var(--indigo-light);
+}
+.life-step.done .life-step-sub {
+  color: #86efac;
 }
 
 /* ===== Forms ===== */
