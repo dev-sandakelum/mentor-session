@@ -3,61 +3,64 @@ import { ApiError, apiError, databaseError, requireAdmin } from "@/lib/api";
 import { getCurrentSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-// DELETE /api/admin/data?target=mentees|mentors
+// DELETE /api/admin/data?target=mentees|mentors|preferences
 export async function DELETE(request: Request) {
   try {
     requireAdmin(request);
     const target = new URL(request.url).searchParams.get("target");
-    if (target !== "mentees" && target !== "mentors") {
-      throw new ApiError('target must be "mentees" or "mentors".');
+    if (target !== "mentees" && target !== "mentors" && target !== "preferences") {
+      throw new ApiError('target must be "mentees", "mentors", or "preferences".');
     }
 
     const supabase = getSupabaseAdmin();
     const session = await getCurrentSession();
 
     if (target === "mentees") {
-      // Remove preferences and allocations first (FK deps), then mentees
       await supabase.from("allocations").delete().eq("session_id", session.id);
       await supabase.from("mentor_preferences")
         .delete()
-        .in(
-          "mentee_id",
-          (await supabase.from("mentees").select("id").eq("session_id", session.id)).data?.map((r) => r.id) ?? [],
-        );
+        .in("mentee_id",
+          (await supabase.from("mentees").select("id").eq("session_id", session.id)).data?.map((r) => r.id) ?? []);
       const { error } = await supabase.from("mentees").delete().eq("session_id", session.id);
       if (error) throw databaseError("Unable to remove mentees.", error.code);
-
       await supabase.from("allocation_logs").insert({
-        session_id: session.id,
-        action: "Bulk delete — mentees",
+        session_id: session.id, action: "Bulk delete — mentees",
         detail: "All mentees (and their preferences / allocations) removed by an administrator.",
       });
       return NextResponse.json({ ok: true, removed: "mentees" });
     }
 
-    // target === "mentors"
-    // Must clear allocations first, then mentors
-    const { count: allocCount } = await supabase
-      .from("allocations")
-      .select("id", { count: "exact", head: true })
-      .eq("session_id", session.id);
-
-    if (allocCount && allocCount > 0) {
-      throw new ApiError(
-        "Cannot remove mentors while allocations exist. Reset allocations first.",
-        409,
-      );
+    if (target === "mentors") {
+      const { count: allocCount } = await supabase
+        .from("allocations").select("id", { count: "exact", head: true }).eq("session_id", session.id);
+      if (allocCount && allocCount > 0)
+        throw new ApiError("Cannot remove mentors while allocations exist. Reset allocations first.", 409);
+      const { error } = await supabase.from("mentors").delete().eq("session_id", session.id);
+      if (error) throw databaseError("Unable to remove mentors.", error.code);
+      await supabase.from("allocation_logs").insert({
+        session_id: session.id, action: "Bulk delete — mentors",
+        detail: "All mentors removed by an administrator.",
+      });
+      return NextResponse.json({ ok: true, removed: "mentors" });
     }
 
-    const { error } = await supabase.from("mentors").delete().eq("session_id", session.id);
-    if (error) throw databaseError("Unable to remove mentors.", error.code);
-
+    // target === "preferences"
+    const { data: menteeRows } = await supabase
+      .from("mentees").select("id").eq("session_id", session.id);
+    const ids = (menteeRows ?? []).map((r) => r.id);
+    if (ids.length) {
+      const { error: prefErr } = await supabase
+        .from("mentor_preferences").delete().in("mentee_id", ids);
+      if (prefErr) throw databaseError("Unable to clear preferences.", prefErr.code);
+      const { error: tsErr } = await supabase
+        .from("mentees").update({ preference_submitted_at: null }).eq("session_id", session.id);
+      if (tsErr) throw databaseError("Unable to reset preference timestamps.", tsErr.code);
+    }
     await supabase.from("allocation_logs").insert({
-      session_id: session.id,
-      action: "Bulk delete — mentors",
-      detail: "All mentors removed by an administrator.",
+      session_id: session.id, action: "Bulk clear — preferences",
+      detail: "All mentor preferences cleared and submission timestamps reset by an administrator.",
     });
-    return NextResponse.json({ ok: true, removed: "mentors" });
+    return NextResponse.json({ ok: true, removed: "preferences" });
   } catch (error) {
     return apiError(error);
   }

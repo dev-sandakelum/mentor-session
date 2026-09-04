@@ -630,7 +630,7 @@ function DataTab({
   onBulkDelete,
 }: {
   overview: Overview;
-  onBulkDelete: (target: "mentors" | "mentees") => void;
+  onBulkDelete: (target: "mentors" | "mentees" | "preferences") => void;
 }) {
   // CSV download helper — runs entirely in the browser from data already loaded
   const downloadCSV = (filename: string, rows: Record<string, unknown>[]) => {
@@ -684,7 +684,7 @@ function DataTab({
       })),
     );
 
-  const [confirmTarget, setConfirmTarget] = useState<"mentors" | "mentees" | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<"mentors" | "mentees" | "preferences" | null>(null);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -739,6 +739,12 @@ function DataTab({
           >
             Remove all mentors
           </button>
+          <button
+            className="btn btn-danger btn-sm"
+            onClick={() => setConfirmTarget("preferences")}
+          >
+            Clear all preferences
+          </button>
         </div>
       </div>
 
@@ -756,6 +762,8 @@ function DataTab({
           <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
             {confirmTarget === "mentees"
               ? "This will permanently delete every mentee, their preferences, and their allocations for this session."
+              : confirmTarget === "preferences"
+              ? "This will permanently clear all submitted mentor preferences and reset preference_submitted_at for every mentee. Allocations are not affected."
               : "This will permanently delete every mentor for this session. All existing allocations must be reset first."}
           </p>
           <div className="actions">
@@ -1192,13 +1200,13 @@ export function AdminScreen() {
     } finally { setRunning(false); }
   };
 
-  const bulkDelete = async (target: "mentors" | "mentees") => {
+  const bulkDelete = async (target: "mentors" | "mentees" | "preferences") => {
     setRunning(true);
     try {
       const res = await fetch(`/api/admin/data?target=${target}`, { method: "DELETE" });
       const data: unknown = await res.json();
       if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : `Unable to remove ${target}.`);
-      showToast(`All ${target} removed.`);
+      showToast(target === "preferences" ? "All preferences cleared." : `All ${target} removed.`);
       await loadOverview();
     } catch (error) {
       showToast(error instanceof Error ? error.message : `Unable to remove ${target}.`);
