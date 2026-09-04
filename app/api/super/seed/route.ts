@@ -4,7 +4,7 @@ import { requireSuperAdmin, isSuperAdminError } from "@/lib/super-admin-auth";
 import { getCurrentSession } from "@/lib/session";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { SEED_MENTEES, menteeStudentId } from "@/data/seed-mentees";
-import { SEED_MENTORS, mentorStudentId, MENTOR_BATCH } from "@/data/seed-mentors";
+import { SEED_MENTORS, mentorStudentId, MENTOR_BATCH } from "@/data/seed-mentors-real";
 
 function superAdminGuard(request: Request) {
   try {

@@ -30,7 +30,7 @@ export function mentorStudentId(last4: string): string {
 const P = "/profile/mentor/Renamed_Photos";
 
 export const SEED_MENTORS: SeedMentor[] = [
-  { fullName: "Chirath Miyuru",         last4: "2089", email: "tg20242089@fot.ruh.ac.lk", phone: "0770000001", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: null           }, // no photo file
+  { fullName: "Chirath Miyuru",         last4: "2089", email: "tg20242089@fot.ruh.ac.lk", phone: "0770000001", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2089.jpeg` },
   { fullName: "Amjad Hassan",           last4: "2061", email: "tg20242061@fot.ruh.ac.lk", phone: "0770000002", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2061.jpeg` },
   { fullName: "Ruvisha Lakmina",        last4: "2064", email: "tg20242064@fot.ruh.ac.lk", phone: "0770000003", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2064.jpg`  },
   { fullName: "Dasindu Dilvan",         last4: "2067", email: "tg20242067@fot.ruh.ac.lk", phone: "0770000004", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2067.jpg`  },
@@ -42,7 +42,7 @@ export const SEED_MENTORS: SeedMentor[] = [
   { fullName: "Bineth Vindinu",         last4: "2083", email: "tg20242083@fot.ruh.ac.lk", phone: "0770000010", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2083.jpg`  },
   { fullName: "Kaveesh Bandara",        last4: "2084", email: "tg20242084@fot.ruh.ac.lk", phone: "0770000011", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2084.jpg`  },
   { fullName: "Dilush Bandara",         last4: "2085", email: "tg20242085@fot.ruh.ac.lk", phone: "0770000012", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2085.jpeg` },
-  { fullName: "Minula Kudarachchi",     last4: "2086", email: "tg20242086@fot.ruh.ac.lk", phone: "0770000013", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: null           }, // HEIC — not browser-compatible
+  { fullName: "Minula Kudarachchi",     last4: "2086", email: "tg20242086@fot.ruh.ac.lk", phone: "0770000013", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2086.jpg`  },
   { fullName: "Nithila Kithnula",       last4: "2090", email: "tg20242090@fot.ruh.ac.lk", phone: "0770000014", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2090.png`  },
   { fullName: "Hansika Devindi",        last4: "2092", email: "tg20242092@fot.ruh.ac.lk", phone: "0770000015", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2092.jpeg` },
   { fullName: "Hasaranga KHM",          last4: "2095", email: "tg20242095@fot.ruh.ac.lk", phone: "0770000016", communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2095.jpeg` },
