@@ -43,6 +43,10 @@ export async function POST(request: Request) {
         communication_method: m.communicationMethod,
         capacity:             m.capacity,
         is_approved:          true,
+        // profilePhotoUrl is optional — only present in real seed data
+        ...("profilePhotoUrl" in m && (m as { profilePhotoUrl?: string | null }).profilePhotoUrl !== undefined
+          ? { profile_photo_url: (m as { profilePhotoUrl?: string | null }).profilePhotoUrl }
+          : {}),
       }));
 
       const { data, error } = await supabase
