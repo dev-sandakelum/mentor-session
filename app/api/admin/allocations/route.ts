@@ -50,7 +50,7 @@ function planAllocations(
     const cap = available.get(za.mentor_id) ?? 0;
     if (cap <= 0) continue; // mentor is full — skip silently
     available.set(za.mentor_id, cap - 1);
-    planned.push({ mentee_id: mentee.id, mentor_id: za.mentor_id, method: "manual", matched_priority: null });
+    planned.push({ mentee_id: mentee.id, mentor_id: za.mentor_id, method: "fallback", matched_priority: null });
     allocatedMenteeIds.add(mentee.id);
   }
 
