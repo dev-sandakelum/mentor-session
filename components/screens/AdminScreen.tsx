@@ -22,7 +22,7 @@ type Overview = {
   logs: { id: number; action: string; detail: string | null; created_at: string }[];
 };
 
-type Tab = "overview" | "controls" | "lifecycle" | "mentors" | "approvals" | "mentees" | "allocation" | "logs" | "data";
+type Tab = "overview" | "controls" | "lifecycle" | "mentors" | "approvals" | "mentees" | "allocation" | "logs" | "data" | "display";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview",   label: "Overview"   },
@@ -34,6 +34,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "allocation", label: "Allocation" },
   { id: "logs",       label: "Logs"       },
   { id: "data",       label: "Data"       },
+  { id: "display",    label: "📺 Display"  },
 ];
 
 function StatCard({ value, label, accent = "default" }: { value: string; label: string; accent?: "indigo" | "amber" | "green" | "default" }) {
@@ -784,6 +785,97 @@ function DataTab({
   );
 }
 
+// ─── Display control tab ─────────────────────────────────────────────────────
+
+function DisplayControlTab({ overview }: { overview: Overview }) {
+  const [sending,    setSending]    = useState(false);
+  const [customText, setCustomText] = useState("");
+  const [customSub,  setCustomSub]  = useState("");
+  const [lastScene,  setLastScene]  = useState("");
+
+  const push = async (scene: object) => {
+    setSending(true);
+    try {
+      const res = await fetch("/api/display/state", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scene }),
+      });
+      if (res.ok) setLastScene(JSON.stringify(scene));
+    } finally { setSending(false); }
+  };
+
+  const s = overview.stats;
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+      {/* Link to display */}
+      <div className="card" style={{ borderLeft:"4px solid #6366f1" }}>
+        <h3 className="card-title" style={{ margin:"0 0 8px" }}>📺 Presentation Display</h3>
+        <p className="muted" style={{ fontSize:13, marginBottom:12 }}>
+          Open this URL on the projector / second screen. It updates in real-time when you change scenes below.
+        </p>
+        <a href="/display" target="_blank" rel="noopener noreferrer"
+          style={{ display:"inline-flex", alignItems:"center", gap:6, background:"var(--indigo-soft)", color:"var(--indigo)", fontWeight:700, fontSize:13, padding:"8px 16px", borderRadius:9, textDecoration:"none" }}>
+          /display ↗
+        </a>
+        {lastScene && (
+          <p className="hint" style={{ marginTop:10 }}>Active: <code style={{ fontSize:11.5 }}>{lastScene}</code></p>
+        )}
+      </div>
+
+      {/* Scene buttons */}
+      <div className="card">
+        <h3 className="card-title" style={{ marginBottom:16 }}>Scenes</h3>
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            onClick={() => void push({ type: "idle" })}>
+            🌌 Idle / Branding
+          </button>
+          <button className="btn btn-primary btn-sm" disabled={sending}
+            onClick={() => void push({ type: "allocation", count: s.assigned, total: s.totalMentees })}>
+            ⚡ Allocation Running
+          </button>
+          <button className="btn btn-sm" disabled={sending}
+            style={{ background:"var(--green)", color:"#fff" }}
+            onClick={() => void push({ type: "results", assigned: s.assigned, unmatched: s.unassigned, satisfaction: s.preferenceSatisfaction })}>
+            ✓ Show Results
+          </button>
+        </div>
+      </div>
+
+      {/* Custom message */}
+      <div className="card">
+        <h3 className="card-title" style={{ marginBottom:12 }}>Custom Message</h3>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <input
+            className="mreg-input"
+            type="text"
+            placeholder="Main text (e.g. Welcome!)"
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            style={{ background:"var(--gray-50)", border:"1.5px solid var(--gray-200)", borderRadius:10, height:42, padding:"0 14px", fontSize:14 }}
+          />
+          <input
+            className="mreg-input"
+            type="text"
+            placeholder="Sub-text (optional)"
+            value={customSub}
+            onChange={(e) => setCustomSub(e.target.value)}
+            style={{ background:"var(--gray-50)", border:"1.5px solid var(--gray-200)", borderRadius:10, height:42, padding:"0 14px", fontSize:14 }}
+          />
+          <button className="btn btn-outline btn-sm" disabled={sending || !customText.trim()}
+            onClick={() => void push({ type: "custom", text: customText.trim(), sub: customSub.trim() || undefined })}>
+            Push message →
+          </button>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 // ─── Controls tab ────────────────────────────────────────────────────────────
 
 type ControlFlag = "mentorRegOpen" | "menteeRegOpen" | "prefsOpen";
@@ -1347,6 +1439,7 @@ export function AdminScreen() {
               onBulkDelete={(target) => void bulkDelete(target)}
             />
           )}
+          {activeTab === "display"    && <DisplayControlTab overview={overview} />}
         </>
       )}
 
