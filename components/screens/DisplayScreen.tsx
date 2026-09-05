@@ -37,6 +37,20 @@ function IdleScene() {
   );
 }
 
+function ThankYouScene() {
+  return (
+    <div style={{
+      width: "100%",
+      height: "100%",
+      background: "#0f0c29",
+      backgroundImage: "url('/display/thank_you.png')",
+      backgroundSize: "contain",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    }} />
+  );
+}
+
 function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allocation" }> }) {
   const [count, setCount] = useState(0);
   const [rows,  setRows]  = useState<GhostRow[]>([]);
@@ -517,6 +531,7 @@ export function DisplayScreen() {
       fontFamily:"inherit",
     }}>
       {scene.type === "idle"        && <IdleScene />}
+      {scene.type === "thankyou"    && <ThankYouScene />}
       {scene.type === "allocation"  && <AllocationScene scene={scene} />}
       {scene.type === "results"     && <ResultsScene   scene={scene} />}
       {scene.type === "custom"      && <CustomScene    scene={scene} />}

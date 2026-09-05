@@ -870,6 +870,10 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
             onClick={() => void push({ type: "idle" })}>
             🌌 Cover / Idle
           </button>
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            onClick={() => void push({ type: "thankyou" })}>
+            🙏 Thank You
+          </button>
           <button className="btn btn-primary btn-sm" disabled={sending}
             onClick={() => void push({ type: "allocation", count: s.assigned, total: s.totalMentees })}>
             ⚡ Allocation Running
