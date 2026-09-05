@@ -1,8 +1,9 @@
 /**
- * In-memory display state store.
- * Shared across requests in the same server process via module-level singleton.
- * For multi-instance deployments, swap this for a Redis pub/sub channel.
+ * Display state — backed by Supabase so all server instances share the same state.
+ * Works across Vercel serverless deployments and multiple admin devices.
  */
+
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export type DisplayScene =
   | { type: "idle" }
@@ -15,24 +16,33 @@ export type DisplayState = {
   updatedAt: number;
 };
 
-// Module-level singleton
-let current: DisplayState = { scene: { type: "idle" }, updatedAt: Date.now() };
+export async function getDisplayState(): Promise<DisplayState> {
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from("display_state")
+    .select("scene, updated_at")
+    .eq("id", 1)
+    .maybeSingle();
 
-// SSE subscriber registry
-const subscribers = new Set<(state: DisplayState) => void>();
+  if (error || !data) {
+    return { scene: { type: "idle" }, updatedAt: 0 };
+  }
 
-export function getDisplayState(): DisplayState {
-  return current;
+  return {
+    scene:     data.scene as DisplayScene,
+    updatedAt: new Date(data.updated_at as string).getTime(),
+  };
 }
 
-export function setDisplayState(scene: DisplayScene): DisplayState {
-  current = { scene, updatedAt: Date.now() };
-  // Notify all connected SSE clients
-  subscribers.forEach((fn) => fn(current));
-  return current;
-}
+export async function setDisplayState(scene: DisplayScene): Promise<DisplayState> {
+  const supabase = getSupabaseAdmin();
+  const now = new Date().toISOString();
 
-export function subscribeDisplay(fn: (state: DisplayState) => void): () => void {
-  subscribers.add(fn);
-  return () => subscribers.delete(fn);
+  const { error } = await supabase
+    .from("display_state")
+    .upsert({ id: 1, scene, updated_at: now }, { onConflict: "id" });
+
+  if (error) throw new Error(`Unable to update display state: ${error.message}`);
+
+  return { scene, updatedAt: Date.now() };
 }
