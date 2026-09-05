@@ -28,8 +28,9 @@ function IdleScene() {
     <div style={{
       width: "100%",
       height: "100%",
+      background: "#0f0c29",
       backgroundImage: "url('/display/cover.png')",
-      backgroundSize: "cover",
+      backgroundSize: "contain",
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat",
     }} />
