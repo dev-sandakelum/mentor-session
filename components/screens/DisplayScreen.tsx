@@ -26,67 +26,13 @@ interface GhostRow { id: number; mentee: string; mentor: string; method: string;
 function IdleScene() {
   return (
     <div style={{
-      width: "100%", height: "100%",
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      background: "linear-gradient(145deg,#0f0c29,#302b63,#24243e)",
-      position: "relative", overflow: "hidden",
-    }}>
-      {/* Ambient orbs */}
-      <div style={{ position:"absolute", width:500, height:500, borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.18) 0%,transparent 70%)", top:"10%", left:"15%" }} />
-      <div style={{ position:"absolute", width:400, height:400, borderRadius:"50%", background:"radial-gradient(circle,rgba(245,158,11,0.12) 0%,transparent 70%)", bottom:"15%", right:"10%" }} />
-
-      {/* Logo / brand */}
-      <div style={{ position:"relative", textAlign:"center" }}>
-        <div style={{
-          fontSize: "clamp(14px,2vw,20px)", fontWeight:700,
-          letterSpacing:"4px", textTransform:"uppercase",
-          color:"rgba(199,210,254,0.6)", marginBottom:24,
-        }}>
-          ICT Students' Circle
-        </div>
-        <div style={{
-          fontSize:"clamp(36px,6vw,80px)", fontWeight:800,
-          color:"#fff", lineHeight:1.1, letterSpacing:"-1px",
-          textShadow:"0 0 60px rgba(99,102,241,0.5)",
-        }}>
-          Mentor Session
-        </div>
-        <div style={{
-          fontSize:"clamp(20px,3.5vw,48px)", fontWeight:700,
-          color:"#fcd34d", marginTop:8, letterSpacing:"2px",
-        }}>
-          2026
-        </div>
-        <div style={{
-          marginTop:32, fontSize:"clamp(12px,1.5vw,16px)",
-          color:"rgba(199,210,254,0.45)", letterSpacing:"2px",
-        }}>
-          Faculty of Technology · University of Ruhuna
-        </div>
-      </div>
-
-      {/* Floating dots */}
-      <div style={{ position:"absolute", inset:0, pointerEvents:"none" }}>
-        {Array.from({length:20}).map((_,i) => (
-          <div key={i} style={{
-            position:"absolute",
-            width: 3+Math.random()*4, height: 3+Math.random()*4,
-            borderRadius:"50%",
-            background:"rgba(99,102,241,0.4)",
-            left:`${Math.random()*100}%`, top:`${Math.random()*100}%`,
-            animation:`ds-float ${4+Math.random()*6}s ease-in-out ${Math.random()*4}s infinite alternate`,
-          }} />
-        ))}
-      </div>
-
-      <style>{`
-        @keyframes ds-float {
-          from { transform: translateY(0px) scale(1);   opacity:0.3; }
-          to   { transform: translateY(-20px) scale(1.3); opacity:0.8; }
-        }
-      `}</style>
-    </div>
+      width: "100%",
+      height: "100%",
+      backgroundImage: "url('/display/cover.png')",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    }} />
   );
 }
 
