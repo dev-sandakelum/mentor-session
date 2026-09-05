@@ -5,6 +5,7 @@ import { useToast } from "../ToastProvider";
 import { Pill } from "../ui/Pill";
 import { ResetModal } from "../ui/ResetModal";
 import { MentorFormModal, type MentorRecord } from "../admin/MentorFormModal";
+import { AllocationCinematic } from "../ui/AllocationCinematic";
 
 type Overview = {
   session: {
@@ -1027,6 +1028,7 @@ export function AdminScreen() {
   const [advancing, setAdvancing] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [overview, setOverview] = useState<Overview>();
+  const [cinematic, setCinematic] = useState<{ total: number } | null>(null);
 
   const loadOverview = async () => {
     setRunning(true);
@@ -1093,8 +1095,13 @@ export function AdminScreen() {
       const data: unknown = await res.json();
       if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Allocation request failed.");
       const result = data as { allocationCount: number; unmatchedCount: number };
-      showToast(`${mode === "preview" ? "Preview" : "Allocation saved"}: ${result.allocationCount} assigned, ${result.unmatchedCount} unmatched.`);
-      if (mode === "commit") await loadOverview();
+      if (mode === "commit") {
+        // Show cinematic while overview reloads in the background
+        setCinematic({ total: result.allocationCount });
+        void loadOverview();
+      } else {
+        showToast(`Preview: ${result.allocationCount} assigned, ${result.unmatchedCount} unmatched.`);
+      }
     } catch (error) { showToast(error instanceof Error ? error.message : "Allocation request failed."); }
     finally { setRunning(false); }
   };
@@ -1359,6 +1366,17 @@ export function AdminScreen() {
         onClose={() => { setMentorModalOpen(false); setEditingMentor(null); }}
         onSaved={handleMentorSaved}
       />
+
+      {/* ── Allocation cinematic overlay ── */}
+      {cinematic && (
+        <AllocationCinematic
+          total={cinematic.total}
+          onDone={() => {
+            setCinematic(null);
+            showToast(`Allocation saved: ${cinematic.total} assigned.`);
+          }}
+        />
+      )}
     </div>
   );
 }
