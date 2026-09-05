@@ -356,7 +356,9 @@ function MentorCarouselScene({ scene }: { scene: Extract<DisplayScene, { type: "
 
   const INTERVAL = 3500;
 
-  // Keep refs in sync
+  // Keep activeRef always in sync — updated immediately wherever setActive is called,
+  // so the control handler always reads the latest value without stale closure issues.
+  // (the useEffect sync below is kept as a fallback)
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
 
@@ -396,21 +398,33 @@ function MentorCarouselScene({ scene }: { scene: Extract<DisplayScene, { type: "
   }, []);
 
   // Handle remote control commands from admin.
-  // Dedup by seq (timestamp) so the same command repeated back-to-back still fires every time.
+  // scene.seq is a fresh Date.now() on every button press, so this effect fires on every click.
   const prevSeq = useRef<number | undefined>(undefined);
   useEffect(() => {
     const ctrl = scene.control;
-    const seq  = scene.seq;
+    const seq  = scene.seq ?? 0;
     if (!ctrl) return;
-    if (seq !== undefined && seq === prevSeq.current) return;
+    if (seq === prevSeq.current) return; // exact SSE re-delivery of same push, skip
     prevSeq.current = seq;
+    // Use the ref directly so we always have the latest count without stale closure issues
     const t = totalRef.current;
-    if (t === 0) return; // mentors not loaded yet
-    if (ctrl === "next")  { setActive((a) => { const s = Number.isFinite(a) ? a : 0; return (s + 1) % t; }); }
-    if (ctrl === "prev")  { setActive((a) => { const s = Number.isFinite(a) ? a : 0; return (s - 1 + t) % t; }); }
+    if (t < 1) return;
+    if (ctrl === "next")  {
+      activeRef.current = (activeRef.current + 1) % t;
+      setActive(activeRef.current);
+    }
+    if (ctrl === "prev")  {
+      activeRef.current = (activeRef.current - 1 + t) % t;
+      setActive(activeRef.current);
+    }
     if (ctrl === "pause") { setPaused(true);  pausedRef.current = true; }
     if (ctrl === "play")  { setPaused(false); pausedRef.current = false; }
-    if (ctrl === "stop")  { setPaused(true);  pausedRef.current = true; setActive(0); activeRef.current = 0; }
+    if (ctrl === "stop")  {
+      activeRef.current = 0;
+      setActive(0);
+      setPaused(true);
+      pausedRef.current = true;
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene.seq, scene.control]);
 
