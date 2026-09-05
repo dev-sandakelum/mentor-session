@@ -394,7 +394,7 @@ function MentorCarouselScene() {
   const initials = (name: string) => name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div style={{ position:"fixed", inset:0, background:"#05070f", fontFamily:"'Inter',system-ui,sans-serif", WebkitFontSmoothing:"antialiased", display:"grid", gridTemplateRows:"auto 1fr auto", overflow:"hidden" }}>
+    <div style={{ position:"fixed", inset:0, background:"#05070f", fontFamily:"'Inter',system-ui,sans-serif", WebkitFontSmoothing:"antialiased", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
       {/* Background */}
       <div style={{ position:"fixed", inset:0, background:"radial-gradient(120% 120% at 15% 0%,#0d2a66 0%,transparent 55%),radial-gradient(120% 120% at 100% 100%,#0a1c3d 0%,transparent 55%),linear-gradient(160deg,#060a1c 0%,#0a1230 55%,#04060f 100%)", overflow:"hidden" }}>
@@ -407,18 +407,25 @@ function MentorCarouselScene() {
       </div>
 
       {/* Header */}
-      <header style={{ position:"relative", zIndex:2, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"clamp(18px,3vh,32px) clamp(18px,4vw,40px) 0", fontFamily:"'Space Grotesk',sans-serif", fontSize:12, letterSpacing:".14em", textTransform:"uppercase", color:"#c7d2fe", opacity:.7 }}>
+      <header style={{ position:"relative", zIndex:2, flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"clamp(18px,3vh,32px) clamp(18px,4vw,40px) 0", fontFamily:"'Space Grotesk',sans-serif", fontSize:12, letterSpacing:".14em", textTransform:"uppercase", color:"#c7d2fe", opacity:.7 }}>
         <span>Mentor Session</span>
-        <span style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
+        {/* <span style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
           <span style={{ width:6, height:6, borderRadius:"50%", background:"#22d3ee", boxShadow:"0 0 10px #22d3ee", display:"inline-block", animation:"mc2LivePulse 2s ease-out infinite" }} />
           Autoplay
-        </span>
+        </span> */}
         <span>2026</span>
       </header>
 
-      {/* Stage */}
-      <div style={{ position:"relative", zIndex:2, width:"100%", perspective:1500, perspectiveOrigin:"50% 35%", userSelect:"none", WebkitUserSelect:"none" }}>
-        {mentors.map((mentor, i) => {
+      {/* Stage — flex:1 takes remaining space, cards centered inside */}
+      <div style={{
+        position:"relative", zIndex:2, flex:1,
+        perspective:1500, perspectiveOrigin:"50% 40%",
+        userSelect:"none", WebkitUserSelect:"none",
+        display:"flex", alignItems:"center", justifyContent:"center",
+      }}>
+        {/* Inner anchor — cards are absolutely positioned relative to this */}
+        <div style={{ position:"relative", width:0, height:0 }}>
+          {mentors.map((mentor, i) => {
           const offset = (i - active + total) % total;
           const slot   = slotFor(offset);
           const isCenter = slot === "center";
@@ -434,18 +441,20 @@ function MentorCarouselScene() {
             "hidden-left":  `translate3d(calc(${SHIFT} * -1.75),0,-360px) rotateY(26deg) scale(0.58)`,
           };
 
+          // Each card is centered via marginLeft so it grows symmetrically from the anchor
           return (
             <div key={mentor.id}
               onClick={() => { if (!isCenter) { setActive(i); if (timerRef.current) clearTimeout(timerRef.current); } }}
               style={{
-                position:"absolute", top:0, left:"50%",
+                position:"absolute",
+                top:0, left:0,
                 width: CARD_W,
-                marginLeft:`calc(${CARD_W} / -2)`,
+                // shift card so its center aligns with the anchor point
+                transform: `translateX(calc(${CARD_W} / -2)) translateY(-50%) ${transforms[slot] ?? transforms["hidden-right"]}`,
                 transformOrigin:"50% 40%",
                 cursor: isCenter ? "default" : "pointer",
                 pointerEvents: ["center","left","right"].includes(slot) ? "auto" : "none",
                 transition: noAnim ? "none" : "transform 0.85s cubic-bezier(0.32,0.72,0,1), opacity 0.85s cubic-bezier(0.32,0.72,0,1), filter 0.85s cubic-bezier(0.32,0.72,0,1)",
-                transform: transforms[slot] ?? transforms["hidden-right"],
                 opacity: ["hidden-left","hidden-right"].includes(slot) ? 0 : 0.9,
                 filter: isCenter ? "none" : "saturate(0.85)",
                 zIndex: isCenter ? 10 : ["left","right"].includes(slot) ? 5 : 1,
@@ -475,9 +484,9 @@ function MentorCarouselScene() {
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(6,10,25,.15) 0%,transparent 40%,rgba(6,10,25,.55) 100%)", pointerEvents:"none" }} />
 
                 {/* Name at top */}
-                <div style={{ position:"absolute", top:16, left:0, right:0, textAlign:"center", padding:"0 10px", zIndex:2, fontFamily:"'Sora','Inter',sans-serif", fontWeight:700, fontSize:17, color:"#fff", textShadow:"0 2px 14px rgba(0,0,0,.6)" }}>
+                {/* <div style={{ position:"absolute", top:16, left:0, right:0, textAlign:"center", padding:"0 10px", zIndex:2, fontFamily:"'Sora','Inter',sans-serif", fontWeight:700, fontSize:17, color:"#fff", textShadow:"0 2px 14px rgba(0,0,0,.6)" }}>
                   {mentor.name}
-                </div>
+                </div> */}
 
                 {/* Badge at bottom — hidden on center (panel takes over) */}
                 <div style={{ position:"absolute", bottom:14, left:"50%", transform:`translateX(-50%) translateY(${isCenter ? 14 : 0}px)`, opacity: isCenter ? 0 : 1, display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap", background:"linear-gradient(120deg,#3b82f6,#2563eb)", border:"1px solid rgba(255,255,255,.25)", borderRadius:99, padding:"7px 16px", fontFamily:"'Space Grotesk',sans-serif", fontSize:11.5, fontWeight:600, color:"#fff", boxShadow:"0 14px 30px -12px rgba(37,99,235,.9),inset 0 1px 0 rgba(255,255,255,.3)", zIndex:2, transition:"transform 0.85s cubic-bezier(0.32,0.72,0,1),opacity 0.85s cubic-bezier(0.32,0.72,0,1)" }}>
@@ -513,23 +522,24 @@ function MentorCarouselScene() {
                       {mentor.name}
                     </div>
                     <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:12, color:"#38bdf8", marginBottom:8, letterSpacing:".02em" }}>
-                      {mentor.batch ?? "9th"} Batch · {mentor.allocatedCount}/{mentor.capacity} mentees
+                      {mentor.batch ?? "9th"} Batch 
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    {/* <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                       <div style={{ flex:1, height:4, background:"rgba(255,255,255,0.08)", borderRadius:99, overflow:"hidden" }}>
                         <div style={{ height:"100%", width:`${Math.min((mentor.allocatedCount / Math.max(mentor.capacity, 1)) * 100, 100)}%`, background:"linear-gradient(90deg,#3b82f6,#22d3ee)", borderRadius:99, transition:"width 0.6s ease" }} />
                       </div>
                       <span style={{ fontSize:11, color:"rgba(199,210,254,0.5)", fontFamily:"ui-monospace,monospace", flexShrink:0 }}>
                         {mentor.capacity - mentor.allocatedCount} slots left
                       </span>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>
             </div>
           );
         })}
-      </div>
+        </div>{/* end inner anchor */}
+      </div>{/* end stage */}
 
       {/* Dots + counter */}
       <div style={{ position:"relative", zIndex:3, display:"flex", alignItems:"center", justifyContent:"center", gap:18, padding:"0 18px clamp(18px,4vh,36px)" }}>
