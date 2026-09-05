@@ -410,28 +410,42 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
   useParticleCanvas(canvasRef);
 
   const prevKeyRef   = useRef("");
-  const [transClass, setTransClass] = useState("mc-enter-right");
+  const [phase,      setPhase]      = useState<"enter-right" | "enter-left" | "exit-right" | "exit-left" | "idle">("enter-right");
   const [renderKey,  setRenderKey]  = useState(0);
   const [vis,        setVis]        = useState(false);
   const key = `${scene.mentor.id}-${scene.index}`;
 
-  // Detect mentor change and pick slide direction
+  // Detect mentor change → exit old → enter new
   useEffect(() => {
     const isFirst = prevKeyRef.current === "";
     if (prevKeyRef.current !== key) {
       if (!isFirst) {
+        // Determine direction
         const wasIdx = parseInt(prevKeyRef.current.split("-").pop() ?? "0");
-        setTransClass(scene.index > wasIdx ? "mc-enter-right" : "mc-enter-left");
+        const goRight = scene.index > wasIdx;
+
+        // Phase 1: exit current card
+        setPhase(goRight ? "exit-left" : "exit-right");
+        setVis(false);
+
+        // Phase 2: after exit animation completes, swap content and enter
+        const t = setTimeout(() => {
+          prevKeyRef.current = key;
+          setRenderKey((n) => n + 1);
+          setPhase(goRight ? "enter-right" : "enter-left");
+        }, 380); // matches exit duration
+        return () => clearTimeout(t);
       }
       prevKeyRef.current = key;
       setRenderKey((n) => n + 1);
     }
-  }, [key, scene.index]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
-  // Trigger vis on every render-key change (covers first load + subsequent changes)
+  // Trigger vis shortly after each render-key change
   useEffect(() => {
     setVis(false);
-    const t = setTimeout(() => setVis(true), 80);
+    const t = setTimeout(() => setVis(true), 60);
     return () => clearTimeout(t);
   }, [renderKey]);
 
@@ -458,7 +472,7 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
       {/* ── Card ── */}
       <div style={{ position:"relative", zIndex:2, width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", padding:"5vh 5vw", perspective:1600 }}>
         <div
-          className={`mc-card ${transClass} ${vis ? "mc-vis" : ""}`}
+          className={`mc-card mc-${phase} ${vis ? "mc-vis" : ""}`}
           style={{
             position:"relative",
             width:"min(1120px,94vw)", maxHeight:"88vh",
@@ -584,13 +598,22 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
         @keyframes mcSpinRing { to{transform:rotate(360deg)} }
         @keyframes mcLivePulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,0.6)} 70%{box-shadow:0 0 0 8px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
         @keyframes mcSpark { 0%{top:6%;opacity:0} 15%{opacity:1} 85%{opacity:1} 100%{top:94%;opacity:0} }
-        @keyframes mcCardIn { from{opacity:0;transform:translateY(28px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
-        @keyframes mcEnterRight { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes mcEnterLeft  { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes mcCardIn      { from{opacity:0;transform:translateY(28px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes mcExitLeft    { from{opacity:1;transform:translateX(0) scale(1)} to{opacity:0;transform:translateX(-60px) scale(0.94)} }
+        @keyframes mcExitRight   { from{opacity:1;transform:translateX(0) scale(1)} to{opacity:0;transform:translateX(60px) scale(0.94)} }
+        @keyframes mcEnterRight  { from{opacity:0;transform:translateX(60px) scale(0.94)} to{opacity:1;transform:translateX(0) scale(1)} }
+        @keyframes mcEnterLeft   { from{opacity:0;transform:translateX(-60px) scale(0.94)} to{opacity:1;transform:translateX(0) scale(1)} }
 
+        /* First load */
         .mc-card { opacity:0; animation: mcCardIn 0.7s cubic-bezier(0.16,1,0.3,1) 0.1s forwards; }
-        .mc-enter-right.mc-vis { animation: mcEnterRight 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
-        .mc-enter-left.mc-vis  { animation: mcEnterLeft  0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+        /* Exit phases — instant, no vis class needed */
+        .mc-card.mc-exit-left  { animation: mcExitLeft  0.35s cubic-bezier(0.4,0,1,1) forwards; }
+        .mc-card.mc-exit-right { animation: mcExitRight 0.35s cubic-bezier(0.4,0,1,1) forwards; }
+        /* Enter phases — triggered by vis */
+        .mc-card.mc-enter-right.mc-vis { animation: mcEnterRight 0.55s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .mc-card.mc-enter-left.mc-vis  { animation: mcEnterLeft  0.55s cubic-bezier(0.16,1,0.3,1) forwards; }
+        /* idle = content has been swapped, waiting for vis */
+        .mc-card.mc-idle { opacity:0; }
       `}</style>
     </div>
   );
