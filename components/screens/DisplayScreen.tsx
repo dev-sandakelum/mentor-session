@@ -337,7 +337,228 @@ function CustomScene({ scene }: { scene: Extract<DisplayScene, { type: "custom" 
   );
 }
 
-// ─── Particle field canvas hook ──────────────────────────────────────────────
+// ─── Mentor Carousel scene ───────────────────────────────────────────────────
+
+interface CarouselMentor { id: string; name: string; batch: string | null; photoUrl: string | null; allocatedCount: number; capacity: number }
+
+function MentorCarouselScene() {
+  const canvasRef2 = useRef<HTMLCanvasElement>(null);
+  useParticleCanvas(canvasRef2);
+
+  const [mentors,  setMentors]  = useState<CarouselMentor[]>([]);
+  const [active,   setActive]   = useState(0);
+  const [noAnim,   setNoAnim]   = useState(true);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const INTERVAL = 3200;
+  const total = mentors.length;
+
+  // Load mentors once
+  useEffect(() => {
+    fetch("/api/display/mentors")
+      .then((r) => r.json())
+      .then((d: { mentors?: CarouselMentor[] }) => {
+        setMentors(d.mentors ?? []);
+        // Allow animations after first paint
+        requestAnimationFrame(() => requestAnimationFrame(() => setNoAnim(false)));
+      })
+      .catch(() => {/* ignore */});
+  }, []);
+
+  // Auto-advance
+  useEffect(() => {
+    if (total < 2) return;
+    timerRef.current = setTimeout(() => {
+      setActive((a) => (a + 1) % total);
+    }, INTERVAL);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [active, total]);
+
+  if (total === 0) {
+    return (
+      <div style={{ position:"fixed", inset:0, background:"#05070f", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ color:"rgba(199,210,254,0.5)", fontSize:18, fontWeight:600 }}>Loading mentors…</div>
+      </div>
+    );
+  }
+
+  // Slot calculation — same as new2.html
+  const mid = Math.floor(total / 2);
+  const slotFor = (offset: number) => {
+    if (offset === 0) return "center";
+    if (offset === 1 && total > 1) return "right";
+    if (offset === total - 1 && total > 2) return "left";
+    return offset <= mid ? "hidden-right" : "hidden-left";
+  };
+
+  const initials = (name: string) => name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#05070f", fontFamily:"'Inter',system-ui,sans-serif", WebkitFontSmoothing:"antialiased", display:"grid", gridTemplateRows:"auto 1fr auto", overflow:"hidden" }}>
+
+      {/* Background */}
+      <div style={{ position:"fixed", inset:0, background:"radial-gradient(120% 120% at 15% 0%,#0d2a66 0%,transparent 55%),radial-gradient(120% 120% at 100% 100%,#0a1c3d 0%,transparent 55%),linear-gradient(160deg,#060a1c 0%,#0a1230 55%,#04060f 100%)", overflow:"hidden" }}>
+        <canvas ref={canvasRef2} style={{ position:"absolute", inset:0 }} />
+        <div style={{ position:"absolute", width:"46vw", height:"46vw", top:"-14%", right:"-8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(59,130,246,.9) 0%,transparent 68%)", filter:"blur(70px)", opacity:.55, mixBlendMode:"screen", animation:"mc2Drift1 24s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:"40vw", height:"40vw", bottom:"-16%", left:"-6%", borderRadius:"50%", background:"radial-gradient(circle,rgba(56,189,248,.6) 0%,transparent 68%)", filter:"blur(70px)", opacity:.55, mixBlendMode:"screen", animation:"mc2Drift2 28s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:"34vw", height:"34vw", top:"30%", left:"42%", borderRadius:"50%", background:"radial-gradient(circle,rgba(34,211,238,.35) 0%,transparent 68%)", filter:"blur(70px)", opacity:.55, mixBlendMode:"screen", animation:"mc2Drift3 32s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", inset:-2, backgroundImage:"linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px)", backgroundSize:"60px 60px", maskImage:"radial-gradient(120% 90% at 50% 40%,#000 30%,transparent 75%)", WebkitMaskImage:"radial-gradient(120% 90% at 50% 40%,#000 30%,transparent 75%)" }} />
+        <div style={{ position:"absolute", inset:0, background:"radial-gradient(120% 120% at 50% 45%,transparent 55%,rgba(0,0,0,.6) 100%)" }} />
+      </div>
+
+      {/* Header */}
+      <header style={{ position:"relative", zIndex:2, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"clamp(18px,3vh,32px) clamp(18px,4vw,40px) 0", fontFamily:"'Space Grotesk',sans-serif", fontSize:12, letterSpacing:".14em", textTransform:"uppercase", color:"#c7d2fe", opacity:.7 }}>
+        <span>Mentor Session</span>
+        <span style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
+          <span style={{ width:6, height:6, borderRadius:"50%", background:"#22d3ee", boxShadow:"0 0 10px #22d3ee", display:"inline-block", animation:"mc2LivePulse 2s ease-out infinite" }} />
+          Autoplay
+        </span>
+        <span>2026</span>
+      </header>
+
+      {/* Stage */}
+      <div style={{ position:"relative", zIndex:2, width:"100%", perspective:1500, perspectiveOrigin:"50% 35%", userSelect:"none", WebkitUserSelect:"none" }}>
+        {mentors.map((mentor, i) => {
+          const offset = (i - active + total) % total;
+          const slot   = slotFor(offset);
+          const isCenter = slot === "center";
+
+          const CARD_W = "clamp(210px,32vw,300px)";
+          const SHIFT  = "clamp(160px,27vw,270px)";
+
+          const transforms: Record<string, string> = {
+            "center":       "translate3d(0,0,0) rotateY(0deg) scale(1)",
+            "right":        `translate3d(${SHIFT},0,-180px) rotateY(-16deg) scale(0.74)`,
+            "left":         `translate3d(calc(${SHIFT} * -1),0,-180px) rotateY(16deg) scale(0.74)`,
+            "hidden-right": `translate3d(calc(${SHIFT} * 1.75),0,-360px) rotateY(-26deg) scale(0.58)`,
+            "hidden-left":  `translate3d(calc(${SHIFT} * -1.75),0,-360px) rotateY(26deg) scale(0.58)`,
+          };
+
+          return (
+            <div key={mentor.id}
+              onClick={() => { if (!isCenter) { setActive(i); if (timerRef.current) clearTimeout(timerRef.current); } }}
+              style={{
+                position:"absolute", top:0, left:"50%",
+                width: CARD_W,
+                marginLeft:`calc(${CARD_W} / -2)`,
+                transformOrigin:"50% 40%",
+                cursor: isCenter ? "default" : "pointer",
+                pointerEvents: ["center","left","right"].includes(slot) ? "auto" : "none",
+                transition: noAnim ? "none" : "transform 0.85s cubic-bezier(0.32,0.72,0,1), opacity 0.85s cubic-bezier(0.32,0.72,0,1), filter 0.85s cubic-bezier(0.32,0.72,0,1)",
+                transform: transforms[slot] ?? transforms["hidden-right"],
+                opacity: ["hidden-left","hidden-right"].includes(slot) ? 0 : 0.9,
+                filter: isCenter ? "none" : "saturate(0.85)",
+                zIndex: isCenter ? 10 : ["left","right"].includes(slot) ? 5 : 1,
+              }}
+            >
+              {/* Photo card */}
+              <div style={{
+                position:"relative", width:"100%", height:"clamp(240px,34vw,300px)",
+                borderRadius:24, overflow:"hidden",
+                background:"linear-gradient(180deg,#274a8a 0%,#1c3766 100%)",
+                boxShadow: isCenter
+                  ? "0 50px 110px -26px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.14),0 0 90px -14px rgba(59,130,246,.75)"
+                  : "0 40px 90px -26px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.1),0 0 60px -16px rgba(59,130,246,.35)",
+              }}>
+                {/* Shade for non-center */}
+                {!isCenter && <div style={{ position:"absolute", inset:0, zIndex:1, background:"rgba(4,6,14,.55)" }} />}
+
+                {/* Photo or initials */}
+                {mentor.photoUrl
+                  ? <img src={mentor.photoUrl} alt={mentor.name} style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 25%", display:"block" }} />
+                  : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(48px,7vw,80px)", fontWeight:800, color:"transparent", background:"linear-gradient(135deg,#93c5fd,#dbeafe 50%,#bfdbfe)", WebkitBackgroundClip:"text", backgroundClip:"text" }}>
+                      {initials(mentor.name)}
+                    </div>
+                }
+
+                {/* Gradient overlay */}
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(6,10,25,.15) 0%,transparent 40%,rgba(6,10,25,.55) 100%)", pointerEvents:"none" }} />
+
+                {/* Name at top */}
+                <div style={{ position:"absolute", top:16, left:0, right:0, textAlign:"center", padding:"0 10px", zIndex:2, fontFamily:"'Sora','Inter',sans-serif", fontWeight:700, fontSize:17, color:"#fff", textShadow:"0 2px 14px rgba(0,0,0,.6)" }}>
+                  {mentor.name}
+                </div>
+
+                {/* Badge at bottom — hidden on center (panel takes over) */}
+                <div style={{ position:"absolute", bottom:14, left:"50%", transform:`translateX(-50%) translateY(${isCenter ? 14 : 0}px)`, opacity: isCenter ? 0 : 1, display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap", background:"linear-gradient(120deg,#3b82f6,#2563eb)", border:"1px solid rgba(255,255,255,.25)", borderRadius:99, padding:"7px 16px", fontFamily:"'Space Grotesk',sans-serif", fontSize:11.5, fontWeight:600, color:"#fff", boxShadow:"0 14px 30px -12px rgba(37,99,235,.9),inset 0 1px 0 rgba(255,255,255,.3)", zIndex:2, transition:"transform 0.85s cubic-bezier(0.32,0.72,0,1),opacity 0.85s cubic-bezier(0.32,0.72,0,1)" }}>
+                  {mentor.batch ?? "9th"} Batch
+                </div>
+              </div>
+
+              {/* Expanded panel for center card */}
+              <div style={{
+                display:"grid",
+                gridTemplateRows: isCenter ? "1fr" : "0fr",
+                transition: noAnim ? "none" : "grid-template-rows 0.85s cubic-bezier(0.32,0.72,0,1)",
+              }}>
+                <div style={{ overflow:"hidden", minHeight:0 }}>
+                  <div style={{
+                    position:"relative", marginTop:14,
+                    background:"linear-gradient(160deg,rgba(30,58,138,.32),rgba(10,16,40,.5))",
+                    backdropFilter:"blur(18px) saturate(140%)", WebkitBackdropFilter:"blur(18px) saturate(140%)",
+                    borderRadius:18, padding:"18px 20px 20px",
+                    boxShadow:"0 24px 50px -26px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.08)",
+                    opacity: isCenter ? 1 : 0,
+                    transform: isCenter ? "translateY(0) scale(1)" : "translateY(-10px) scale(.97)",
+                    transition: noAnim ? "none" : `opacity 0.42s cubic-bezier(0.32,0.72,0,1) ${isCenter ? "0.1s" : "0s"}, transform 0.85s cubic-bezier(0.34,1.3,0.64,1)`,
+                  }}>
+                    {/* Conic border */}
+                    <div style={{ position:"absolute", inset:0, borderRadius:18, padding:"1.2px", background:"conic-gradient(from 45deg,#3b82f6,#22d3ee,#6366f1,#38bdf8,#3b82f6)", WebkitMask:"linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)", WebkitMaskComposite:"xor", maskComposite:"exclude", opacity:.55, pointerEvents:"none" }} />
+
+                    <div style={{ fontFamily:"'Space Grotesk',ui-monospace,monospace", fontSize:11, letterSpacing:".1em", textTransform:"uppercase", color:"#c7d2fe", opacity:.75, marginBottom:10, display:"flex", justifyContent:"space-between" }}>
+                      <span>[{String(i + 1).padStart(2,"0")}]</span>
+                      <span>{i + 1} / {total}</span>
+                    </div>
+                    <div style={{ fontFamily:"'Sora','Inter',sans-serif", fontSize:19, fontWeight:700, letterSpacing:"-.2px", marginBottom:4, color:"#fff" }}>
+                      {mentor.name}
+                    </div>
+                    <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:12, color:"#38bdf8", marginBottom:8, letterSpacing:".02em" }}>
+                      {mentor.batch ?? "9th"} Batch · {mentor.allocatedCount}/{mentor.capacity} mentees
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <div style={{ flex:1, height:4, background:"rgba(255,255,255,0.08)", borderRadius:99, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${Math.min((mentor.allocatedCount / Math.max(mentor.capacity, 1)) * 100, 100)}%`, background:"linear-gradient(90deg,#3b82f6,#22d3ee)", borderRadius:99, transition:"width 0.6s ease" }} />
+                      </div>
+                      <span style={{ fontSize:11, color:"rgba(199,210,254,0.5)", fontFamily:"ui-monospace,monospace", flexShrink:0 }}>
+                        {mentor.capacity - mentor.allocatedCount} slots left
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Dots + counter */}
+      <div style={{ position:"relative", zIndex:3, display:"flex", alignItems:"center", justifyContent:"center", gap:18, padding:"0 18px clamp(18px,4vh,36px)" }}>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center" }}>
+          {mentors.map((_, i) => (
+            <div key={i} onClick={() => { setActive(i); if (timerRef.current) clearTimeout(timerRef.current); }}
+              style={{
+                width: i === active ? 28 : 18, height:3,
+                background: i === active ? "linear-gradient(90deg,#3b82f6,#22d3ee)" : "rgba(199,210,254,.18)",
+                borderRadius:2, cursor:"pointer", transition:"width 0.4s cubic-bezier(0.32,0.72,0,1), background 0.3s",
+                boxShadow: i === active ? "0 0 12px rgba(59,130,246,0.7)" : "none",
+              }}
+            />
+          ))}
+        </div>
+        <span style={{ fontFamily:"'Space Grotesk',ui-monospace,monospace", fontSize:11, letterSpacing:".12em", color:"#c7d2fe", opacity:.6, minWidth:"5ch", textAlign:"center" }}>
+          {String(active + 1).padStart(2,"0")} / {String(total).padStart(2,"0")}
+        </span>
+      </div>
+
+      <style>{`
+        @keyframes mc2Drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-6vw,5vh) scale(1.12)} }
+        @keyframes mc2Drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(7vw,-4vh) scale(1.15)} }
+        @keyframes mc2Drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,-6vh) scale(0.85)} }
+        @keyframes mc2LivePulse { 0%{box-shadow:0 0 0 0 rgba(34,211,238,0.6)} 70%{box-shadow:0 0 0 8px rgba(34,211,238,0)} 100%{box-shadow:0 0 0 0 rgba(34,211,238,0)} }
+      `}</style>
+    </div>
+  );
+}
 
 function useParticleCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   useEffect(() => {
@@ -508,10 +729,10 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
             </div>
 
             {/* Badge at bottom */}
-            <div style={{ position:"absolute", bottom:"clamp(18px,3vh,30px)", left:"50%", transform:"translateX(-50%)", display:"inline-flex", alignItems:"center", gap:10, whiteSpace:"nowrap", background:"linear-gradient(120deg,#7b5cf6,#6d4de0)", border:"1px solid rgba(255,255,255,0.28)", borderRadius:99, padding:"clamp(7px,1.1vh,11px) clamp(14px,1.8vw,22px)", fontSize:"clamp(12px,1.2vw,16px)", fontWeight:600, color:"#fff", boxShadow:"0 14px 34px -12px rgba(109,77,224,0.9),inset 0 1px 0 rgba(255,255,255,0.3)", zIndex:2 }}>
+            {/* <div style={{ position:"absolute", bottom:"clamp(18px,3vh,30px)", left:"50%", transform:"translateX(-50%)", display:"inline-flex", alignItems:"center", gap:10, whiteSpace:"nowrap", background:"linear-gradient(120deg,#7b5cf6,#6d4de0)", border:"1px solid rgba(255,255,255,0.28)", borderRadius:99, padding:"clamp(7px,1.1vh,11px) clamp(14px,1.8vw,22px)", fontSize:"clamp(12px,1.2vw,16px)", fontWeight:600, color:"#fff", boxShadow:"0 14px 34px -12px rgba(109,77,224,0.9),inset 0 1px 0 rgba(255,255,255,0.3)", zIndex:2 }}>
               <span style={{ width:7, height:7, borderRadius:"50%", background:"#34d399", animation:"mcLivePulse 2s ease-out infinite", flexShrink:0, display:"inline-block" }} />
               {mentor.batch ?? "9th"} Batch · {mentor.communicationMethod}
-            </div>
+            </div> */}
 
             {/* Position indicator */}
             <div style={{ position:"absolute", top:"50%", right:12, transform:"translateY(-50%)", fontSize:"clamp(10px,0.9vw,13px)", color:"rgba(255,255,255,0.35)", letterSpacing:1, writingMode:"vertical-rl", textOrientation:"mixed", zIndex:2 }}>
@@ -643,6 +864,7 @@ export function DisplayScreen() {
       {scene.type === "idle"               && <IdleScene />}
       {scene.type === "thankyou"           && <ThankYouScene />}
       {scene.type === "live-registrations" && <LiveRegistrationsScene />}
+      {scene.type === "mentor-carousel"    && <MentorCarouselScene />}
       {scene.type === "allocation"         && <AllocationScene scene={scene} />}
       {scene.type === "results"     && <ResultsScene   scene={scene} />}
       {scene.type === "custom"      && <CustomScene    scene={scene} />}

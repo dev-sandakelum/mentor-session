@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>User Carousel — Blue</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  
+  <style>
+    :root {
+      --blue:    #3b82f6;
+      --sky:     #38bdf8;
+      --cyan:    #22d3ee;
+      --indigo:  #6366f1;
+      --ink:     #f8fafc;
+      --muted:   #c7d2fe;
+      --bg-0:    #05070f;
+  
+      /* motion */
+      --dur:      0.85s;
+      --ease:     cubic-bezier(0.32, 0.72, 0, 1);       /* smooth decel, no overshoot */
+      --ease-pop: cubic-bezier(0.34, 1.3, 0.64, 1);     /* gentle spring for the panel */
+  
+      /* layout (fluid, clamps on small screens) */
+      --card-w:    clamp(210px, 32vw, 300px);
+      --img-h:     clamp(240px, 34vw, 300px);
+      --shift:     clamp(160px, 27vw, 270px);
+      --shift-far: calc(var(--shift) * 1.75);
+      --side-scale: 0.74;
+      --far-scale:  0.58;
+    }
+  
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-0);
+      color: var(--ink);
+      min-height: 100dvh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+  
+    /* ---------- background ---------- */
+    #bg {
+      position: fixed; inset: 0; z-index: 0; overflow: hidden;
+      background:
+        radial-gradient(120% 120% at 15% 0%, #0d2a66 0%, transparent 55%),
+        radial-gradient(120% 120% at 100% 100%, #0a1c3d 0%, transparent 55%),
+        linear-gradient(160deg, #060a1c 0%, #0a1230 55%, #04060f 100%);
+    }
+    .aurora {
+      position: absolute; border-radius: 50%;
+      filter: blur(70px); opacity: .55; mix-blend-mode: screen;
+      will-change: transform;
+    }
+    .aurora.a1 { width: 46vw; height: 46vw; top: -14%; right: -8%;
+      background: radial-gradient(circle, rgba(59,130,246,.9) 0%, rgba(59,130,246,0) 68%);
+      animation: drift1 24s ease-in-out infinite; }
+    .aurora.a2 { width: 40vw; height: 40vw; bottom: -16%; left: -6%;
+      background: radial-gradient(circle, rgba(56,189,248,.6) 0%, rgba(56,189,248,0) 68%);
+      animation: drift2 28s ease-in-out infinite; }
+    .aurora.a3 { width: 34vw; height: 34vw; top: 30%; left: 42%;
+      background: radial-gradient(circle, rgba(34,211,238,.35) 0%, rgba(34,211,238,0) 68%);
+      animation: drift3 32s ease-in-out infinite; }
+    @keyframes drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-6vw,5vh) scale(1.12); } }
+    @keyframes drift2 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(7vw,-4vh) scale(1.15); } }
+    @keyframes drift3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-5vw,-6vh) scale(.85); } }
+  
+    #grid {
+      position: absolute; inset: -2px;
+      background-image:
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 60px 60px;
+      -webkit-mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 75%);
+              mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 75%);
+    }
+    #vignette { position: absolute; inset: 0; background: radial-gradient(120% 120% at 50% 45%, transparent 55%, rgba(0,0,0,.6) 100%); }
+  
+    /* ---------- header ---------- */
+    header {
+      position: relative; z-index: 2;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: clamp(18px, 3vh, 32px) clamp(18px, 4vw, 40px) 0;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--muted); opacity: .7;
+    }
+    .status {
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .status::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--cyan); box-shadow: 0 0 10px var(--cyan);
+      transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+    body.paused .status::before { background: #64748b; box-shadow: none; }
+    body.paused .status .txt-play,
+    body:not(.paused) .status .txt-pause { display: none; }
+  
+    /* ---------- stage ---------- */
+    .stage {
+      position: relative; z-index: 2;
+      width: 100%;
+      perspective: 1500px;
+      perspective-origin: 50% 35%;
+      touch-action: pan-y;
+      user-select: none;
+      -webkit-user-select: none;
+      outline: none;
+    }
+    .stage:focus-visible::after {
+      content: ""; position: absolute; inset: 8px; border-radius: 28px;
+      border: 1px dashed rgba(56,189,248,.35); pointer-events: none;
+    }
+  
+    .card {
+      position: absolute; top: 0; left: 50%;
+      width: var(--card-w);
+      margin-left: calc(var(--card-w) / -2);
+      transform-origin: 50% 40%;
+      cursor: pointer;
+      pointer-events: none;
+      will-change: transform, opacity;
+      transition:
+        transform var(--dur) var(--ease),
+        opacity   var(--dur) var(--ease),
+        filter    var(--dur) var(--ease),
+        z-index   var(--dur) step-end;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .card[data-slot="center"],
+    .card[data-slot="left"],
+    .card[data-slot="right"] { pointer-events: auto; }
+  
+    .card__img {
+      position: relative; width: 100%; height: var(--img-h);
+      border-radius: 24px; overflow: hidden;
+      background: linear-gradient(180deg, #274a8a 0%, #1c3766 100%);
+      box-shadow:
+        0 40px 90px -26px rgba(0,0,0,.85),
+        0 0 0 1px rgba(255,255,255,.1),
+        0 0 60px -16px rgba(59,130,246,.35);
+      transition: box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+      transform: translateZ(0);
+    }
+    .card__img img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+      opacity: 0; transition: opacity .6s ease;
+    }
+    .card__img img.loaded { opacity: 1; }
+    .card__img::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(6,10,25,.15) 0%, transparent 40%, rgba(6,10,25,.55) 100%);
+      transition: opacity var(--dur) var(--ease);
+    }
+    .card__shade {
+      position: absolute; inset: 0; z-index: 1;
+      background: rgba(4,6,14,.55);
+      opacity: 0; transition: opacity var(--dur) var(--ease);
+      pointer-events: none;
+    }
+    .card:not([data-slot="center"]) .card__shade { opacity: 1; }
+  
+    .card__badge {
+      position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%) translateY(0);
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+      background: linear-gradient(120deg, var(--blue), #2563eb);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 99px; padding: 7px 16px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 11.5px; font-weight: 600; color: #fff;
+      box-shadow: 0 14px 30px -12px rgba(37,99,235,.9), inset 0 1px 0 rgba(255,255,255,.3);
+      z-index: 2;
+      transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+    }
+    .card__name-overlay {
+      position: absolute; top: 16px; left: 0; right: 0; text-align: center; padding: 0 10px; z-index: 2;
+      font-family: 'Sora', sans-serif; font-weight: 700;
+      font-size: 17px; color: #fff; text-shadow: 0 2px 14px rgba(0,0,0,.6);
+      transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+    }
+    /* on the center card the badge slides away as the panel takes over */
+    .card[data-slot="center"] .card__badge { opacity: 0; transform: translateX(-50%) translateY(14px); }
+  
+    /* ---------- expanding text panel ---------- */
+    .card__text {
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows var(--dur) var(--ease);
+    }
+    .card__inner { overflow: hidden; min-height: 0; }
+    .card__panel {
+      position: relative;
+      margin-top: 14px;
+      background: linear-gradient(160deg, rgba(30,58,138,.32), rgba(10,16,40,.5));
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border-radius: 18px;
+      padding: 18px 20px 20px;
+      box-shadow: 0 24px 50px -26px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08);
+      overflow: hidden;
+      opacity: 0; transform: translateY(-10px) scale(.97);
+      transition: opacity calc(var(--dur) * .5) var(--ease), transform var(--dur) var(--ease-pop);
+    }
+    .card__panel::before {
+      content: ""; position: absolute; inset: 0; border-radius: 18px; padding: 1.2px;
+      background: conic-gradient(from var(--angle,0deg), var(--blue), var(--cyan), var(--indigo), var(--sky), var(--blue));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      opacity: .55; animation: spinBorder 8s linear infinite; pointer-events: none;
+    }
+    @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+    @keyframes spinBorder { to { --angle: 360deg; } }
+  
+    .card__meta {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-family: 'Space Grotesk', ui-monospace, monospace;
+      font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); opacity: .75; margin-bottom: 10px;
+    }
+    .card__title { font-family: 'Sora', sans-serif; font-size: 19px; font-weight: 700; letter-spacing: -.2px; margin-bottom: 4px; color: #fff; }
+    .card__role  { font-family: 'Space Grotesk', sans-serif; font-size: 12px; color: var(--sky); margin-bottom: 8px; letter-spacing: .02em; }
+    .card__desc  { font-size: 13.5px; line-height: 1.55; color: rgba(226,232,255,.75); }
+  
+    /* ---------- slot positions ---------- */
+    .card[data-slot="center"] {
+      transform: translate3d(0, 0, 0) rotateY(0deg) scale(1);
+      z-index: 10; opacity: 1; filter: none;
+    }
+    .card[data-slot="center"] .card__text  { grid-template-rows: 1fr; }
+    .card[data-slot="center"] .card__panel { opacity: 1; transform: translateY(0) scale(1); transition-delay: .1s; }
+    .card[data-slot="center"] .card__img   {
+      box-shadow: 0 50px 110px -26px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.14), 0 0 90px -14px rgba(59,130,246,.75);
+    }
+  
+    .card[data-slot="left"] {
+      transform: translate3d(calc(var(--shift) * -1), 0, -180px) rotateY(16deg) scale(var(--side-scale));
+      z-index: 5; opacity: .9; filter: saturate(.85);
+    }
+    .card[data-slot="right"] {
+      transform: translate3d(var(--shift), 0, -180px) rotateY(-16deg) scale(var(--side-scale));
+      z-index: 5; opacity: .9; filter: saturate(.85);
+    }
+    .card[data-slot="hidden-left"] {
+      transform: translate3d(calc(var(--shift-far) * -1), 0, -360px) rotateY(26deg) scale(var(--far-scale));
+      z-index: 1; opacity: 0;
+    }
+    .card[data-slot="hidden-right"] {
+      transform: translate3d(var(--shift-far), 0, -360px) rotateY(-26deg) scale(var(--far-scale));
+      z-index: 1; opacity: 0;
+    }
+    /* cards teleporting from one hidden side to the other must not animate across the stage */
+    .card.no-anim { transition: none !important; }
+  
+    @media (hover: hover) {
+      .card[data-slot="left"]:hover, .card[data-slot="right"]:hover { opacity: 1; filter: none; }
+      .card[data-slot="left"]:hover  { transform: translate3d(calc(var(--shift) * -1), -6px, -160px) rotateY(14deg) scale(calc(var(--side-scale) + .03)); }
+      .card[data-slot="right"]:hover { transform: translate3d(var(--shift), -6px, -160px) rotateY(-14deg) scale(calc(var(--side-scale) + .03)); }
+    }
+  
+    /* ---------- controls ---------- */
+    .controls {
+      position: relative; z-index: 3;
+      display: flex; align-items: center; justify-content: center; gap: 18px;
+      padding: 0 18px clamp(18px, 4vh, 36px);
+    }
+    .nav {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      color: var(--ink); cursor: pointer;
+      display: grid; place-items: center;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      transition: background .3s var(--ease), transform .3s var(--ease), border-color .3s var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav:hover { background: rgba(59,130,246,.22); border-color: rgba(59,130,246,.5); transform: translateY(-1px); }
+    .nav:active { transform: scale(.94); }
+    .nav:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+    .nav svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  
+    .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: min(320px, 60vw); }
+    .dot {
+      width: 18px; height: 3px; background: rgba(199,210,254,.18);
+      border-radius: 2px; overflow: hidden; position: relative; cursor: pointer;
+      border: 0; padding: 0; transition: background .3s, width .4s var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .dot:hover { background: rgba(199,210,254,.35); }
+    .dot::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      transform: scaleX(0); transform-origin: left;
+    }
+    .dot.active { width: 28px; }
+    .dot.active::after { animation: fill var(--interval) linear forwards; }
+    body.paused .dot.active::after { animation-play-state: paused; }
+    @keyframes fill { to { transform: scaleX(1); } }
+  
+    .counter {
+      font-family: 'Space Grotesk', ui-monospace, monospace;
+      font-size: 11px; letter-spacing: .12em; color: var(--muted); opacity: .6;
+      min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums;
+    }
+  
+    /* ---------- reduced motion ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      :root { --dur: .25s; }
+      .aurora, .card__panel::before { animation: none !important; }
+      .card { transition-duration: .25s; }
+    }
+  
+    @media (max-width: 560px) {
+      :root { --side-scale: .7; }
+      header { font-size: 11px; }
+      .card[data-slot="left"],  .card[data-slot="right"] { opacity: .7; }
+    }
+  </style>
+  </head>
+  <body>
+  
+  <div id="bg" aria-hidden="true">
+    <div class="aurora a1"></div>
+    <div class="aurora a2"></div>
+    <div class="aurora a3"></div>
+    <div id="grid"></div>
+    <div id="vignette"></div>
+  </div>
+  
+  <header>
+    <span>Team</span>
+    <span class="status" aria-live="polite">
+      <span class="txt-play">Autoplay</span>
+      <span class="txt-pause">Paused</span>
+    </span>
+    <span>2026</span>
+  </header>
+  
+  <section class="stage" id="stage" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Team members"></section>
+  
+  <div class="controls">
+    <button class="nav" id="prev" aria-label="Previous">
+      <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <div class="dots" id="dots" role="tablist"></div>
+    <span class="counter" id="counter">01 / 10</span>
+    <button class="nav" id="next" aria-label="Next">
+      <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+  
+  <script>
+    const USERS = [
+      { name: "Ava Chen",      role: "Product Designer",  img: "https://i.pravatar.cc/300?img=1",  desc: "Obsessed with the tiny details that make an interface feel calm." },
+      { name: "Marcus Lee",    role: "Backend Engineer",  img: "https://i.pravatar.cc/300?img=12", desc: "Keeps the servers humming and the queries fast." },
+      { name: "Priya Nair",    role: "Data Scientist",    img: "https://i.pravatar.cc/300?img=5",  desc: "Turns messy spreadsheets into decisions worth trusting." },
+      { name: "Diego Alvarez", role: "DevOps Lead",       img: "https://i.pravatar.cc/300?img=15", desc: "Automates everything twice, then automates the automation." },
+      { name: "Sara Kim",      role: "Frontend Engineer", img: "https://i.pravatar.cc/300?img=9",  desc: "Ships pixel-perfect UI without breaking a single animation." },
+      { name: "Noah Williams", role: "Project Manager",   img: "https://i.pravatar.cc/300?img=13", desc: "Keeps ten moving parts on schedule without raising his voice." },
+      { name: "Lina Haddad",   role: "QA Engineer",       img: "https://i.pravatar.cc/300?img=20", desc: "Finds the bug nobody else thought to look for." },
+      { name: "Ken Watanabe",  role: "Mobile Developer",  img: "https://i.pravatar.cc/300?img=33", desc: "Builds apps that feel native on every device." },
+      { name: "Zoe Thompson",  role: "Marketing Lead",    img: "https://i.pravatar.cc/300?img=47", desc: "Tells the product's story so it actually lands." },
+      { name: "Omar Farouk",   role: "Founder & CEO",     img: "https://i.pravatar.cc/300?img=52", desc: "Sets the direction and clears the road ahead." }
+    ];
+  
+    const INTERVAL = 3200;                 // ms between slides (was 1800 – too close to the 900ms transition)
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.documentElement.style.setProperty('--interval', INTERVAL + 'ms');
+  
+    const stage    = document.getElementById('stage');
+    const dotsWrap = document.getElementById('dots');
+    const counter  = document.getElementById('counter');
+    const total    = USERS.length;
+    const pad      = n => String(n).padStart(2, '0');
+    const esc      = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  
+    /* ---- build cards ---- */
+    const cards = USERS.map((u, i) => {
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.dataset.index = i;
+      card.setAttribute('aria-label', `${u.name}, ${u.role}`);
+      card.innerHTML = `
+        <div class="card__img">
+          <img src="${esc(u.img)}" alt="${esc(u.name)}" decoding="async" referrerpolicy="no-referrer" />
+          <div class="card__shade"></div>
+          <div class="card__name-overlay">${esc(u.name)}</div>
+          <div class="card__badge">${esc(u.role)}</div>
+        </div>
+        <div class="card__text">
+          <div class="card__inner">
+            <div class="card__panel">
+              <div class="card__meta"><span>[${pad(i + 1)}]</span><span>${i + 1} / ${total}</span></div>
+              <h3 class="card__title">${esc(u.name)}</h3>
+              <div class="card__role">${esc(u.role)}</div>
+              <p class="card__desc">${esc(u.desc)}</p>
+            </div>
+          </div>
+        </div>`;
+      const img = card.querySelector('img');
+      const reveal = () => img.classList.add('loaded');
+      img.addEventListener('load', reveal, { once: true });
+      img.addEventListener('error', reveal, { once: true });   // keep the gradient placeholder visible
+      if (img.complete) reveal();
+      stage.appendChild(card);
+      return card;
+    });
+  
+    /* ---- dots ---- */
+    const dots = USERS.map((u, i) => {
+      const dot = document.createElement('button');
+      dot.className = 'dot';
+      dot.type = 'button';
+      dot.setAttribute('role', 'tab');
+      dot.setAttribute('aria-label', `Go to ${u.name}`);
+      dot.addEventListener('click', () => goTo(i));
+      dotsWrap.appendChild(dot);
+      return dot;
+    });
+  
+    /* ---- state ---- */
+    let active = 0;
+    let timer = null;
+    let hovering = false;
+    let hidden = document.hidden;
+    const mid = Math.floor(total / 2);
+  
+    function slotFor(offset) {
+      if (offset === 0) return 'center';
+      if (offset === 1 && total > 1) return 'right';
+      if (offset === total - 1 && total > 2) return 'left';
+      return offset <= mid ? 'hidden-right' : 'hidden-left';
+    }
+  
+    // Keep the stage tall enough for the expanded center card (fixes clipping on small screens).
+    function sizeStage() {
+      const center = cards.find(c => c.dataset.slot === 'center') || cards[0];
+      const panel  = center.querySelector('.card__panel');
+      const imgH   = center.querySelector('.card__img').offsetHeight;
+      stage.style.height = (imgH + panel.offsetHeight + 14 + 24) + 'px';
+    }
+  
+    function render() {
+      cards.forEach(card => {
+        const i = Number(card.dataset.index);
+        const offset = (i - active + total) % total;
+        const nextSlot = slotFor(offset);
+        const prevSlot = card.dataset.slot;
+  
+        // A card jumping between the two invisible wings would otherwise sweep across the stage.
+        const teleport = prevSlot && prevSlot.startsWith('hidden') && nextSlot.startsWith('hidden') && prevSlot !== nextSlot;
+        if (teleport) {
+          card.classList.add('no-anim');
+          card.dataset.slot = nextSlot;
+          void card.offsetWidth;
+          card.classList.remove('no-anim');
+        } else {
+          card.dataset.slot = nextSlot;
+        }
+        card.setAttribute('aria-hidden', nextSlot === 'center' ? 'false' : 'true');
+      });
+  
+      dots.forEach((d, i) => {
+        const on = i === active;
+        d.setAttribute('aria-selected', on);
+        if (!on) { d.classList.remove('active'); return; }
+        d.classList.remove('active');
+        void d.offsetWidth;                // restart the progress animation
+        d.classList.add('active');
+      });
+  
+      counter.textContent = `${pad(active + 1)} / ${pad(total)}`;
+      sizeStage();
+    }
+  
+    /* ---- autoplay (single source of truth) ---- */
+    function next() { active = (active + 1) % total; render(); }
+    function prev() { active = (active - 1 + total) % total; render(); }
+  
+    function shouldRun() { return !hovering && !hidden; }
+    function stopTimer() { if (timer) clearTimeout(timer); timer = null; }
+    function schedule() {
+      stopTimer();
+      if (!shouldRun()) return;
+      timer = setTimeout(() => { next(); schedule(); }, INTERVAL);
+    }
+    function syncPaused() {
+      document.body.classList.toggle('paused', !shouldRun());
+      if (shouldRun()) { restartProgress(); schedule(); } else { stopTimer(); }
+    }
+    // When resuming we restart the cycle so the bar and the timer stay in step.
+    function restartProgress() {
+      const d = dots[active];
+      d.classList.remove('active'); void d.offsetWidth; d.classList.add('active');
+    }
+  
+    function goTo(i) {
+      if (i === active) return;
+      active = i;
+      render();
+      schedule();                           // reset timer, but only if not hovering/hidden
+    }
+  
+    /* ---- interactions ---- */
+    cards.forEach(card => card.addEventListener('click', () => goTo(Number(card.dataset.index))));
+    document.getElementById('prev').addEventListener('click', () => { prev(); schedule(); });
+    document.getElementById('next').addEventListener('click', () => { next(); schedule(); });
+  
+    stage.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { hovering = true; syncPaused(); } });
+    stage.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') { hovering = false; syncPaused(); } });
+  
+    window.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') { next(); schedule(); }
+      else if (e.key === 'ArrowLeft') { prev(); schedule(); }
+      else if (e.key === ' ' && e.target === stage) { e.preventDefault(); hovering = !hovering; syncPaused(); }
+    });
+  
+    // Swipe
+    let startX = null, startY = null;
+    stage.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { startX = e.clientX; startY = e.clientY; } });
+    stage.addEventListener('pointerup', e => {
+      if (startX === null) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      startX = startY = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { dx < 0 ? next() : prev(); schedule(); }
+    });
+    stage.addEventListener('pointercancel', () => { startX = startY = null; });
+  
+    // Don't burn cycles or drift out of sync in background tabs
+    document.addEventListener('visibilitychange', () => { hidden = document.hidden; syncPaused(); });
+    window.addEventListener('resize', sizeStage);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeStage);
+  
+    /* ---- go ---- */
+    cards.forEach(c => c.classList.add('no-anim'));   // first paint: no fly-in from origin
+    render();
+    requestAnimationFrame(() => requestAnimationFrame(() => cards.forEach(c => c.classList.remove('no-anim'))));
+    schedule();
+  </script>
+  </body>
+  </html>

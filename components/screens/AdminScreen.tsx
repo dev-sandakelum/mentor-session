@@ -871,6 +871,10 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
             🌌 Cover / Idle
           </button>
           <button className="btn btn-outline btn-sm" disabled={sending}
+            onClick={() => void push({ type: "mentor-carousel" })}>
+            🎠 Mentor Carousel
+          </button>
+          <button className="btn btn-outline btn-sm" disabled={sending}
             onClick={() => void push({ type: "live-registrations" })}>
             📊 Live Registrations
           </button>
