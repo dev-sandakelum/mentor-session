@@ -299,29 +299,31 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useParticleCanvas(canvasRef);
 
-  // Track prev key for slide-transition direction
-  const prevKeyRef = useRef("");
+  const prevKeyRef   = useRef("");
   const [transClass, setTransClass] = useState("mc-enter-right");
+  const [renderKey,  setRenderKey]  = useState(0);
   const [vis,        setVis]        = useState(false);
   const key = `${scene.mentor.id}-${scene.index}`;
 
+  // Detect mentor change and pick slide direction
   useEffect(() => {
-    if (prevKeyRef.current === "") {
-      prevKeyRef.current = key;
-      const t = setTimeout(() => setVis(true), 60);
-      return () => clearTimeout(t);
-    }
+    const isFirst = prevKeyRef.current === "";
     if (prevKeyRef.current !== key) {
-      const wasIdx = parseInt(prevKeyRef.current.split("-").pop() ?? "0");
-      const nowIdx = scene.index;
-      const dir    = nowIdx > wasIdx ? "mc-enter-right" : "mc-enter-left";
+      if (!isFirst) {
+        const wasIdx = parseInt(prevKeyRef.current.split("-").pop() ?? "0");
+        setTransClass(scene.index > wasIdx ? "mc-enter-right" : "mc-enter-left");
+      }
       prevKeyRef.current = key;
-      setVis(false);
-      setTransClass(dir);
-      const t = setTimeout(() => setVis(true), 60);
-      return () => clearTimeout(t);
+      setRenderKey((n) => n + 1);
     }
   }, [key, scene.index]);
+
+  // Trigger vis on every render-key change (covers first load + subsequent changes)
+  useEffect(() => {
+    setVis(false);
+    const t = setTimeout(() => setVis(true), 80);
+    return () => clearTimeout(t);
+  }, [renderKey]);
 
   const { mentor, mentees } = scene;
   const initials = mentor.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
