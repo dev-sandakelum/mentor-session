@@ -347,20 +347,25 @@ function MentorCarouselScene() {
 
   const [mentors,  setMentors]  = useState<CarouselMentor[]>([]);
   const [active,   setActive]   = useState(0);
-  const [noAnim,   setNoAnim]   = useState(true);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Use a ref for the "suppress first-paint animation" flag so we never
+  // trigger an extra React re-render just to flip it.
+  const stageRef  = useRef<HTMLDivElement>(null);
+  const timerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyRef  = useRef(false);
 
   const INTERVAL = 3200;
   const total = mentors.length;
 
-  // Load mentors once
+  // Load mentors once, then unlock animations after two rAF ticks
   useEffect(() => {
     fetch("/api/display/mentors")
       .then((r) => r.json())
       .then((d: { mentors?: CarouselMentor[] }) => {
         setMentors(d.mentors ?? []);
-        // Allow animations after first paint
-        requestAnimationFrame(() => requestAnimationFrame(() => setNoAnim(false)));
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          readyRef.current = true;
+          stageRef.current?.classList.add("mc-ready");
+        }));
       })
       .catch(() => {/* ignore */});
   }, []);
@@ -382,7 +387,7 @@ function MentorCarouselScene() {
     );
   }
 
-  // Slot calculation — same as new2.html
+  // Slot assignment
   const mid = Math.floor(total / 2);
   const slotFor = (offset: number) => {
     if (offset === 0) return "center";
@@ -393,17 +398,15 @@ function MentorCarouselScene() {
 
   const initials = (name: string) => name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-  // Larger center card dimensions, side cards sized proportionally
-  const CENTER_W  = "clamp(280px,38vw,420px)";
-  const CENTER_H  = "clamp(340px,44vw,500px)";
-  const SIDE_W    = "clamp(210px,28vw,300px)";
-  const SIDE_SCALE = 0.70;
-  const SHIFT     = "clamp(200px,32vw,360px)";
+  // All cards share one fixed width (the largest / center size).
+  // Side cards appear smaller via scale() only — never a width change — so
+  // the browser never has to do a layout pass during the transition.
+  const CARD_W = "clamp(280px,38vw,420px)";
 
   return (
     <div style={{ position:"fixed", inset:0, background:"#05070f", fontFamily:"'Sora','Inter',system-ui,sans-serif", WebkitFontSmoothing:"antialiased", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
-      {/* Background */}
+      {/* ── Background ── */}
       <div style={{ position:"fixed", inset:0, background:"radial-gradient(120% 120% at 15% 0%,#0d2a66 0%,transparent 55%),radial-gradient(120% 120% at 100% 100%,#0a1c3d 0%,transparent 55%),linear-gradient(160deg,#060a1c 0%,#0a1230 55%,#04060f 100%)", overflow:"hidden" }}>
         <canvas ref={canvasRef2} style={{ position:"absolute", inset:0 }} />
         <div style={{ position:"absolute", width:"46vw", height:"46vw", top:"-14%", right:"-8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(59,130,246,.9) 0%,transparent 68%)", filter:"blur(70px)", opacity:.55, mixBlendMode:"screen", animation:"mc2Drift1 24s ease-in-out infinite" }} />
@@ -413,168 +416,214 @@ function MentorCarouselScene() {
         <div style={{ position:"absolute", inset:0, background:"radial-gradient(120% 120% at 50% 45%,transparent 55%,rgba(0,0,0,.6) 100%)" }} />
       </div>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <header style={{ position:"relative", zIndex:2, flexShrink:0, display:"flex", justifyContent:"space-between", alignItems:"center", padding:"clamp(18px,3vh,32px) clamp(18px,4vw,40px) 0", fontFamily:"'Space Grotesk',sans-serif", fontSize:"clamp(11px,1.1vw,14px)", letterSpacing:".14em", textTransform:"uppercase", color:"#c7d2fe", opacity:.7 }}>
         <span>Mentor Session</span>
         <span>2026</span>
       </header>
 
-      {/* Stage — flex:1 takes remaining space, cards centered inside */}
-      <div style={{
-        position:"relative", zIndex:2, flex:1,
-        perspective:1500, perspectiveOrigin:"50% 40%",
-        userSelect:"none", WebkitUserSelect:"none",
-        display:"flex", alignItems:"center", justifyContent:"center",
-      }}>
-        {/* Inner anchor — cards are absolutely positioned relative to this */}
+      {/* ── Stage ── */}
+      <div
+        ref={stageRef}
+        style={{
+          position:"relative", zIndex:2, flex:1,
+          perspective:1400, perspectiveOrigin:"50% 42%",
+          userSelect:"none", WebkitUserSelect:"none",
+          display:"flex", alignItems:"center", justifyContent:"center",
+        }}
+      >
+        {/* Anchor point — all cards absolutely positioned from here */}
         <div style={{ position:"relative", width:0, height:0 }}>
           {mentors.map((mentor, i) => {
-          const offset = (i - active + total) % total;
-          const slot   = slotFor(offset);
-          const isCenter = slot === "center";
+            const offset    = (i - active + total) % total;
+            const slot      = slotFor(offset);
+            const isCenter  = slot === "center";
+            const isVisible = !slot.startsWith("hidden");
 
-          // Center card uses larger dims; side cards use a separate width constant
-          const cardW = isCenter ? CENTER_W : SIDE_W;
+            // ── Per-slot transform (pure GPU props only) ──────────────────
+            // The outer wrapper always has the same width; position & scale
+            // change only via transform so there is zero layout work.
+            const slotTransform: Record<string, string> = {
+              "center":       "translate3d(-50%,-50%,0) rotateY(0deg)   scale(1)",
+              "right":        "translate3d(calc(-50% + 56%), -50%, -220px) rotateY(-18deg) scale(0.68)",
+              "left":         "translate3d(calc(-50% - 56%), -50%, -220px) rotateY( 18deg) scale(0.68)",
+              "hidden-right": "translate3d(calc(-50% + 110%),-50%,-440px) rotateY(-28deg) scale(0.46)",
+              "hidden-left":  "translate3d(calc(-50% - 110%),-50%,-440px) rotateY( 28deg) scale(0.46)",
+            };
 
-          const transforms: Record<string, string> = {
-            "center":       "translate3d(0,0,0) rotateY(0deg) scale(1)",
-            "right":        `translate3d(${SHIFT},0,-200px) rotateY(-16deg) scale(${SIDE_SCALE})`,
-            "left":         `translate3d(calc(${SHIFT} * -1),0,-200px) rotateY(16deg) scale(${SIDE_SCALE})`,
-            "hidden-right": `translate3d(calc(${SHIFT} * 1.8),0,-400px) rotateY(-26deg) scale(0.52)`,
-            "hidden-left":  `translate3d(calc(${SHIFT} * -1.8),0,-400px) rotateY(26deg) scale(0.52)`,
-          };
-
-          return (
-            <div key={mentor.id}
-              onClick={() => { if (!isCenter) { setActive(i); if (timerRef.current) clearTimeout(timerRef.current); } }}
-              style={{
-                position:"absolute",
-                top:0, left:0,
-                width: cardW,
-                transform: `translateX(calc(${cardW} / -2)) translateY(-50%) ${transforms[slot] ?? transforms["hidden-right"]}`,
-                transformOrigin:"50% 40%",
-                cursor: isCenter ? "default" : "pointer",
-                pointerEvents: ["center","left","right"].includes(slot) ? "auto" : "none",
-                transition: noAnim ? "none" : "transform 0.85s cubic-bezier(0.32,0.72,0,1), opacity 0.85s cubic-bezier(0.32,0.72,0,1), filter 0.85s cubic-bezier(0.32,0.72,0,1), width 0.85s cubic-bezier(0.32,0.72,0,1)",
-                opacity: ["hidden-left","hidden-right"].includes(slot) ? 0 : 0.9,
-                filter: isCenter ? "none" : "saturate(0.8) brightness(0.9)",
-                zIndex: isCenter ? 10 : ["left","right"].includes(slot) ? 5 : 1,
-              }}
-            >
-              {/* Photo card */}
-              <div style={{
-                position:"relative",
-                width:"100%",
-                height: isCenter ? CENTER_H : `clamp(220px,30vw,340px)`,
-                borderRadius: isCenter ? 28 : 20,
-                overflow:"hidden",
-                background:"linear-gradient(180deg,#274a8a 0%,#1c3766 100%)",
-                boxShadow: isCenter
-                  ? "0 60px 130px -26px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.16),0 0 100px -14px rgba(59,130,246,.85)"
-                  : "0 32px 70px -20px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.09),0 0 50px -14px rgba(59,130,246,.28)",
-                transition: noAnim ? "none" : "height 0.85s cubic-bezier(0.32,0.72,0,1), border-radius 0.85s cubic-bezier(0.32,0.72,0,1)",
-              }}>
-                {/* Shade for non-center */}
-                {!isCenter && <div style={{ position:"absolute", inset:0, zIndex:1, background:"rgba(4,6,14,.5)" }} />}
-
-                {/* Photo or initials */}
-                {mentor.photoUrl
-                  ? <img src={mentor.photoUrl} alt={mentor.name} style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%", display:"block" }} />
-                  : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(52px,8vw,96px)", fontWeight:800, color:"transparent", background:"linear-gradient(135deg,#93c5fd,#dbeafe 50%,#bfdbfe)", WebkitBackgroundClip:"text", backgroundClip:"text" }}>
-                      {initials(mentor.name)}
-                    </div>
-                }
-
-                {/* Gradient overlay */}
-                <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(6,10,25,.1) 0%,transparent 35%,rgba(6,10,25,.6) 100%)", pointerEvents:"none" }} />
-
-                {/* Badge at bottom — hidden on center (panel takes over) */}
-                {/* <div style={{
-                  position:"absolute", bottom:16, left:"50%",
-                  transform:`translateX(-50%) translateY(${isCenter ? 18 : 0}px)`,
-                  opacity: isCenter ? 0 : 1,
-                  display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap",
-                  background:"linear-gradient(120deg,#3b82f6,#2563eb)",
-                  border:"1px solid rgba(255,255,255,.25)", borderRadius:99,
-                  padding:"8px 18px",
-                  fontFamily:"'Space Grotesk',sans-serif",
-                  fontSize:"clamp(12px,1.15vw,15px)", fontWeight:600, color:"#fff",
-                  boxShadow:"0 14px 30px -12px rgba(37,99,235,.9),inset 0 1px 0 rgba(255,255,255,.3)",
-                  zIndex:2,
-                  transition:"transform 0.85s cubic-bezier(0.32,0.72,0,1),opacity 0.85s cubic-bezier(0.32,0.72,0,1)",
+            return (
+              <div
+                key={mentor.id}
+                data-slot={slot}
+                onClick={() => { if (!isCenter) { setActive(i); if (timerRef.current) clearTimeout(timerRef.current); } }}
+                style={{
+                  // Fixed geometry — never changes, so no layout during transition
+                  position:"absolute", top:0, left:0,
+                  width: CARD_W,
+                  // Only transform / opacity / filter animate — all compositor-only
+                  transform: slotTransform[slot] ?? slotTransform["hidden-right"],
+                  transformOrigin:"50% 40%",
+                  opacity: isVisible ? 1 : 0,
+                  filter: isCenter ? "none" : "saturate(0.75) brightness(0.85)",
+                  zIndex: isCenter ? 10 : isVisible ? 5 : 1,
+                  cursor: isCenter ? "default" : "pointer",
+                  pointerEvents: isVisible ? "auto" : "none",
+                  // willChange keeps each card on its own compositor layer
+                  willChange:"transform, opacity, filter",
+                  // Transition only on compositor-safe props — no width/height
+                  transition:"transform var(--mc-dur) var(--mc-ease), opacity var(--mc-dur) var(--mc-ease), filter var(--mc-dur) var(--mc-ease)",
+                }}
+              >
+                {/* ── Photo card ── */}
+                <div style={{
+                  position:"relative",
+                  width:"100%",
+                  // Fixed pixel height — no layout transition, ever.
+                  // The card shrinks visually via scale on the parent.
+                  height:"clamp(340px,44vw,500px)",
+                  borderRadius:28,
+                  overflow:"hidden",
+                  background:"linear-gradient(180deg,#1e3a6e 0%,#152d55 100%)",
+                  // transition only on box-shadow (compositor-composited)
+                  transition:"box-shadow var(--mc-dur) var(--mc-ease)",
+                  boxShadow: isCenter
+                    ? "0 60px 130px -26px rgba(0,0,0,.95), 0 0 0 1px rgba(255,255,255,.16), 0 0 100px -14px rgba(59,130,246,.85)"
+                    : "0 28px 60px -20px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.08)",
                 }}>
-                  {mentor.batch ?? "9th"} Batch
-                </div> */}
-              </div>
-
-              {/* Expanded panel for center card */}
-              <div style={{
-                display:"grid",
-                gridTemplateRows: isCenter ? "1fr" : "0fr",
-                transition: noAnim ? "none" : "grid-template-rows 0.85s cubic-bezier(0.32,0.72,0,1)",
-              }}>
-                <div style={{ overflow:"hidden", minHeight:0 }}>
+                  {/* Dark overlay for non-center cards — opacity transition only */}
                   <div style={{
-                    position:"relative", marginTop:16,
-                    background:"linear-gradient(160deg,rgba(30,58,138,.32),rgba(10,16,40,.5))",
-                    backdropFilter:"blur(18px) saturate(140%)", WebkitBackdropFilter:"blur(18px) saturate(140%)",
-                    borderRadius:20, padding:"20px 24px 22px",
-                    boxShadow:"0 24px 50px -26px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.08)",
-                    opacity: isCenter ? 1 : 0,
-                    transform: isCenter ? "translateY(0) scale(1)" : "translateY(-10px) scale(.97)",
-                    transition: noAnim ? "none" : `opacity 0.42s cubic-bezier(0.32,0.72,0,1) ${isCenter ? "0.1s" : "0s"}, transform 0.85s cubic-bezier(0.34,1.3,0.64,1)`,
+                    position:"absolute", inset:0, zIndex:1,
+                    background:"rgba(4,6,14,.55)",
+                    opacity: isCenter ? 0 : 1,
+                    transition:"opacity var(--mc-dur) var(--mc-ease)",
+                    pointerEvents:"none",
+                  }} />
+
+                  {/* Photo or initials placeholder */}
+                  {mentor.photoUrl
+                    ? <img
+                        src={mentor.photoUrl} alt={mentor.name}
+                        style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%", display:"block" }}
+                      />
+                    : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(52px,8vw,96px)", fontWeight:800, color:"transparent", background:"linear-gradient(135deg,#93c5fd,#dbeafe 50%,#bfdbfe)", WebkitBackgroundClip:"text", backgroundClip:"text" }}>
+                        {initials(mentor.name)}
+                      </div>
+                  }
+
+                  {/* Bottom scrim */}
+                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,transparent 40%,rgba(6,10,25,.65) 100%)", pointerEvents:"none" }} />
+
+                  {/* Batch badge — visible on side cards, slides away on center */}
+                  <div style={{
+                    position:"absolute", bottom:18, left:"50%",
+                    display:"inline-flex", alignItems:"center", gap:6, whiteSpace:"nowrap",
+                    background:"linear-gradient(120deg,#3b82f6,#2563eb)",
+                    border:"1px solid rgba(255,255,255,.22)", borderRadius:99,
+                    padding:"8px 20px",
+                    fontFamily:"'Space Grotesk',sans-serif",
+                    fontSize:"clamp(12px,1.15vw,15px)", fontWeight:600, color:"#fff",
+                    boxShadow:"0 10px 28px -10px rgba(37,99,235,.85), inset 0 1px 0 rgba(255,255,255,.28)",
+                    zIndex:2,
+                    // opacity + translateY only — compositor-safe
+                    opacity: isCenter ? 0 : 1,
+                    transform:`translateX(-50%) translateY(${isCenter ? 14 : 0}px)`,
+                    transition:"opacity var(--mc-dur) var(--mc-ease), transform var(--mc-dur) var(--mc-ease)",
                   }}>
-                    {/* Conic border */}
-                    <div style={{ position:"absolute", inset:0, borderRadius:20, padding:"1.2px", background:"conic-gradient(from 45deg,#3b82f6,#22d3ee,#6366f1,#38bdf8,#3b82f6)", WebkitMask:"linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)", WebkitMaskComposite:"xor", maskComposite:"exclude", opacity:.55, pointerEvents:"none" }} />
+                    {mentor.batch ?? "9th"} Batch
+                  </div>
+                </div>
 
-                    {/* Index / total */}
-                    <div style={{ fontFamily:"'Space Grotesk',ui-monospace,monospace", fontSize:"clamp(11px,1vw,14px)", letterSpacing:".12em", textTransform:"uppercase", color:"#c7d2fe", opacity:.75, marginBottom:12, display:"flex", justifyContent:"space-between" }}>
-                      <span>[{String(i + 1).padStart(2,"0")}]</span>
-                      <span>{i + 1} / {total}</span>
-                    </div>
+                {/* ── Info panel (center only) ── */}
+                {/* Uses opacity + translateY — never grid-template-rows, which
+                    causes a relayout on every frame of the transition.           */}
+                <div style={{
+                  position:"relative", marginTop:16,
+                  background:"linear-gradient(160deg,rgba(20,40,110,.38),rgba(8,12,36,.52))",
+                  // No backdrop-filter during the transition — add it only when
+                  // the card is settled to avoid per-frame repaint cost.
+                  backdropFilter: isCenter ? "blur(16px) saturate(130%)" : "none",
+                  WebkitBackdropFilter: isCenter ? "blur(16px) saturate(130%)" : "none",
+                  borderRadius:22,
+                  padding:"20px 24px 22px",
+                  boxShadow:"0 24px 50px -26px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.07)",
+                  // Opacity + transform only — layout is never touched
+                  opacity: isCenter ? 1 : 0,
+                  transform: isCenter ? "translateY(0) scale(1)" : "translateY(10px) scale(0.97)",
+                  pointerEvents: isCenter ? "auto" : "none",
+                  transition:`opacity 0.45s var(--mc-ease) ${isCenter ? "0.08s" : "0s"}, transform var(--mc-dur) var(--mc-ease-pop)`,
+                  overflow:"hidden",
+                }}>
+                  {/* Animated conic border */}
+                  <div style={{ position:"absolute", inset:0, borderRadius:22, padding:"1.2px", background:"conic-gradient(from 45deg,#3b82f6,#22d3ee,#6366f1,#38bdf8,#3b82f6)", WebkitMask:"linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)", WebkitMaskComposite:"xor", maskComposite:"exclude", opacity:.5, pointerEvents:"none" }} />
 
-                    {/* Name */}
-                    <div style={{ fontFamily:"'Sora','Inter',sans-serif", fontSize:"clamp(22px,2.4vw,32px)", fontWeight:700, letterSpacing:"-.4px", lineHeight:1.15, marginBottom:6, color:"#fff", textShadow:"0 2px 20px rgba(59,130,246,0.3)" }}>
-                      {mentor.name}
-                    </div>
+                  {/* Index */}
+                  <div style={{ fontFamily:"'Space Grotesk',ui-monospace,monospace", fontSize:"clamp(11px,1vw,14px)", letterSpacing:".12em", textTransform:"uppercase", color:"#c7d2fe", opacity:.7, marginBottom:12, display:"flex", justifyContent:"space-between" }}>
+                    <span>[{String(i + 1).padStart(2,"0")}]</span>
+                    <span>{i + 1} / {total}</span>
+                  </div>
 
-                    {/* Batch */}
-                    {/* <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:"clamp(13px,1.25vw,17px)", color:"#38bdf8", fontWeight:600, letterSpacing:".04em" }}>
-                      {mentor.batch ?? "9th"} Batch
-                    </div> */}
+                  {/* Name */}
+                  <div style={{ fontFamily:"'Sora','Inter',sans-serif", fontSize:"clamp(22px,2.4vw,32px)", fontWeight:700, letterSpacing:"-.4px", lineHeight:1.15, marginBottom:7, color:"#fff", textShadow:"0 2px 24px rgba(59,130,246,.35)" }}>
+                    {mentor.name}
+                  </div>
+
+                  {/* Batch */}
+                  <div style={{ fontFamily:"'Space Grotesk',sans-serif", fontSize:"clamp(13px,1.25vw,17px)", color:"#38bdf8", fontWeight:600, letterSpacing:".04em" }}>
+                    {mentor.batch ?? "9th"} Batch
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-        </div>{/* end inner anchor */}
-      </div>{/* end stage */}
+            );
+          })}
+        </div>
+      </div>
 
-      {/* Dots + counter */}
+      {/* ── Dots + counter ── */}
       <div style={{ position:"relative", zIndex:3, display:"flex", alignItems:"center", justifyContent:"center", gap:18, padding:"0 18px clamp(18px,4vh,36px)" }}>
         <div style={{ display:"flex", gap:7, flexWrap:"wrap", justifyContent:"center" }}>
           {mentors.map((_, i) => (
-            <div key={i} onClick={() => { setActive(i); if (timerRef.current) clearTimeout(timerRef.current); }}
+            <div
+              key={i}
+              onClick={() => { setActive(i); if (timerRef.current) clearTimeout(timerRef.current); }}
               style={{
-                width: i === active ? 32 : 20, height:4,
-                background: i === active ? "linear-gradient(90deg,#3b82f6,#22d3ee)" : "rgba(199,210,254,.18)",
-                borderRadius:2, cursor:"pointer", transition:"width 0.4s cubic-bezier(0.32,0.72,0,1), background 0.3s",
-                boxShadow: i === active ? "0 0 14px rgba(59,130,246,0.75)" : "none",
+                height:4, borderRadius:3, cursor:"pointer",
+                width: i === active ? 32 : 20,
+                background: i === active ? "linear-gradient(90deg,#3b82f6,#22d3ee)" : "rgba(199,210,254,.2)",
+                boxShadow: i === active ? "0 0 14px rgba(59,130,246,.8)" : "none",
+                transition:"width 0.38s cubic-bezier(0.32,0.72,0,1), background 0.3s, box-shadow 0.3s",
               }}
             />
           ))}
         </div>
-        <span style={{ fontFamily:"'Space Grotesk',ui-monospace,monospace", fontSize:"clamp(11px,1vw,14px)", letterSpacing:".12em", color:"#c7d2fe", opacity:.6, minWidth:"5ch", textAlign:"center" }}>
+        <span style={{ fontFamily:"'Space Grotesk',ui-monospace,monospace", fontSize:"clamp(11px,1vw,14px)", letterSpacing:".12em", color:"#c7d2fe", opacity:.55, minWidth:"5ch", textAlign:"center" }}>
           {String(active + 1).padStart(2,"0")} / {String(total).padStart(2,"0")}
         </span>
       </div>
 
       <style>{`
+        /* Transition timing tokens */
+        :root {
+          --mc-dur:      0.72s;
+          --mc-ease:     cubic-bezier(0.25, 0.46, 0.45, 0.94);
+          --mc-ease-pop: cubic-bezier(0.34, 1.4, 0.64, 1);
+        }
+
+        /* Before mc-ready is added, kill ALL transitions so cards snap into
+           their initial positions without flying in from (0,0). */
+        div:not(.mc-ready) [data-slot] {
+          transition: none !important;
+        }
+
+        /* Cards that jump between two hidden wings teleport instantly
+           so they never sweep across the visible stage.
+           Achieved by temporarily removing transition via JS class. */
+        [data-slot].mc-teleport {
+          transition: none !important;
+        }
+
         @keyframes mc2Drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-6vw,5vh) scale(1.12)} }
         @keyframes mc2Drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(7vw,-4vh) scale(1.15)} }
         @keyframes mc2Drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,-6vh) scale(0.85)} }
-        @keyframes mc2LivePulse { 0%{box-shadow:0 0 0 0 rgba(34,211,238,0.6)} 70%{box-shadow:0 0 0 8px rgba(34,211,238,0)} 100%{box-shadow:0 0 0 0 rgba(34,211,238,0)} }
       `}</style>
     </div>
   );
