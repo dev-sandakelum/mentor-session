@@ -5,6 +5,7 @@ import { clearMenteeId } from "@/lib/mentee-session";
 export function DevBar() {
   return (
     <div
+      className="dev-bar"
       style={{
         position: "fixed",
         bottom: 40,
