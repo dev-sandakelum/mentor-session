@@ -894,6 +894,50 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
         </div>
       </div>
 
+      {/* Carousel remote controls */}
+      <div className="card" style={{ borderLeft:"4px solid #38bdf8" }}>
+        <h3 className="card-title" style={{ marginBottom:4 }}>🎠 Carousel Controls</h3>
+        <p className="muted" style={{ fontSize:13, marginBottom:14 }}>
+          Live-control the Mentor Carousel on the display screen.
+        </p>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+          {/* Prev */}
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            title="Previous card"
+            onClick={() => void push({ type: "mentor-carousel", control: "prev" })}>
+            ← Prev
+          </button>
+          {/* Next */}
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            title="Next card"
+            onClick={() => void push({ type: "mentor-carousel", control: "next" })}>
+            Next →
+          </button>
+          {/* Divider */}
+          <div style={{ width:1, height:28, background:"var(--gray-200)", margin:"0 2px" }} />
+          {/* Play */}
+          <button className="btn btn-sm" disabled={sending}
+            title="Resume autoplay"
+            style={{ background:"var(--green)", color:"#fff" }}
+            onClick={() => void push({ type: "mentor-carousel", control: "play" })}>
+            ▶ Play
+          </button>
+          {/* Pause */}
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            title="Pause autoplay"
+            onClick={() => void push({ type: "mentor-carousel", control: "pause" })}>
+            ⏸ Pause
+          </button>
+          {/* Stop */}
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            title="Stop and reset to first card"
+            style={{ color:"var(--red, #ef4444)", borderColor:"var(--red, #ef4444)" }}
+            onClick={() => void push({ type: "mentor-carousel", control: "stop" })}>
+            ⏹ Stop
+          </button>
+        </div>
+      </div>
+
       {/* Mentor card navigator */}
       <div className="card">
         <h3 className="card-title" style={{ marginBottom:4 }}>Mentor Cards</h3>
