@@ -9,7 +9,7 @@ export type DisplayScene =
   | { type: "idle" }
   | { type: "thankyou" }
   | { type: "live-registrations" }
-  | { type: "mentor-carousel"; control?: "play" | "pause" | "next" | "prev" | "stop" }
+  | { type: "mentor-carousel"; control?: "play" | "pause" | "next" | "prev" | "stop"; seq?: number }
   | { type: "allocation"; count: number; total: number }
   | { type: "results"; assigned: number; unmatched: number; satisfaction: number }
   | { type: "custom"; text: string; sub?: string }

@@ -904,13 +904,13 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
           {/* Prev */}
           <button className="btn btn-outline btn-sm" disabled={sending}
             title="Previous card"
-            onClick={() => void push({ type: "mentor-carousel", control: "prev" })}>
+            onClick={() => void push({ type: "mentor-carousel", control: "prev", seq: Date.now() })}>
             ← Prev
           </button>
           {/* Next */}
           <button className="btn btn-outline btn-sm" disabled={sending}
             title="Next card"
-            onClick={() => void push({ type: "mentor-carousel", control: "next" })}>
+            onClick={() => void push({ type: "mentor-carousel", control: "next", seq: Date.now() })}>
             Next →
           </button>
           {/* Divider */}
@@ -919,20 +919,20 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
           <button className="btn btn-sm" disabled={sending}
             title="Resume autoplay"
             style={{ background:"var(--green)", color:"#fff" }}
-            onClick={() => void push({ type: "mentor-carousel", control: "play" })}>
+            onClick={() => void push({ type: "mentor-carousel", control: "play", seq: Date.now() })}>
             ▶ Play
           </button>
           {/* Pause */}
           <button className="btn btn-outline btn-sm" disabled={sending}
             title="Pause autoplay"
-            onClick={() => void push({ type: "mentor-carousel", control: "pause" })}>
+            onClick={() => void push({ type: "mentor-carousel", control: "pause", seq: Date.now() })}>
             ⏸ Pause
           </button>
           {/* Stop */}
           <button className="btn btn-outline btn-sm" disabled={sending}
             title="Stop and reset to first card"
             style={{ color:"var(--red, #ef4444)", borderColor:"var(--red, #ef4444)" }}
-            onClick={() => void push({ type: "mentor-carousel", control: "stop" })}>
+            onClick={() => void push({ type: "mentor-carousel", control: "stop", seq: Date.now() })}>
             ⏹ Stop
           </button>
         </div>

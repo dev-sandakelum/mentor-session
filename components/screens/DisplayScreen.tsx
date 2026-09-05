@@ -389,19 +389,25 @@ function MentorCarouselScene({ scene }: { scene: Extract<DisplayScene, { type: "
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle remote control commands from admin
-  const prevControl = useRef<string | undefined>(undefined);
+  // Handle remote control commands from admin.
+  // Dedup by seq (timestamp) so the same command repeated back-to-back still fires every time.
+  const prevSeq = useRef<number | undefined>(undefined);
   useEffect(() => {
     const ctrl = scene.control;
-    if (!ctrl || ctrl === prevControl.current) return;
-    prevControl.current = ctrl;
+    const seq  = scene.seq;
+    if (!ctrl) return;
+    // If admin sends the same seq again it's a stale SSE re-delivery — skip it.
+    // If seq is missing (old clients) fall back to always firing.
+    if (seq !== undefined && seq === prevSeq.current) return;
+    prevSeq.current = seq;
     const total = totalRef.current;
-    if (ctrl === "next")  { setActive((a) => (a + 1) % total); if (timerRef.current) clearTimeout(timerRef.current); }
-    if (ctrl === "prev")  { setActive((a) => (a - 1 + total) % total); if (timerRef.current) clearTimeout(timerRef.current); }
+    if (ctrl === "next")  { setActive((a) => (a + 1) % total); }
+    if (ctrl === "prev")  { setActive((a) => (a - 1 + total) % total); }
     if (ctrl === "pause") { setPaused(true);  pausedRef.current = true; }
     if (ctrl === "play")  { setPaused(false); pausedRef.current = false; }
     if (ctrl === "stop")  { setPaused(true);  pausedRef.current = true; setActive(0); }
-  }, [scene.control]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene.seq, scene.control]);
 
   const total = mentors.length;
 
