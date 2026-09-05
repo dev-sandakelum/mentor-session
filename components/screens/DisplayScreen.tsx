@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";import type { DisplayState, DisplayScene } from "@/lib/display-state";
+import React, { useEffect, useRef, useState } from "react";
+import type { DisplayState, DisplayScene } from "@/lib/display-state";
 
 // ─── Ghost row animation helpers ─────────────────────────────────────────────
 
@@ -226,148 +227,260 @@ function CustomScene({ scene }: { scene: Extract<DisplayScene, { type: "custom" 
   );
 }
 
+// ─── Particle field canvas hook ──────────────────────────────────────────────
+
+function useParticleCanvas(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let animId: number;
+
+    interface Pt { x: number; y: number; vx: number; vy: number; r: number }
+    let w = 0, h = 0, dpr = 1;
+    let pts: Pt[] = [];
+
+    const resize = () => {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = canvas.width  = window.innerWidth  * dpr;
+      h = canvas.height = window.innerHeight * dpr;
+      canvas.style.width  = window.innerWidth  + "px";
+      canvas.style.height = window.innerHeight + "px";
+      const count = Math.min(90, Math.floor((window.innerWidth * window.innerHeight) / 20000));
+      pts = Array.from({ length: count }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.25 * dpr,
+        vy: (Math.random() - 0.5) * 0.25 * dpr,
+        r:  (Math.random() * 1.6 + 0.6) * dpr,
+      }));
+    };
+    resize();
+    window.addEventListener("resize", resize);
+
+    const LINK = 130;
+    const frame = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of pts) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > w) p.vx *= -1;
+        if (p.y < 0 || p.y > h) p.vy *= -1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(180,190,255,0.55)";
+        ctx.fill();
+      }
+      const L = LINK * dpr;
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+          const d  = Math.hypot(dx, dy);
+          if (d < L) {
+            ctx.beginPath();
+            ctx.moveTo(pts[i].x, pts[i].y);
+            ctx.lineTo(pts[j].x, pts[j].y);
+            ctx.strokeStyle = `rgba(129,140,248,${0.16 * (1 - d / L)})`;
+            ctx.lineWidth = dpr;
+            ctx.stroke();
+          }
+        }
+      }
+      animId = requestAnimationFrame(frame);
+    };
+    frame();
+
+    return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
+  }, [canvasRef]);
+}
+
+// ─── Premium MentorCard scene ─────────────────────────────────────────────────
+
 function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "mentor-card" }> }) {
-  const [vis, setVis] = useState(false);
-  const prevKey = useRef("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useParticleCanvas(canvasRef);
+
+  // Track prev key for slide-transition direction
+  const prevKeyRef = useRef("");
+  const [transClass, setTransClass] = useState("mc-enter-right");
+  const [vis,        setVis]        = useState(false);
   const key = `${scene.mentor.id}-${scene.index}`;
 
   useEffect(() => {
-    if (prevKey.current !== key) {
-      setVis(false);
-      prevKey.current = key;
-      const t = setTimeout(() => setVis(true), 80);
+    if (prevKeyRef.current === "") {
+      prevKeyRef.current = key;
+      const t = setTimeout(() => setVis(true), 60);
       return () => clearTimeout(t);
     }
-  }, [key]);
-
-  useEffect(() => { const t = setTimeout(() => setVis(true), 80); return () => clearTimeout(t); }, []);
+    if (prevKeyRef.current !== key) {
+      const wasIdx = parseInt(prevKeyRef.current.split("-").pop() ?? "0");
+      const nowIdx = scene.index;
+      const dir    = nowIdx > wasIdx ? "mc-enter-right" : "mc-enter-left";
+      prevKeyRef.current = key;
+      setVis(false);
+      setTransClass(dir);
+      const t = setTimeout(() => setVis(true), 60);
+      return () => clearTimeout(t);
+    }
+  }, [key, scene.index]);
 
   const { mentor, mentees } = scene;
+  const initials = mentor.name.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
-    <div style={{
-      width:"100%", height:"100%",
-      background:"linear-gradient(145deg,#0f0c29 0%,#1a1a3e 60%,#0d1b2a 100%)",
-      display:"flex", alignItems:"center", justifyContent:"center",
-      padding:"4vh 6vw", gap:"6vw", overflow:"hidden", position:"relative",
-    }}>
-      {/* Ambient glow */}
-      <div style={{ position:"absolute", width:"40vw", height:"40vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%)", top:"-10%", right:"-5%", pointerEvents:"none" }} />
+    <div style={{ position:"fixed", inset:0, background:"#05050f", fontFamily:"'Inter',system-ui,sans-serif", WebkitFontSmoothing:"antialiased" }}>
 
-      {/* ── Left: Mentor photo + name ── */}
-      <div style={{
-        display:"flex", flexDirection:"column", alignItems:"center",
-        gap:"2vh", flexShrink:0, width:"clamp(180px,28vw,360px)",
-        opacity: vis ? 1 : 0, transform: vis ? "translateX(0)" : "translateX(-40px)",
-        transition:"opacity 0.5s ease, transform 0.5s ease",
-      }}>
-        {/* Photo */}
-        <div style={{
-          width:"clamp(140px,22vw,280px)", height:"clamp(140px,22vw,280px)",
-          borderRadius:"50%", overflow:"hidden",
-          border:"4px solid rgba(99,102,241,0.5)",
-          boxShadow:"0 0 60px rgba(99,102,241,0.3)",
-          background:"#1a1a3e", flexShrink:0,
-        }}>
-          {mentor.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={mentor.photoUrl} alt={mentor.name}
-              style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }} />
-          ) : (
-            <div style={{
-              width:"100%", height:"100%",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:"clamp(32px,5vw,64px)", fontWeight:800, color:"rgba(199,210,254,0.5)",
-              background:"linear-gradient(135deg,#312e81,#1e1b4b)",
-            }}>
-              {mentor.name.split(" ").map(w => w[0]).slice(0,2).join("")}
+      {/* ── Background layer ── */}
+      <div style={{ position:"absolute", inset:0, background:"radial-gradient(120% 120% at 15% 0%,#14123a 0%,transparent 55%), radial-gradient(120% 120% at 100% 100%,#0d1b2a 0%,transparent 55%), linear-gradient(160deg,#06061a 0%,#0b0b22 55%,#070714 100%)", overflow:"hidden" }}>
+        <canvas ref={canvasRef} style={{ position:"absolute", inset:0 }} />
+        {/* Aurora blobs */}
+        <div style={{ position:"absolute", width:"46vw", height:"46vw", top:"-14%", right:"-8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.9) 0%,rgba(99,102,241,0) 68%)", filter:"blur(70px)", opacity:0.55, mixBlendMode:"screen", animation:"mcDrift1 22s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:"40vw", height:"40vw", bottom:"-16%", left:"-6%", borderRadius:"50%", background:"radial-gradient(circle,rgba(168,85,247,0.75) 0%,rgba(168,85,247,0) 68%)", filter:"blur(70px)", opacity:0.55, mixBlendMode:"screen", animation:"mcDrift2 26s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:"34vw", height:"34vw", top:"30%", left:"42%", borderRadius:"50%", background:"radial-gradient(circle,rgba(34,211,238,0.5) 0%,rgba(34,211,238,0) 68%)", filter:"blur(70px)", opacity:0.55, mixBlendMode:"screen", animation:"mcDrift3 30s ease-in-out infinite" }} />
+        <div style={{ position:"absolute", width:"26vw", height:"26vw", bottom:"6%", right:"20%", borderRadius:"50%", background:"radial-gradient(circle,rgba(251,191,36,0.35) 0%,rgba(251,191,36,0) 68%)", filter:"blur(70px)", opacity:0.55, mixBlendMode:"screen", animation:"mcDrift1 34s ease-in-out infinite reverse" }} />
+        {/* Grid */}
+        <div style={{ position:"absolute", inset:-2, backgroundImage:"linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px)", backgroundSize:"60px 60px", maskImage:"radial-gradient(120% 90% at 50% 40%,#000 30%,transparent 75%)", WebkitMaskImage:"radial-gradient(120% 90% at 50% 40%,#000 30%,transparent 75%)" }} />
+        {/* Vignette */}
+        <div style={{ position:"absolute", inset:0, background:"radial-gradient(120% 120% at 50% 45%,transparent 55%,rgba(0,0,0,0.55) 100%)", pointerEvents:"none" }} />
+      </div>
+
+      {/* ── Card ── */}
+      <div style={{ position:"relative", zIndex:2, width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", padding:"5vh 5vw", perspective:1600 }}>
+        <div
+          className={`mc-card ${transClass} ${vis ? "mc-vis" : ""}`}
+          style={{
+            position:"relative",
+            width:"min(1120px,94vw)", maxHeight:"88vh",
+            display:"flex", alignItems:"stretch",
+            gap:"clamp(20px,3.5vw,56px)",
+            padding:"clamp(26px,4vh,52px) clamp(28px,4vw,60px)",
+            borderRadius:30,
+            background:"linear-gradient(160deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))",
+            backdropFilter:"blur(26px) saturate(140%)",
+            WebkitBackdropFilter:"blur(26px) saturate(140%)",
+            boxShadow:"0 40px 120px -30px rgba(0,0,0,0.75),inset 0 1px 0 rgba(255,255,255,0.12)",
+          }}
+        >
+          {/* Spinning conic border */}
+          <div style={{ position:"absolute", inset:0, borderRadius:30, padding:"1.5px", background:"conic-gradient(from 0deg,#6366f1,#a855f7,#ec4899,#22d3ee,#fbbf24,#6366f1)", WebkitMask:"linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)", WebkitMaskComposite:"xor", maskComposite:"exclude", opacity:0.65, animation:"mcSpinBorder 8s linear infinite", pointerEvents:"none" }} />
+          {/* Sheen */}
+          <div style={{ position:"absolute", inset:0, borderRadius:30, background:"linear-gradient(115deg,transparent 30%,rgba(255,255,255,0.10) 48%,transparent 66%)", backgroundSize:"250% 100%", animation:"mcSheen 7s ease-in-out infinite", pointerEvents:"none" }} />
+
+          {/* ── LEFT: Mentor ── */}
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", gap:"clamp(10px,1.6vh,18px)", flexShrink:0, width:"clamp(210px,26vw,320px)" }}>
+            {/* Photo shell */}
+            <div style={{ position:"relative", width:"clamp(150px,20vw,232px)", height:"clamp(150px,20vw,232px)" }}>
+              {/* Halo */}
+              <div style={{ position:"absolute", inset:"-18%", borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.5) 0%,transparent 65%)", filter:"blur(14px)", animation:"mcHalo 3.4s ease-in-out infinite" }} />
+              {/* Spinning ring */}
+              <div style={{ position:"absolute", inset:0, borderRadius:"50%", padding:4, background:"conic-gradient(from 0deg,#6366f1,#22d3ee,#a855f7,#ec4899,#fbbf24,#6366f1)", WebkitMask:"linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)", WebkitMaskComposite:"xor", maskComposite:"exclude", animation:"mcSpinRing 6s linear infinite" }} />
+              {/* Photo */}
+              <div style={{ position:"absolute", inset:8, borderRadius:"50%", overflow:"hidden", background:"#14122e", boxShadow:"inset 0 0 30px rgba(0,0,0,0.6)" }}>
+                {mentor.photoUrl
+                  ? <img src={mentor.photoUrl} alt={mentor.name} style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%", display:"block" }} />
+                  : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"clamp(38px,5.5vw,74px)", fontWeight:800, background:"linear-gradient(135deg,#a5b4fc,#f0abfc 50%,#fcd34d)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>{initials}</div>
+                }
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Name + meta */}
-        <div style={{ textAlign:"center" }}>
-          <div style={{ fontSize:"clamp(16px,2.2vw,32px)", fontWeight:800, color:"#fff", lineHeight:1.2 }}>
-            {mentor.name}
-          </div>
-          {mentor.studentId && (
-            <div style={{ marginTop:6, fontSize:"clamp(11px,1.2vw,16px)", color:"rgba(199,210,254,0.5)", fontFamily:"ui-monospace,monospace" }}>
-              {mentor.studentId}
+            {/* Name */}
+            <div style={{ fontFamily:"'Sora','Inter',sans-serif", fontSize:"clamp(19px,2.3vw,32px)", fontWeight:800, lineHeight:1.15, letterSpacing:"-0.5px", background:"linear-gradient(120deg,#ffffff 0%,#dbe3ff 45%,#eaccff 100%)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>
+              {mentor.name}
             </div>
-          )}
-          <div style={{
-            marginTop:10, display:"inline-flex", alignItems:"center", gap:6,
-            background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.3)",
-            borderRadius:99, padding:"4px 14px",
-            fontSize:"clamp(10px,1vw,14px)", fontWeight:700, color:"rgba(199,210,254,0.8)",
-          }}>
-            {mentor.batch ?? "Mentor"} · {mentor.communicationMethod}
-          </div>
-        </div>
+            {mentor.studentId && (
+              <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"clamp(11px,1.15vw,14px)", letterSpacing:1, color:"rgba(199,210,254,0.5)" }}>
+                {mentor.studentId}
+              </div>
+            )}
+            {/* Badge */}
+            <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"linear-gradient(120deg,rgba(99,102,241,0.22),rgba(168,85,247,0.18))", border:"1px solid rgba(165,180,252,0.35)", borderRadius:99, padding:"6px 16px", fontSize:"clamp(11px,1.05vw,13px)", fontWeight:700, color:"#e0e7ff", boxShadow:"0 6px 20px -8px rgba(99,102,241,0.6)" }}>
+              <span style={{ width:7, height:7, borderRadius:"50%", background:"#34d399", boxShadow:"0 0 0 0 rgba(52,211,153,0.7)", display:"inline-block", animation:"mcLivePulse 2s ease-out infinite", flexShrink:0 }} />
+              {mentor.batch ?? "9th"} Batch · {mentor.communicationMethod}
+            </div>
 
-        {/* Position indicator */}
-        <div style={{ fontSize:"clamp(10px,1vw,13px)", color:"rgba(199,210,254,0.3)", letterSpacing:"1px" }}>
-          {scene.index + 1} / {scene.total}
+            {/* Position */}
+            <div style={{ fontSize:"clamp(10px,1vw,13px)", color:"rgba(199,210,254,0.25)", letterSpacing:1 }}>
+              {scene.index + 1} / {scene.total}
+            </div>
+          </div>
+
+          {/* ── DIVIDER ── */}
+          <div style={{ position:"relative", width:1, alignSelf:"stretch", margin:"1vh 0", background:"linear-gradient(to bottom,transparent,rgba(165,180,252,0.35) 20%,rgba(165,180,252,0.35) 80%,transparent)", flexShrink:0 }}>
+            <div style={{ position:"absolute", left:"50%", top:0, width:6, height:6, borderRadius:"50%", transform:"translate(-50%,0)", background:"#fff", boxShadow:"0 0 12px 3px rgba(165,180,252,0.9)", animation:"mcSpark 3.6s ease-in-out infinite" }} />
+          </div>
+
+          {/* ── RIGHT: Mentees ── */}
+          <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", justifyContent:"center", gap:"clamp(8px,1.4vh,16px)" }}>
+            {/* Header */}
+            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:"0.4vh" }}>
+              <div style={{ fontFamily:"'Space Grotesk','Inter',sans-serif", fontSize:"clamp(10px,1vw,13px)", fontWeight:600, letterSpacing:4, textTransform:"uppercase", color:"rgba(199,210,254,0.55)", whiteSpace:"nowrap" }}>
+                Assigned Mentees
+              </div>
+              <div style={{ fontSize:11, fontWeight:700, color:"#c7d2fe", background:"rgba(99,102,241,0.18)", border:"1px solid rgba(99,102,241,0.35)", borderRadius:99, padding:"2px 9px" }}>
+                {mentees.length}
+              </div>
+              <div style={{ flex:1, height:1, background:"linear-gradient(to right,rgba(165,180,252,0.35),transparent)" }} />
+            </div>
+
+            {/* Mentee rows */}
+            {mentees.length === 0 ? (
+              <div style={{ fontSize:"clamp(14px,1.8vw,20px)", color:"rgba(199,210,254,0.3)", fontStyle:"italic" }}>
+                No mentees assigned yet
+              </div>
+            ) : mentees.map((mentee, i) => (
+              <div
+                key={mentee.studentId}
+                style={{
+                  position:"relative", display:"flex", alignItems:"center",
+                  gap:"clamp(12px,1.6vw,22px)",
+                  background:"rgba(255,255,255,0.045)",
+                  border:"1px solid rgba(255,255,255,0.09)",
+                  borderRadius:16,
+                  padding:"clamp(11px,1.5vh,17px) clamp(15px,2vw,24px)",
+                  overflow:"hidden",
+                  opacity: vis ? 1 : 0,
+                  transform: vis ? "translateX(0)" : "translateX(26px)",
+                  transition: `opacity 0.55s cubic-bezier(0.16,1,0.3,1) ${0.18 + i*0.11}s, transform 0.55s cubic-bezier(0.34,1.56,0.64,1) ${0.18 + i*0.11}s`,
+                }}
+              >
+                {/* Left accent bar */}
+                <div style={{ position:"absolute", left:0, top:0, bottom:0, width:3, background:"linear-gradient(to bottom,#6366f1,#a855f7)", transform: vis ? "scaleY(1)" : "scaleY(0)", transformOrigin:"top", transition: `transform 0.4s cubic-bezier(0.16,1,0.3,1) ${0.3 + i*0.11}s` }} />
+                {/* Number */}
+                <div style={{ width:"clamp(32px,3vw,44px)", height:"clamp(32px,3vw,44px)", borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"'Sora','Inter',sans-serif", fontSize:"clamp(12px,1.2vw,16px)", fontWeight:800, color:"#fff", background:"linear-gradient(135deg,rgba(99,102,241,0.55),rgba(168,85,247,0.45))", border:"1px solid rgba(199,210,254,0.35)", boxShadow:"0 6px 18px -6px rgba(99,102,241,0.7),inset 0 1px 0 rgba(255,255,255,0.25)" }}>
+                  {i + 1}
+                </div>
+                <div>
+                  <div style={{ fontFamily:"'Sora','Inter',sans-serif", fontSize:"clamp(15px,1.7vw,22px)", fontWeight:700, color:"#f4f6ff", letterSpacing:"-0.2px" }}>
+                    {mentee.name}
+                  </div>
+                  <div style={{ fontFamily:"ui-monospace,monospace", fontSize:"clamp(10px,1vw,13px)", color:"rgba(199,210,254,0.5)", marginTop:3, letterSpacing:"0.5px" }}>
+                    {mentee.studentId}
+                  </div>
+                </div>
+                <div style={{ marginLeft:"auto", color:"rgba(199,210,254,0.3)", fontSize:18 }}>→</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* ── Divider ── */}
-      <div style={{
-        width:1, alignSelf:"stretch", margin:"4vh 0",
-        background:"linear-gradient(to bottom,transparent,rgba(99,102,241,0.4),transparent)",
-        flexShrink:0,
-        opacity: vis ? 1 : 0, transition:"opacity 0.5s ease 0.15s",
-      }} />
+      <style>{`
+        @keyframes mcDrift1  { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-6vw,5vh) scale(1.12)} }
+        @keyframes mcDrift2  { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(7vw,-4vh) scale(1.15)} }
+        @keyframes mcDrift3  { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,-6vh) scale(0.85)} }
+        @keyframes mcSpinBorder { to { transform: rotate(360deg); } }
+        @keyframes mcSheen { 0%{background-position:160% 0} 55%{background-position:-60% 0} 100%{background-position:-60% 0} }
+        @keyframes mcHalo { 0%,100%{opacity:0.55;transform:scale(1)} 50%{opacity:0.95;transform:scale(1.06)} }
+        @keyframes mcSpinRing { to{transform:rotate(360deg)} }
+        @keyframes mcLivePulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,0.6)} 70%{box-shadow:0 0 0 8px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
+        @keyframes mcSpark { 0%{top:6%;opacity:0} 15%{opacity:1} 85%{opacity:1} 100%{top:94%;opacity:0} }
+        @keyframes mcCardIn { from{opacity:0;transform:translateY(28px) scale(0.96)} to{opacity:1;transform:translateY(0) scale(1)} }
+        @keyframes mcEnterRight { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes mcEnterLeft  { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
 
-      {/* ── Right: Mentees ── */}
-      <div style={{
-        flex:1, minWidth:0, display:"flex", flexDirection:"column",
-        gap:"clamp(8px,1.5vh,20px)",
-        opacity: vis ? 1 : 0, transform: vis ? "translateX(0)" : "translateX(40px)",
-        transition:"opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s",
-      }}>
-        <div style={{
-          fontSize:"clamp(10px,1vw,14px)", fontWeight:700, letterSpacing:"3px",
-          textTransform:"uppercase", color:"rgba(199,210,254,0.4)", marginBottom:"1vh",
-        }}>
-          Assigned Mentees
-        </div>
-
-        {mentees.length === 0 ? (
-          <div style={{ fontSize:"clamp(14px,1.8vw,22px)", color:"rgba(199,210,254,0.3)", fontStyle:"italic" }}>
-            No mentees assigned yet
-          </div>
-        ) : mentees.map((mentee, i) => (
-          <div key={mentee.studentId} style={{
-            display:"flex", alignItems:"center", gap:"clamp(10px,1.5vw,20px)",
-            background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)",
-            borderRadius:14, padding:"clamp(10px,1.5vh,18px) clamp(14px,2vw,24px)",
-            opacity: vis ? 1 : 0,
-            transform: vis ? "translateX(0)" : "translateX(20px)",
-            transition: `opacity 0.4s ease ${0.2 + i*0.1}s, transform 0.4s ease ${0.2 + i*0.1}s`,
-          }}>
-            {/* Number badge */}
-            <div style={{
-              width:"clamp(28px,3vw,42px)", height:"clamp(28px,3vw,42px)",
-              borderRadius:"50%", background:"rgba(99,102,241,0.2)",
-              border:"1.5px solid rgba(99,102,241,0.4)",
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize:"clamp(11px,1.2vw,16px)", fontWeight:800, color:"#a5b4fc",
-              flexShrink:0,
-            }}>
-              {i + 1}
-            </div>
-            <div>
-              <div style={{ fontSize:"clamp(14px,1.8vw,24px)", fontWeight:700, color:"#fff" }}>
-                {mentee.name}
-              </div>
-              <div style={{ fontSize:"clamp(10px,1vw,14px)", color:"rgba(199,210,254,0.4)", fontFamily:"ui-monospace,monospace", marginTop:2 }}>
-                {mentee.studentId}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+        .mc-card { opacity:0; animation: mcCardIn 0.7s cubic-bezier(0.16,1,0.3,1) 0.1s forwards; }
+        .mc-enter-right.mc-vis { animation: mcEnterRight 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+        .mc-enter-left.mc-vis  { animation: mcEnterLeft  0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+      `}</style>
     </div>
   );
 }
