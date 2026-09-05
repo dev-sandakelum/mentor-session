@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import type { DisplayState, DisplayScene } from "@/lib/display-state";
+import { useEffect, useRef, useState } from "react";import type { DisplayState, DisplayScene } from "@/lib/display-state";
 
 // ─── Ghost row animation helpers ─────────────────────────────────────────────
 
@@ -227,6 +226,152 @@ function CustomScene({ scene }: { scene: Extract<DisplayScene, { type: "custom" 
   );
 }
 
+function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "mentor-card" }> }) {
+  const [vis, setVis] = useState(false);
+  const prevKey = useRef("");
+  const key = `${scene.mentor.id}-${scene.index}`;
+
+  useEffect(() => {
+    if (prevKey.current !== key) {
+      setVis(false);
+      prevKey.current = key;
+      const t = setTimeout(() => setVis(true), 80);
+      return () => clearTimeout(t);
+    }
+  }, [key]);
+
+  useEffect(() => { const t = setTimeout(() => setVis(true), 80); return () => clearTimeout(t); }, []);
+
+  const { mentor, mentees } = scene;
+
+  return (
+    <div style={{
+      width:"100%", height:"100%",
+      background:"linear-gradient(145deg,#0f0c29 0%,#1a1a3e 60%,#0d1b2a 100%)",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      padding:"4vh 6vw", gap:"6vw", overflow:"hidden", position:"relative",
+    }}>
+      {/* Ambient glow */}
+      <div style={{ position:"absolute", width:"40vw", height:"40vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%)", top:"-10%", right:"-5%", pointerEvents:"none" }} />
+
+      {/* ── Left: Mentor photo + name ── */}
+      <div style={{
+        display:"flex", flexDirection:"column", alignItems:"center",
+        gap:"2vh", flexShrink:0, width:"clamp(180px,28vw,360px)",
+        opacity: vis ? 1 : 0, transform: vis ? "translateX(0)" : "translateX(-40px)",
+        transition:"opacity 0.5s ease, transform 0.5s ease",
+      }}>
+        {/* Photo */}
+        <div style={{
+          width:"clamp(140px,22vw,280px)", height:"clamp(140px,22vw,280px)",
+          borderRadius:"50%", overflow:"hidden",
+          border:"4px solid rgba(99,102,241,0.5)",
+          boxShadow:"0 0 60px rgba(99,102,241,0.3)",
+          background:"#1a1a3e", flexShrink:0,
+        }}>
+          {mentor.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={mentor.photoUrl} alt={mentor.name}
+              style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }} />
+          ) : (
+            <div style={{
+              width:"100%", height:"100%",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:"clamp(32px,5vw,64px)", fontWeight:800, color:"rgba(199,210,254,0.5)",
+              background:"linear-gradient(135deg,#312e81,#1e1b4b)",
+            }}>
+              {mentor.name.split(" ").map(w => w[0]).slice(0,2).join("")}
+            </div>
+          )}
+        </div>
+
+        {/* Name + meta */}
+        <div style={{ textAlign:"center" }}>
+          <div style={{ fontSize:"clamp(16px,2.2vw,32px)", fontWeight:800, color:"#fff", lineHeight:1.2 }}>
+            {mentor.name}
+          </div>
+          {mentor.studentId && (
+            <div style={{ marginTop:6, fontSize:"clamp(11px,1.2vw,16px)", color:"rgba(199,210,254,0.5)", fontFamily:"ui-monospace,monospace" }}>
+              {mentor.studentId}
+            </div>
+          )}
+          <div style={{
+            marginTop:10, display:"inline-flex", alignItems:"center", gap:6,
+            background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.3)",
+            borderRadius:99, padding:"4px 14px",
+            fontSize:"clamp(10px,1vw,14px)", fontWeight:700, color:"rgba(199,210,254,0.8)",
+          }}>
+            {mentor.batch ?? "Mentor"} · {mentor.communicationMethod}
+          </div>
+        </div>
+
+        {/* Position indicator */}
+        <div style={{ fontSize:"clamp(10px,1vw,13px)", color:"rgba(199,210,254,0.3)", letterSpacing:"1px" }}>
+          {scene.index + 1} / {scene.total}
+        </div>
+      </div>
+
+      {/* ── Divider ── */}
+      <div style={{
+        width:1, alignSelf:"stretch", margin:"4vh 0",
+        background:"linear-gradient(to bottom,transparent,rgba(99,102,241,0.4),transparent)",
+        flexShrink:0,
+        opacity: vis ? 1 : 0, transition:"opacity 0.5s ease 0.15s",
+      }} />
+
+      {/* ── Right: Mentees ── */}
+      <div style={{
+        flex:1, minWidth:0, display:"flex", flexDirection:"column",
+        gap:"clamp(8px,1.5vh,20px)",
+        opacity: vis ? 1 : 0, transform: vis ? "translateX(0)" : "translateX(40px)",
+        transition:"opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s",
+      }}>
+        <div style={{
+          fontSize:"clamp(10px,1vw,14px)", fontWeight:700, letterSpacing:"3px",
+          textTransform:"uppercase", color:"rgba(199,210,254,0.4)", marginBottom:"1vh",
+        }}>
+          Assigned Mentees
+        </div>
+
+        {mentees.length === 0 ? (
+          <div style={{ fontSize:"clamp(14px,1.8vw,22px)", color:"rgba(199,210,254,0.3)", fontStyle:"italic" }}>
+            No mentees assigned yet
+          </div>
+        ) : mentees.map((mentee, i) => (
+          <div key={mentee.studentId} style={{
+            display:"flex", alignItems:"center", gap:"clamp(10px,1.5vw,20px)",
+            background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)",
+            borderRadius:14, padding:"clamp(10px,1.5vh,18px) clamp(14px,2vw,24px)",
+            opacity: vis ? 1 : 0,
+            transform: vis ? "translateX(0)" : "translateX(20px)",
+            transition: `opacity 0.4s ease ${0.2 + i*0.1}s, transform 0.4s ease ${0.2 + i*0.1}s`,
+          }}>
+            {/* Number badge */}
+            <div style={{
+              width:"clamp(28px,3vw,42px)", height:"clamp(28px,3vw,42px)",
+              borderRadius:"50%", background:"rgba(99,102,241,0.2)",
+              border:"1.5px solid rgba(99,102,241,0.4)",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:"clamp(11px,1.2vw,16px)", fontWeight:800, color:"#a5b4fc",
+              flexShrink:0,
+            }}>
+              {i + 1}
+            </div>
+            <div>
+              <div style={{ fontSize:"clamp(14px,1.8vw,24px)", fontWeight:700, color:"#fff" }}>
+                {mentee.name}
+              </div>
+              <div style={{ fontSize:"clamp(10px,1vw,14px)", color:"rgba(199,210,254,0.4)", fontFamily:"ui-monospace,monospace", marginTop:2 }}>
+                {mentee.studentId}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main display screen ──────────────────────────────────────────────────────
 
 export function DisplayScreen() {
@@ -257,10 +402,11 @@ export function DisplayScreen() {
       background:"#0f0c29",
       fontFamily:"inherit",
     }}>
-      {scene.type === "idle"       && <IdleScene />}
-      {scene.type === "allocation" && <AllocationScene scene={scene} />}
-      {scene.type === "results"    && <ResultsScene   scene={scene} />}
-      {scene.type === "custom"     && <CustomScene    scene={scene} />}
+      {scene.type === "idle"        && <IdleScene />}
+      {scene.type === "allocation"  && <AllocationScene scene={scene} />}
+      {scene.type === "results"     && <ResultsScene   scene={scene} />}
+      {scene.type === "custom"      && <CustomScene    scene={scene} />}
+      {scene.type === "mentor-card" && <MentorCardScene scene={scene} />}
     </div>
   );
 }

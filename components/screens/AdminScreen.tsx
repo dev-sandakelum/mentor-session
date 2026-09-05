@@ -792,6 +792,7 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
   const [customText, setCustomText] = useState("");
   const [customSub,  setCustomSub]  = useState("");
   const [lastScene,  setLastScene]  = useState("");
+  const [mentorIdx,  setMentorIdx]  = useState(0);
 
   const push = async (scene: object) => {
     setSending(true);
@@ -801,8 +802,44 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scene }),
       });
-      if (res.ok) setLastScene(JSON.stringify(scene));
+      if (res.ok) setLastScene((scene as { type: string }).type);
     } finally { setSending(false); }
+  };
+
+  // Build mentor-card scene from overview data
+  const pushMentorCard = (idx: number) => {
+    const mentor = overview.mentors[idx];
+    if (!mentor) return;
+    // Find mentees assigned to this mentor
+    const mentees = overview.mentees
+      .filter((m) => m.assignedMentor === mentor.full_name)
+      .map((m) => ({ name: m.full_name, studentId: m.student_id }));
+
+    void push({
+      type: "mentor-card",
+      mentor: {
+        id:                  mentor.id,
+        name:                mentor.full_name,
+        studentId:           mentor.student_id ?? null,
+        batch:               mentor.batch ?? null,
+        photoUrl:            mentor.profile_photo_url ?? null,
+        communicationMethod: mentor.communication_method,
+      },
+      mentees,
+      index: idx,
+      total: overview.mentors.length,
+    });
+  };
+
+  const approvedMentors = overview.mentors.filter((m) => m.is_approved);
+  const safeMentorIdx   = Math.min(mentorIdx, Math.max(0, approvedMentors.length - 1));
+
+  const goTo = (idx: number) => {
+    setMentorIdx(idx);
+    const mentor = approvedMentors[idx];
+    if (!mentor) return;
+    const realIdx = overview.mentors.findIndex((m) => m.id === mentor.id);
+    pushMentorCard(realIdx);
   };
 
   const s = overview.stats;
@@ -814,15 +851,15 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
       <div className="card" style={{ borderLeft:"4px solid #6366f1" }}>
         <h3 className="card-title" style={{ margin:"0 0 8px" }}>📺 Presentation Display</h3>
         <p className="muted" style={{ fontSize:13, marginBottom:12 }}>
-          Open this URL on the projector / second screen. It updates in real-time when you change scenes below.
+          Open this URL on the projector / second screen. Updates in real-time.
         </p>
-        <a href="/display" target="_blank" rel="noopener noreferrer"
-          style={{ display:"inline-flex", alignItems:"center", gap:6, background:"var(--indigo-soft)", color:"var(--indigo)", fontWeight:700, fontSize:13, padding:"8px 16px", borderRadius:9, textDecoration:"none" }}>
-          /display ↗
-        </a>
-        {lastScene && (
-          <p className="hint" style={{ marginTop:10 }}>Active: <code style={{ fontSize:11.5 }}>{lastScene}</code></p>
-        )}
+        <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+          <a href="/display" target="_blank" rel="noopener noreferrer"
+            style={{ display:"inline-flex", alignItems:"center", gap:6, background:"var(--indigo-soft)", color:"var(--indigo)", fontWeight:700, fontSize:13, padding:"8px 16px", borderRadius:9, textDecoration:"none" }}>
+            /display ↗
+          </a>
+          {lastScene && <span className="muted" style={{ fontSize:12 }}>Active scene: <b>{lastScene}</b></span>}
+        </div>
       </div>
 
       {/* Scene buttons */}
@@ -831,7 +868,7 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
         <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
           <button className="btn btn-outline btn-sm" disabled={sending}
             onClick={() => void push({ type: "idle" })}>
-            🌌 Idle / Branding
+            🌌 Cover / Idle
           </button>
           <button className="btn btn-primary btn-sm" disabled={sending}
             onClick={() => void push({ type: "allocation", count: s.assigned, total: s.totalMentees })}>
@@ -845,26 +882,78 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
         </div>
       </div>
 
+      {/* Mentor card navigator */}
+      <div className="card">
+        <h3 className="card-title" style={{ marginBottom:4 }}>Mentor Cards</h3>
+        <p className="muted" style={{ fontSize:13, marginBottom:16 }}>
+          Show one mentor and their assigned mentees on the display.
+        </p>
+        {approvedMentors.length === 0 ? (
+          <p className="muted">No approved mentors yet.</p>
+        ) : (
+          <>
+            {/* Current mentor preview */}
+            <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:16, padding:"12px 16px", background:"var(--gray-50)", borderRadius:12, border:"1px solid var(--gray-200)" }}>
+              {approvedMentors[safeMentorIdx]?.profile_photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={approvedMentors[safeMentorIdx].profile_photo_url!} alt=""
+                  style={{ width:44, height:44, borderRadius:"50%", objectFit:"cover", objectPosition:"center 20%", flexShrink:0 }} />
+              ) : (
+                <div style={{ width:44, height:44, borderRadius:"50%", background:"var(--indigo-soft)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"var(--indigo)", flexShrink:0, fontSize:14 }}>
+                  {approvedMentors[safeMentorIdx]?.full_name.split(" ").map(w => w[0]).slice(0,2).join("")}
+                </div>
+              )}
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {approvedMentors[safeMentorIdx]?.full_name}
+                </div>
+                <div className="muted" style={{ fontSize:12 }}>
+                  {safeMentorIdx + 1} of {approvedMentors.length} · {
+                    overview.mentees.filter(m => m.assignedMentor === approvedMentors[safeMentorIdx]?.full_name).length
+                  } mentees
+                </div>
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+              <button className="btn btn-outline btn-sm" disabled={sending || safeMentorIdx === 0}
+                onClick={() => goTo(safeMentorIdx - 1)}>
+                ← Prev
+              </button>
+              <button className="btn btn-primary btn-sm" disabled={sending}
+                onClick={() => goTo(safeMentorIdx)}>
+                📺 Show on Display
+              </button>
+              <button className="btn btn-outline btn-sm" disabled={sending || safeMentorIdx >= approvedMentors.length - 1}
+                onClick={() => goTo(safeMentorIdx + 1)}>
+                Next →
+              </button>
+              {/* Jump dropdown */}
+              <select
+                style={{ fontSize:12, padding:"5px 10px", borderRadius:8, border:"1px solid var(--gray-200)", marginLeft:"auto" }}
+                value={safeMentorIdx}
+                onChange={(e) => goTo(Number(e.target.value))}
+              >
+                {approvedMentors.map((m, i) => (
+                  <option key={m.id} value={i}>{i + 1}. {m.full_name}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* Custom message */}
       <div className="card">
         <h3 className="card-title" style={{ marginBottom:12 }}>Custom Message</h3>
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <input
-            className="mreg-input"
-            type="text"
-            placeholder="Main text (e.g. Welcome!)"
-            value={customText}
+          <input type="text" placeholder="Main text (e.g. Welcome!)" value={customText}
             onChange={(e) => setCustomText(e.target.value)}
-            style={{ background:"var(--gray-50)", border:"1.5px solid var(--gray-200)", borderRadius:10, height:42, padding:"0 14px", fontSize:14 }}
-          />
-          <input
-            className="mreg-input"
-            type="text"
-            placeholder="Sub-text (optional)"
-            value={customSub}
+            style={{ background:"var(--gray-50)", border:"1.5px solid var(--gray-200)", borderRadius:10, height:42, padding:"0 14px", fontSize:14 }} />
+          <input type="text" placeholder="Sub-text (optional)" value={customSub}
             onChange={(e) => setCustomSub(e.target.value)}
-            style={{ background:"var(--gray-50)", border:"1.5px solid var(--gray-200)", borderRadius:10, height:42, padding:"0 14px", fontSize:14 }}
-          />
+            style={{ background:"var(--gray-50)", border:"1.5px solid var(--gray-200)", borderRadius:10, height:42, padding:"0 14px", fontSize:14 }} />
           <button className="btn btn-outline btn-sm" disabled={sending || !customText.trim()}
             onClick={() => void push({ type: "custom", text: customText.trim(), sub: customSub.trim() || undefined })}>
             Push message →

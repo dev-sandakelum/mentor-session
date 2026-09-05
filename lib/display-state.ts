@@ -9,7 +9,21 @@ export type DisplayScene =
   | { type: "idle" }
   | { type: "allocation"; count: number; total: number }
   | { type: "results"; assigned: number; unmatched: number; satisfaction: number }
-  | { type: "custom"; text: string; sub?: string };
+  | { type: "custom"; text: string; sub?: string }
+  | {
+      type: "mentor-card";
+      mentor: {
+        id: string;
+        name: string;
+        studentId: string | null;
+        batch: string | null;
+        photoUrl: string | null;
+        communicationMethod: string;
+      };
+      mentees: { name: string; studentId: string }[];
+      index: number;   // 0-based position among all mentors
+      total: number;   // total mentor count
+    };
 
 export type DisplayState = {
   scene: DisplayScene;
