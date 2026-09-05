@@ -51,6 +51,102 @@ function ThankYouScene() {
   );
 }
 
+function LiveRegistrationsScene() {
+  const [count,    setCount]    = useState<number | null>(null);
+  const [prevCount, setPrevCount] = useState<number | null>(null);
+  const [bump,     setBump]     = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res  = await fetch("/api/display/registrations");
+        if (!res.ok) return;
+        const data = await res.json() as { count: number };
+        if (!cancelled) {
+          setCount((prev) => {
+            if (prev !== null && data.count !== prev) {
+              setPrevCount(prev);
+              setBump(true);
+              setTimeout(() => setBump(false), 600);
+            }
+            return data.count;
+          });
+        }
+      } catch { /* ignore */ }
+    };
+
+    poll();
+    const iv = setInterval(poll, 3000);
+    return () => { cancelled = true; clearInterval(iv); };
+  }, []);
+
+  const displayCount = count ?? 0;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0,
+      background: "linear-gradient(145deg,#06061a 0%,#0b0b22 55%,#070714 100%)",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      overflow: "hidden",
+    }}>
+      {/* Aurora blobs */}
+      <div style={{ position:"absolute", width:"50vw", height:"50vw", top:"-15%", right:"-10%", borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.6) 0%,transparent 70%)", filter:"blur(80px)", opacity:0.4, animation:"mcDrift1 22s ease-in-out infinite", pointerEvents:"none" }} />
+      <div style={{ position:"absolute", width:"40vw", height:"40vw", bottom:"-15%", left:"-8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(168,85,247,0.5) 0%,transparent 70%)", filter:"blur(80px)", opacity:0.35, animation:"mcDrift2 28s ease-in-out infinite", pointerEvents:"none" }} />
+
+      {/* Label */}
+      <div style={{
+        fontSize: "clamp(13px,1.8vw,22px)", fontWeight: 700,
+        letterSpacing: "4px", textTransform: "uppercase",
+        color: "rgba(199,210,254,0.5)", marginBottom: "3vh",
+      }}>
+        Registrations
+      </div>
+
+      {/* Big counter */}
+      <div style={{ position: "relative", lineHeight: 1 }}>
+        {/* Glow */}
+        <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:"40vw", height:"40vw", maxWidth:500, borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.3) 0%,transparent 65%)", pointerEvents:"none" }} />
+        <div style={{
+          fontSize: "clamp(100px,20vw,260px)", fontWeight: 800,
+          color: "#fff", letterSpacing: "-6px", fontVariantNumeric: "tabular-nums",
+          textShadow: "0 0 100px rgba(99,102,241,0.7)",
+          transform: bump ? "scale(1.08)" : "scale(1)",
+          transition: "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+          position: "relative", display: "inline-block",
+        }}>
+          {count === null ? "—" : displayCount}
+        </div>
+      </div>
+
+      {/* Sub label */}
+      <div style={{
+        marginTop: "3vh",
+        fontSize: "clamp(12px,1.5vw,18px)", fontWeight: 600,
+        color: "rgba(199,210,254,0.45)", letterSpacing: "2px",
+      }}>
+        mentees registered
+      </div>
+
+      {/* Live indicator */}
+      <div style={{ marginTop: "2vh", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", animation: "mcLivePulse 2s ease-out infinite" }} />
+        <span style={{ fontSize: "clamp(10px,1vw,13px)", fontWeight: 600, color: "rgba(199,210,254,0.4)", letterSpacing: "1px" }}>
+          LIVE · updates every 3s
+        </span>
+      </div>
+
+      <style>{`
+        @keyframes mcDrift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,4vh) scale(1.1)} }
+        @keyframes mcDrift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(6vw,-4vh) scale(1.12)} }
+        @keyframes mcLivePulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,0.6)} 70%{box-shadow:0 0 0 10px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
+      `}</style>
+    </div>
+  );
+}
+
 function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allocation" }> }) {
   const [count, setCount] = useState(0);
   const [rows,  setRows]  = useState<GhostRow[]>([]);
@@ -530,9 +626,10 @@ export function DisplayScreen() {
       background:"#0f0c29",
       fontFamily:"inherit",
     }}>
-      {scene.type === "idle"        && <IdleScene />}
-      {scene.type === "thankyou"    && <ThankYouScene />}
-      {scene.type === "allocation"  && <AllocationScene scene={scene} />}
+      {scene.type === "idle"               && <IdleScene />}
+      {scene.type === "thankyou"           && <ThankYouScene />}
+      {scene.type === "live-registrations" && <LiveRegistrationsScene />}
+      {scene.type === "allocation"         && <AllocationScene scene={scene} />}
       {scene.type === "results"     && <ResultsScene   scene={scene} />}
       {scene.type === "custom"      && <CustomScene    scene={scene} />}
       {scene.type === "mentor-card" && <MentorCardScene scene={scene} />}

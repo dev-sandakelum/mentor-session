@@ -871,6 +871,10 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
             🌌 Cover / Idle
           </button>
           <button className="btn btn-outline btn-sm" disabled={sending}
+            onClick={() => void push({ type: "live-registrations" })}>
+            📊 Live Registrations
+          </button>
+          <button className="btn btn-outline btn-sm" disabled={sending}
             onClick={() => void push({ type: "thankyou" })}>
             🙏 Thank You
           </button>

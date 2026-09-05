@@ -8,6 +8,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 export type DisplayScene =
   | { type: "idle" }
   | { type: "thankyou" }
+  | { type: "live-registrations" }
   | { type: "allocation"; count: number; total: number }
   | { type: "results"; assigned: number; unmatched: number; satisfaction: number }
   | { type: "custom"; text: string; sub?: string }
