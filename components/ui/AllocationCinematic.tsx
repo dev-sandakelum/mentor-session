@@ -29,10 +29,10 @@ function fakeName() { return `${rand(FIRST)} ${rand(LAST)}`; }
 
 interface GhostRow { id: number; mentee: string; mentor: string; method: string; age: number }
 
-const DURATION_MS  = 3800; // total cinematic duration
+const DURATION_MS  = 7000; // total cinematic duration
 const TICKER_MS    = 60;   // counter tick interval
-const ROW_INTERVAL = 280;  // new ghost row every N ms
-const ROW_LIFE     = 1800; // how long a row stays visible
+const ROW_INTERVAL = 420;  // new ghost row every N ms
+const ROW_LIFE     = 2800; // how long a row stays visible
 
 export function AllocationCinematic({ total, onDone }: Props) {
   const [count,    setCount]    = useState(0);
@@ -46,7 +46,7 @@ export function AllocationCinematic({ total, onDone }: Props) {
     startRef.current = Date.now();
     const interval = setInterval(() => {
       const elapsed  = Date.now() - startRef.current;
-      const progress = Math.min(elapsed / (DURATION_MS * 0.75), 1);
+      const progress = Math.min(elapsed / (DURATION_MS * 0.80), 1);
       // ease-out cubic
       const eased    = 1 - Math.pow(1 - progress, 3);
       setCount(Math.round(eased * total));
@@ -101,9 +101,9 @@ export function AllocationCinematic({ total, onDone }: Props) {
         overflow: "hidden",
         opacity,
         transition: phase === "in"
-          ? "opacity 0.3s ease"
+          ? "opacity 0.4s ease"
           : phase === "out"
-          ? "opacity 0.5s ease"
+          ? "opacity 0.8s ease"
           : "none",
       }}
     >
@@ -187,7 +187,7 @@ export function AllocationCinematic({ total, onDone }: Props) {
             <div key={i} style={{
               width: 7, height: 7, borderRadius: "50%",
               background: "#6366f1",
-              animation: `ac-dot 1.2s ease-in-out ${i * 0.2}s infinite`,
+              animation: `ac-dot 1.8s ease-in-out ${i * 0.3}s infinite`,
             }} />
           ))}
         </div>
