@@ -373,13 +373,19 @@ function MentorCarouselScene({ scene }: { scene: Extract<DisplayScene, { type: "
       .catch(() => {/* ignore */});
   }, []);
 
-  // Stable auto-advance — uses refs, never recreated
+  // Stable auto-advance — only ticks when mentors are loaded
   useEffect(() => {
     const schedule = () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
-        if (!pausedRef.current && totalRef.current > 1) {
-          setActive((a) => { const n = (a + 1) % totalRef.current; activeRef.current = n; return n; });
+        const t = totalRef.current;
+        if (!pausedRef.current && t > 1) {
+          setActive((a) => {
+            const safe = Number.isFinite(a) ? a : 0;
+            const n = (safe + 1) % t;
+            activeRef.current = n;
+            return n;
+          });
         }
         schedule();
       }, INTERVAL);
@@ -396,20 +402,21 @@ function MentorCarouselScene({ scene }: { scene: Extract<DisplayScene, { type: "
     const ctrl = scene.control;
     const seq  = scene.seq;
     if (!ctrl) return;
-    // If admin sends the same seq again it's a stale SSE re-delivery — skip it.
-    // If seq is missing (old clients) fall back to always firing.
     if (seq !== undefined && seq === prevSeq.current) return;
     prevSeq.current = seq;
-    const total = totalRef.current;
-    if (ctrl === "next")  { setActive((a) => (a + 1) % total); }
-    if (ctrl === "prev")  { setActive((a) => (a - 1 + total) % total); }
+    const t = totalRef.current;
+    if (t === 0) return; // mentors not loaded yet
+    if (ctrl === "next")  { setActive((a) => { const s = Number.isFinite(a) ? a : 0; return (s + 1) % t; }); }
+    if (ctrl === "prev")  { setActive((a) => { const s = Number.isFinite(a) ? a : 0; return (s - 1 + t) % t; }); }
     if (ctrl === "pause") { setPaused(true);  pausedRef.current = true; }
     if (ctrl === "play")  { setPaused(false); pausedRef.current = false; }
-    if (ctrl === "stop")  { setPaused(true);  pausedRef.current = true; setActive(0); }
+    if (ctrl === "stop")  { setPaused(true);  pausedRef.current = true; setActive(0); activeRef.current = 0; }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene.seq, scene.control]);
 
   const total = mentors.length;
+  // Sanitize active — can be NaN if timer fired before load (now guarded, but be defensive)
+  const safeActive = Number.isFinite(active) ? ((active % total) + total) % total : 0;
 
   if (total === 0) {
     return (
@@ -468,7 +475,7 @@ function MentorCarouselScene({ scene }: { scene: Extract<DisplayScene, { type: "
       }}>
         <div style={{ position:"relative", width:0, height:0 }}>
           {mentors.map((mentor, i) => {
-          const offset = (i - active + total) % total;
+          const offset = (i - safeActive + total) % total;
           const slot   = slotFor(offset);
           const isCenter = slot === "center";
           const isHidden = slot === "hidden-left" || slot === "hidden-right";
@@ -576,17 +583,17 @@ function MentorCarouselScene({ scene }: { scene: Extract<DisplayScene, { type: "
           {mentors.map((_, i) => (
             <div key={i} onClick={() => setActive(i)}
               style={{
-                width: i === active ? 32 : 20, height:4,
-                background: i === active ? "linear-gradient(90deg,#3b82f6,#22d3ee)" : "rgba(199,210,254,.18)",
+                width: i === safeActive ? 32 : 20, height:4,
+                background: i === safeActive ? "linear-gradient(90deg,#3b82f6,#22d3ee)" : "rgba(199,210,254,.18)",
                 borderRadius:2, cursor:"pointer",
                 transition:"width 0.4s cubic-bezier(0.25,0.46,0.45,0.94), background 0.3s",
-                boxShadow: i === active ? "0 0 14px rgba(59,130,246,0.75)" : "none",
+                boxShadow: i === safeActive ? "0 0 14px rgba(59,130,246,0.75)" : "none",
               }}
             />
           ))}
         </div>
         <span style={{ fontFamily:"'Space Grotesk',ui-monospace,monospace", fontSize:"clamp(11px,1vw,14px)", letterSpacing:".12em", color:"#c7d2fe", opacity:.6, minWidth:"5ch", textAlign:"center" }}>
-          {String(active + 1).padStart(2,"0")} / {String(total).padStart(2,"0")}
+          {String(safeActive + 1).padStart(2,"0")} / {String(total).padStart(2,"0")}
         </span>
       </div>
 
