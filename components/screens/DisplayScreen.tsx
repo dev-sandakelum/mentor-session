@@ -360,8 +360,8 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
             boxShadow:"0 40px 120px -30px rgba(0,0,0,0.75),inset 0 1px 0 rgba(255,255,255,0.12)",
           }}
         >
-          {/* Spinning conic border */}
-          <div style={{ position:"absolute", inset:0, borderRadius:30, padding:"1.5px", background:"conic-gradient(from 0deg,#6366f1,#a855f7,#ec4899,#22d3ee,#fbbf24,#6366f1)", WebkitMask:"linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)", WebkitMaskComposite:"xor", maskComposite:"exclude", opacity:0.65, animation:"mcSpinBorder 8s linear infinite", pointerEvents:"none" }} />
+          {/* Static conic gradient border — no rotation */}
+          <div style={{ position:"absolute", inset:0, borderRadius:30, padding:"1.5px", background:"conic-gradient(from 45deg,#6366f1,#a855f7,#ec4899,#22d3ee,#fbbf24,#6366f1)", WebkitMask:"linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)", WebkitMaskComposite:"xor", maskComposite:"exclude", opacity:0.6, pointerEvents:"none" }} />
           {/* Sheen */}
           <div style={{ position:"absolute", inset:0, borderRadius:30, background:"linear-gradient(115deg,transparent 30%,rgba(255,255,255,0.10) 48%,transparent 66%)", backgroundSize:"250% 100%", animation:"mcSheen 7s ease-in-out infinite", pointerEvents:"none" }} />
 
@@ -467,7 +467,6 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
         @keyframes mcDrift1  { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-6vw,5vh) scale(1.12)} }
         @keyframes mcDrift2  { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(7vw,-4vh) scale(1.15)} }
         @keyframes mcDrift3  { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,-6vh) scale(0.85)} }
-        @keyframes mcSpinBorder { to { transform: rotate(360deg); } }
         @keyframes mcSheen { 0%{background-position:160% 0} 55%{background-position:-60% 0} 100%{background-position:-60% 0} }
         @keyframes mcHalo { 0%,100%{opacity:0.55;transform:scale(1)} 50%{opacity:0.95;transform:scale(1.06)} }
         @keyframes mcSpinRing { to{transform:rotate(360deg)} }
