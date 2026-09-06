@@ -64,22 +64,52 @@ function planAllocations(
     allocatedMenteeIds.add(mentee.id);
   }
 
-  // ── Phase 2: Fallback ──
+  // ── Phase 2: Fallback (2-round) ──
   if (includeFallback) {
-    const unallocated = shuffled(allMentees.filter((m) => !allocatedMenteeIds.has(m.id)));
-    const mentorsWithCapacity = shuffled(mentors.filter((m) => (available.get(m.id) ?? 0) > 0));
-    let mentorIdx = 0;
+    let unallocated = shuffled(allMentees.filter((m) => !allocatedMenteeIds.has(m.id)));
 
-    for (const mentee of unallocated) {
-      while (mentorIdx < mentorsWithCapacity.length && (available.get(mentorsWithCapacity[mentorIdx].id) ?? 0) <= 0) {
-        mentorIdx++;
-      }
-      if (mentorIdx >= mentorsWithCapacity.length) break;
-
-      const mentor = mentorsWithCapacity[mentorIdx];
+    // Helper: assign one mentee from the front of the pool to a given mentor.
+    const assignNext = (mentor: Mentor): boolean => {
+      if (unallocated.length === 0) return false;
+      const mentee = unallocated.shift()!;
       available.set(mentor.id, (available.get(mentor.id) ?? 1) - 1);
       planned.push({ mentee_id: mentee.id, mentor_id: mentor.id, method: "fallback", matched_priority: null });
       allocatedMenteeIds.add(mentee.id);
+      return true;
+    };
+
+    // Round 1 — zero-mentee mentor priority:
+    // Count how many mentees each mentor currently has (from phases 0 & 1).
+    const menteeCountByMentor = new Map<string, number>(mentors.map((m) => [m.id, 0]));
+    for (const p of planned) {
+      menteeCountByMentor.set(p.mentor_id, (menteeCountByMentor.get(p.mentor_id) ?? 0) + 1);
+    }
+
+    const zeroMentorPool = shuffled(
+      mentors.filter((m) => (menteeCountByMentor.get(m.id) ?? 0) === 0 && (available.get(m.id) ?? 0) > 0),
+    );
+
+    for (const mentor of zeroMentorPool) {
+      if (unallocated.length === 0) break;
+      assignNext(mentor);
+    }
+
+    // Round 2 — fill remaining open slots across all mentors:
+    if (unallocated.length > 0) {
+      const mentorsWithCapacity = shuffled(mentors.filter((m) => (available.get(m.id) ?? 0) > 0));
+      let mentorIdx = 0;
+
+      for (const mentee of unallocated) {
+        while (mentorIdx < mentorsWithCapacity.length && (available.get(mentorsWithCapacity[mentorIdx].id) ?? 0) <= 0) {
+          mentorIdx++;
+        }
+        if (mentorIdx >= mentorsWithCapacity.length) break;
+
+        const mentor = mentorsWithCapacity[mentorIdx];
+        available.set(mentor.id, (available.get(mentor.id) ?? 1) - 1);
+        planned.push({ mentee_id: mentee.id, mentor_id: mentor.id, method: "fallback", matched_priority: null });
+        allocatedMenteeIds.add(mentee.id);
+      }
     }
   }
 

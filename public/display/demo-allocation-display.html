@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mentor Session — Allocation Demo</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: #05070f; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: #f8fafc;
+  }
+
+  /* ── Background ── */
+  #bg {
+    position: fixed; inset: 0; z-index: 0; overflow: hidden;
+    background:
+      radial-gradient(120% 120% at 15% 0%, #0d2a66 0%, transparent 55%),
+      radial-gradient(120% 120% at 100% 100%, #0a1c3d 0%, transparent 55%),
+      linear-gradient(160deg, #060a1c 0%, #0a1230 55%, #04060f 100%);
+  }
+  .aurora {
+    position: absolute; border-radius: 50%;
+    filter: blur(70px); opacity: .55; mix-blend-mode: screen;
+  }
+  .a1 {
+    width: 46vw; height: 46vw; top: -14%; right: -8%;
+    background: radial-gradient(circle, rgba(59,130,246,.9) 0%, transparent 68%);
+    animation: drift1 24s ease-in-out infinite;
+  }
+  .a2 {
+    width: 40vw; height: 40vw; bottom: -16%; left: -6%;
+    background: radial-gradient(circle, rgba(56,189,248,.6) 0%, transparent 68%);
+    animation: drift2 28s ease-in-out infinite;
+  }
+  .a3 {
+    width: 34vw; height: 34vw; top: 30%; left: 42%;
+    background: radial-gradient(circle, rgba(34,211,238,.35) 0%, transparent 68%);
+    animation: drift3 32s ease-in-out infinite;
+  }
+  #grid {
+    position: absolute; inset: -2px;
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 60px 60px;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 75%);
+            mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 75%);
+  }
+  #vignette { position: absolute; inset: 0; background: radial-gradient(120% 120% at 50% 45%, transparent 55%, rgba(0,0,0,.6) 100%); }
+
+  @keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-6vw,5vh) scale(1.12)} }
+  @keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(7vw,-4vh) scale(1.15)} }
+  @keyframes drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,-6vh) scale(.85)} }
+
+  /* ── Layout ── */
+  #scene {
+    position: fixed; inset: 0; z-index: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 3;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: clamp(18px,3vh,32px) clamp(18px,4vw,40px) 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(10px,1.1vw,13px); letter-spacing: .14em; text-transform: uppercase;
+    color: #c7d2fe; opacity: .7;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #22d3ee; box-shadow: 0 0 10px #22d3ee;
+    animation: livePulse 2s ease-out infinite;
+  }
+  @keyframes livePulse {
+    0%  { box-shadow: 0 0 0 0   rgba(34,211,238,.6); }
+    70% { box-shadow: 0 0 0 10px rgba(34,211,238,0); }
+    100%{ box-shadow: 0 0 0 0   rgba(34,211,238,0); }
+  }
+
+  /* ── Ghost rows ── */
+  #ghost-rows {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; padding: 0 10%; overflow: hidden;
+  }
+  .ghost-row {
+    display: flex; align-items: center; gap: 16px;
+    color: #fff; font-size: clamp(11px,1.2vw,15px); font-weight: 500;
+    max-width: 600px; width: 100%;
+    transition: opacity .08s linear;
+  }
+  .ghost-row .mentee {
+    flex: 1; text-align: right; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+    color: rgba(255,255,255,.7);
+  }
+  .ghost-row .arrow { color: rgba(255,255,255,.25); flex-shrink: 0; }
+  .ghost-row .mentor {
+    flex: 1; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+    color: rgba(255,255,255,.7);
+  }
+  .ghost-row .method {
+    flex-shrink: 0; font-size: clamp(9px,1vw,12px); font-weight: 700;
+    min-width: 72px; text-align: right;
+  }
+
+  /* ── Centre counter ── */
+  #centre {
+    position: relative; text-align: center; user-select: none;
+  }
+  #glow {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 40vw; height: 40vw; max-width: 500px; max-height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(99,102,241,.28) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  #big-number {
+    font-family: 'Sora', sans-serif;
+    font-size: clamp(80px,15vw,200px); font-weight: 800; line-height: 1;
+    color: #fff; letter-spacing: -4px; font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 80px rgba(99,102,241,.7);
+    position: relative;
+  }
+  #label {
+    margin-top: 16px;
+    font-size: clamp(12px,1.5vw,18px); font-weight: 600;
+    color: rgba(199,210,254,.8); letter-spacing: 4px; text-transform: uppercase;
+  }
+  #sub-label {
+    margin-top: 8px;
+    font-size: clamp(11px,1.2vw,15px); color: rgba(199,210,254,.4);
+  }
+
+  /* ── Dots ── */
+  #dots-wrap {
+    margin-top: 24px; display: flex; justify-content: center; gap: 10px;
+  }
+  .dot {
+    width: clamp(6px,.8vw,10px); height: clamp(6px,.8vw,10px);
+    border-radius: 50%; background: #6366f1;
+    animation: dotBounce 1.8s ease-in-out infinite;
+  }
+  .dot:nth-child(2) { animation-delay: .3s; }
+  .dot:nth-child(3) { animation-delay: .6s; }
+  @keyframes dotBounce {
+    0%,80%,100% { transform: scale(.6); opacity: .4; }
+    40%          { transform: scale(1.3); opacity: 1;  }
+  }
+
+  /* ── Replay button ── */
+  #replay {
+    position: fixed; bottom: clamp(18px,4vh,36px); right: clamp(18px,4vw,40px); z-index: 4;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-radius: 99px;
+    background: rgba(99,102,241,.18); border: 1px solid rgba(99,102,241,.4);
+    color: #c7d2fe; font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+    cursor: pointer; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: background .25s, transform .2s;
+  }
+  #replay:hover { background: rgba(99,102,241,.32); transform: translateY(-1px); }
+  #replay:active { transform: scale(.96); }
+  #replay svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Demo badge ── */
+  #demo-badge {
+    position: fixed; top: clamp(14px,2.5vh,24px); left: 50%; transform: translateX(-50%); z-index: 10;
+    padding: 5px 14px; border-radius: 99px;
+    background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.4);
+    color: #fbbf24; font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<!-- Background -->
+<div id="bg" aria-hidden="true">
+  <div class="aurora a1"></div>
+  <div class="aurora a2"></div>
+  <div class="aurora a3"></div>
+  <div id="grid"></div>
+  <div id="vignette"></div>
+</div>
+
+<!-- Demo badge -->
+<div id="demo-badge">Demo</div>
+
+<!-- Header -->
+<header>
+  <span>Mentor Session</span>
+  <div class="live-dot"></div>
+  <span>2026</span>
+</header>
+
+<!-- Scene -->
+<div id="scene">
+  <!-- Ghost rows behind the number -->
+  <div id="ghost-rows"></div>
+
+  <!-- Centre -->
+  <div id="centre">
+    <div id="glow"></div>
+    <div id="big-number">0</div>
+    <div id="label">Allocating</div>
+    <div id="sub-label">of 83 mentees</div>
+    <div id="dots-wrap">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Replay -->
+<button id="replay" aria-label="Replay demo">
+  <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.97"/></svg>
+  Replay
+</button>
+
+<script>
+// ── Real mentor names (from seed-mentors-real.ts) ──────────────────────────
+const MENTOR_NAMES = [
+  "Amjad Hassan", "Udaya Madubashana", "Ruvisha Lakmina", "Dasindu Dilvan",
+  "Thisaru Thiwanka", "Gihan Kavindu", "Hasitha Sandakelum", "W. Hiruni Chethana",
+  "M. L. Omethra Thisagi", "Nadeera Nethmina", "Tharuka Perera", "Sudeshika Sandeepani",
+  "Bineth Vindinu", "Kaveesh Bandara", "Dilush Bandara", "Minula Kudarachchi",
+  "Vishwa Dasun", "Chirath Miyuru", "Nithila Kithnula", "Vinuthi Abeywardana",
+  "Hansika Devindi", "Hasaranga KHM", "Nirmal Sasindu", "Dilmi Ishara",
+  "Praveen Sandeepa", "Dilshan Madhusankha", "Tashiru Dissanayaka", "Hasindu Nethsara",
+  "Sahan Buddhika", "W. L. Bhashitha", "Wimukthi Weerasinghe", "Naveen Nethmal",
+  "Nirasha Weerawardhana", "Abhisheka Sankalpani", "Chamindu Dilhara", "M. A. Aysha",
+  "Sachin Shehan", "Chamod Kalhara", "Pasidu Prasad", "Isindu Anjana", "Nadula Ranathunga"
+];
+
+// ── Fake mentee name parts ─────────────────────────────────────────────────
+const FIRST = ["Kavindi","Pasindu","Nethmi","Ravindu","Dilani","Thilina","Amali","Buddhika",
+               "Chathurika","Dasun","Eranga","Fathima","Geeth","Hasini","Isuru","Janani",
+               "Kasun","Lahiru","Malsha","Nuwan","Oshadi","Pranith","Ruwini","Sandali",
+               "Thashmika","Umindu","Vinura","Wanisha","Yohan","Zeenath"];
+const LAST  = ["Wickramasinghe","Fernando","Perera","Senanayake","Rathnayake","Jayasinghe",
+               "Silva","Dissanayake","Bandara","Gunawardena","Rodrigo","Mendis","Pathirana",
+               "Amarasinghe","Liyanage","Samaraweera","Weerasinghe","Herath","Tennakoon"];
+
+const METHODS = ["1st choice","1st choice","1st choice","2nd choice","2nd choice","Fallback"];
+const METHOD_COLORS = { "1st choice": "#22c55e", "2nd choice": "#f59e0b", "Fallback": "#94a3b8" };
+
+function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function fakeMenteeName() { return `${rand(FIRST)} ${rand(LAST)}`; }
+
+// ── State ─────────────────────────────────────────────────────────────────
+const TOTAL    = 83;
+const DURATION = 7000; // ms for the count-up
+let   startTime, countRaf, rowInterval, ageInterval;
+let   rowId = 0;
+let   rows  = [];   // { id, mentee, mentor, method, age }
+
+const bigNumber   = document.getElementById('big-number');
+const ghostEl     = document.getElementById('ghost-rows');
+
+// ── Ghost rows ─────────────────────────────────────────────────────────────
+function renderRows() {
+  // Remove old DOM nodes for expired rows
+  ghostEl.querySelectorAll('[data-row-id]').forEach(el => {
+    const id = Number(el.dataset.rowId);
+    if (!rows.find(r => r.id === id)) el.remove();
+  });
+
+  rows.forEach(row => {
+    let el = ghostEl.querySelector(`[data-row-id="${row.id}"]`);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'ghost-row';
+      el.dataset.rowId = row.id;
+      el.innerHTML = `
+        <span class="mentee">${esc(row.mentee)}</span>
+        <span class="arrow">→</span>
+        <span class="mentor">${esc(row.mentor)}</span>
+        <span class="method" style="color:${METHOD_COLORS[row.method]}">${row.method}</span>`;
+      ghostEl.appendChild(el);
+    }
+    const opacity = Math.max(0, 1 - row.age / 3000) * 0.22;
+    el.style.opacity = opacity;
+  });
+}
+
+function spawnRow() {
+  const id = ++rowId;
+  rows = [...rows.slice(-14), {
+    id,
+    mentee: fakeMenteeName(),
+    mentor: rand(MENTOR_NAMES),
+    method: rand(METHODS),
+    age: 0,
+  }];
+  renderRows();
+}
+
+function tickAges() {
+  rows = rows.map(r => ({ ...r, age: r.age + 80 })).filter(r => r.age < 3000);
+  renderRows();
+}
+
+// ── Count-up ───────────────────────────────────────────────────────────────
+function countUp(ts) {
+  if (!startTime) startTime = ts;
+  const elapsed  = ts - startTime;
+  const progress = Math.min(elapsed / (DURATION * 0.8), 1);
+  const eased    = 1 - Math.pow(1 - progress, 3);
+  bigNumber.textContent = Math.round(eased * TOTAL);
+  if (progress < 1) {
+    countRaf = requestAnimationFrame(countUp);
+  }
+}
+
+// ── Start / Stop ───────────────────────────────────────────────────────────
+function start() {
+  // Reset
+  rows = [];
+  ghostEl.innerHTML = '';
+  bigNumber.textContent = '0';
+  startTime = null;
+
+  cancelAnimationFrame(countRaf);
+  clearInterval(rowInterval);
+  clearInterval(ageInterval);
+
+  countRaf    = requestAnimationFrame(countUp);
+  rowInterval = setInterval(spawnRow, 380);
+  ageInterval = setInterval(tickAges, 80);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.getElementById('replay').addEventListener('click', start);
+start();
+</script>
+</body>
+</html>

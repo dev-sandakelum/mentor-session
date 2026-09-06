@@ -569,27 +569,36 @@ function AllocationTab({ overview, running, onRun, onReset, onManualAssign, onRe
 
       {/* Unmatched Pool */}
       <div className="card" style={{ marginTop: 16 }}>
-        <h3 className="card-title">Unmatched Pool <span style={{ fontWeight: 400, fontSize: 13, color: "var(--gray-500)" }}>— use manual assignment above to resolve</span></h3>
+        <h3 className="card-title">
+          Unmatched Pool{" "}
+          <span style={{ fontWeight: 400, fontSize: 13, color: "var(--gray-500)" }}>
+            — assign a mentor directly from each row
+          </span>
+        </h3>
         <div style={{ overflowX: "auto" }}>
           <table>
-            <thead><tr><th>Student</th><th>Preferences</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Preferences</th>
+                <th style={{ minWidth: 260 }}>Assign to mentor</th>
+              </tr>
+            </thead>
             <tbody>
               {overview.unmatched.length
                 ? overview.unmatched.map((row, i) => {
-                    const menteeId = overview.mentees.find(m => m.full_name === row.mentee)?.id;
+                    const menteeObj = overview.mentees.find(m => m.full_name === row.mentee);
+                    const menteeId  = menteeObj?.id;
                     return (
-                      <tr key={`${row.mentee}-${i}`}>
-                        <td>{row.mentee}</td>
-                        <td className="muted">{row.preferences.join(" → ") || "No preferences"}</td>
-                        <td>
-                          <button
-                            className="btn btn-outline btn-sm"
-                            onClick={() => { if (menteeId) setManualMenteeId(menteeId); }}
-                          >
-                            Assign →
-                          </button>
-                        </td>
-                      </tr>
+                      <UnmatchedRow
+                        key={`${row.mentee}-${i}`}
+                        row={row}
+                        menteeId={menteeId}
+                        approvedMentors={approvedMentors}
+                        mentorLoads={overview.mentorLoads}
+                        running={running}
+                        onAssign={onManualAssign}
+                      />
                     );
                   })
                 : <tr><td colSpan={3} className="muted">No unmatched mentees.</td></tr>}
@@ -598,6 +607,72 @@ function AllocationTab({ overview, running, onRun, onReset, onManualAssign, onRe
         </div>
       </div>
     </>
+  );
+}
+
+/** Inline-assign row for the Unmatched Pool — keeps its own mentor selection state */
+function UnmatchedRow({
+  row,
+  menteeId,
+  approvedMentors,
+  mentorLoads,
+  running,
+  onAssign,
+}: {
+  row: { mentee: string; preferences: string[] };
+  menteeId: string | undefined;
+  approvedMentors: { id: string; full_name: string; capacity: number }[];
+  mentorLoads: { name: string; assigned: number; capacity: number }[];
+  running: boolean;
+  onAssign: (menteeId: string, mentorId: string) => void;
+}) {
+  const [selectedMentorId, setSelectedMentorId] = useState("");
+
+  const handleAssign = () => {
+    if (!menteeId || !selectedMentorId) return;
+    onAssign(menteeId, selectedMentorId);
+    setSelectedMentorId("");
+  };
+
+  return (
+    <tr>
+      <td style={{ whiteSpace: "nowrap" }}><b>{row.mentee}</b></td>
+      <td className="muted">{row.preferences.join(" → ") || "No preferences"}</td>
+      <td>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select
+            value={selectedMentorId}
+            onChange={e => setSelectedMentorId(e.target.value)}
+            disabled={!menteeId || running}
+            style={{ flex: 1, minWidth: 0 }}
+          >
+            <option value="">— pick mentor —</option>
+            {approvedMentors.map(m => {
+              const load = mentorLoads.find(l => l.name === m.full_name);
+              const full = load ? load.assigned >= load.capacity : false;
+              return (
+                <option key={m.id} value={m.id} disabled={full}>
+                  {m.full_name}{load ? ` (${load.assigned}/${load.capacity})` : ""}{full ? " — Full" : ""}
+                </option>
+              );
+            })}
+          </select>
+          <button
+            className="btn btn-primary btn-sm"
+            disabled={!menteeId || !selectedMentorId || running}
+            onClick={handleAssign}
+            style={{ flexShrink: 0 }}
+          >
+            Assign →
+          </button>
+        </div>
+        {!menteeId && (
+          <p style={{ fontSize: 11, color: "var(--red-500, #ef4444)", marginTop: 4 }}>
+            Mentee not found in registration list
+          </p>
+        )}
+      </td>
+    </tr>
   );
 }
 
