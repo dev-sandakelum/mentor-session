@@ -37,7 +37,7 @@ export const SEED_MENTORS: SeedMentor[] = [
   { fullName: "Dasindu Dilvan",         last4: "2067", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2067.jpg`  },
   { fullName: "Thisaru Thiwanka",       last4: "2069", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2069.jpg`  },
   { fullName: "Gihan Kavindu",          last4: "2071", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2071.jpg`  },
-  { fullName: "Hasitha Sandakelum",     last4: "2073", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2073.jpg`  },
+  { fullName: "Hasitha Sandakelum",     last4: "2073", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2073.jpeg`  },
   { fullName: "W. Hiruni Chethana",     last4: "2074", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2074.jpeg` },
   { fullName: "M. L. Omethra Thisagi", last4: "2075", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2075.jpg`  },
   { fullName: "Vishwa Pramuditha",     last4: "2077", email: null, phone: null, communicationMethod: "WhatsApp", capacity: 2, profilePhotoUrl: `${P}/2077.jpeg` },

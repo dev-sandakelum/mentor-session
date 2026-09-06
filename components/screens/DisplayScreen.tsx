@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { DisplayState, DisplayScene } from "@/lib/display-state";
 
-// ─── Ghost row animation helpers ─────────────────────────────────────────────
+// Ghost row animation helpers
 
 const FIRST = ["Kavindi","Pasindu","Nethmi","Ravindu","Dilani","Thilina","Amali","Buddhika",
                "Chathurika","Dasun","Eranga","Fathima","Geeth","Hasini","Isuru","Janani",
@@ -21,7 +21,7 @@ function fakeName() { return `${rand(FIRST)} ${rand(LAST)}`; }
 
 interface GhostRow { id: number; mentee: string; mentor: string; method: string; age: number }
 
-// ─── Scene renderers ─────────────────────────────────────────────────────────
+// Scene renderers
 
 function IdleScene() {
   return (
@@ -55,6 +55,8 @@ function LiveRegistrationsScene() {
   const [count,    setCount]    = useState<number | null>(null);
   const [prevCount, setPrevCount] = useState<number | null>(null);
   const [bump,     setBump]     = useState(false);
+  const [ringKey,  setRingKey]  = useState(0);
+  const [history,  setHistory]  = useState<number[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,7 +71,11 @@ function LiveRegistrationsScene() {
             if (prev !== null && data.count !== prev) {
               setPrevCount(prev);
               setBump(true);
-              setTimeout(() => setBump(false), 600);
+              setRingKey(k => k + 1);
+              setHistory(h => [...h.slice(-19), data.count]);
+              setTimeout(() => setBump(false), 700);
+            } else if (prev === null) {
+              setHistory([data.count]);
             }
             return data.count;
           });
@@ -83,65 +89,169 @@ function LiveRegistrationsScene() {
   }, []);
 
   const displayCount = count ?? 0;
+  const R    = 120;
+  const CIRC = 2 * Math.PI * R;
 
   return (
     <div style={{
-      position: "fixed", inset: 0,
-      background: "linear-gradient(145deg,#06061a 0%,#0b0b22 55%,#070714 100%)",
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      overflow: "hidden",
+      position:"fixed", inset:0,
+      fontFamily:"Manrope,sans-serif",
+      WebkitFontSmoothing:"antialiased",
+      color:"#eef5ff",
+      background:"radial-gradient(ellipse 130% 90% at 50% -10%,#0d1b4a 0%,#030a1c 55%,#020810 100%)",
+      display:"flex", flexDirection:"column",
+      alignItems:"center", justifyContent:"center",
+      overflow:"hidden",
     }}>
-      {/* Aurora blobs */}
-      <div style={{ position:"absolute", width:"50vw", height:"50vw", top:"-15%", right:"-10%", borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.6) 0%,transparent 70%)", filter:"blur(80px)", opacity:0.4, animation:"mcDrift1 22s ease-in-out infinite", pointerEvents:"none" }} />
-      <div style={{ position:"absolute", width:"40vw", height:"40vw", bottom:"-15%", left:"-8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(168,85,247,0.5) 0%,transparent 70%)", filter:"blur(80px)", opacity:0.35, animation:"mcDrift2 28s ease-in-out infinite", pointerEvents:"none" }} />
 
-      {/* Label */}
-      <div style={{
-        fontSize: "clamp(13px,1.8vw,22px)", fontWeight: 700,
-        letterSpacing: "4px", textTransform: "uppercase",
-        color: "rgba(199,210,254,0.5)", marginBottom: "3vh",
-      }}>
-        Registrations
-      </div>
+      {/* Background grid */}
+      <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+        backgroundImage:"linear-gradient(rgba(79,157,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(79,157,255,.045) 1px,transparent 1px)",
+        backgroundSize:"72px 72px",
+        WebkitMaskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,#000 20%,transparent 75%)",
+        maskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,#000 20%,transparent 75%)" }} />
 
-      {/* Big counter */}
-      <div style={{ position: "relative", lineHeight: 1 }}>
-        {/* Glow */}
-        <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:"40vw", height:"40vw", maxWidth:500, borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,0.3) 0%,transparent 65%)", pointerEvents:"none" }} />
-        <div style={{
-          fontSize: "clamp(100px,20vw,260px)", fontWeight: 800,
-          color: "#fff", letterSpacing: "-6px", fontVariantNumeric: "tabular-nums",
-          textShadow: "0 0 100px rgba(99,102,241,0.7)",
-          transform: bump ? "scale(1.08)" : "scale(1)",
-          transition: "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)",
-          position: "relative", display: "inline-block",
-        }}>
-          {count === null ? "—" : displayCount}
+      {/* Ambient orbs */}
+      <div style={{ position:"absolute", width:"55vw", height:"55vw", top:"-20%", left:"50%", transform:"translateX(-50%)", borderRadius:"50%", background:"radial-gradient(circle,rgba(79,157,255,.2) 0%,transparent 70%)", filter:"blur(80px)", pointerEvents:"none", animation:"reg-drift1 18s ease-in-out infinite" }} />
+      <div style={{ position:"absolute", width:"35vw", height:"35vw", bottom:"-8%", left:"8%",  borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,.22) 0%,transparent 70%)", filter:"blur(70px)", pointerEvents:"none", animation:"reg-drift2 24s ease-in-out infinite" }} />
+      <div style={{ position:"absolute", width:"35vw", height:"35vw", bottom:"-8%", right:"8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(94,225,255,.16) 0%,transparent 70%)", filter:"blur(70px)", pointerEvents:"none", animation:"reg-drift3 20s ease-in-out infinite" }} />
+
+      {/* Header brand */}
+      <div style={{ position:"absolute", top:"clamp(20px,3vh,40px)", left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>
+        <RobotLogoMark size="clamp(32px,2.8vh,42px)" />
+        <div style={{ fontWeight:800, fontSize:"clamp(16px,1.6vh,22px)", letterSpacing:"-.03em" }}>
+          MentorFlow
+          <small style={{ display:"block", font:`600 clamp(9px,.8vh,12px) "DM Sans",sans-serif`, letterSpacing:".16em", textTransform:"uppercase", color:"#8ea6c9", marginTop:2 }}>
+            Mentor session · 2026
+          </small>
         </div>
       </div>
 
-      {/* Sub label */}
-      <div style={{
-        marginTop: "3vh",
-        fontSize: "clamp(12px,1.5vw,18px)", fontWeight: 600,
-        color: "rgba(199,210,254,0.45)", letterSpacing: "2px",
-      }}>
-        mentees registered
+      {/* Central ring + counter */}
+      <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+
+        {/* Steady background pulse rings */}
+        <div style={{ position:"absolute", width:"clamp(320px,42vw,520px)", height:"clamp(320px,42vw,520px)", borderRadius:"50%", border:"1px solid rgba(79,157,255,.1)", animation:"reg-idle-ring 4s ease-out infinite", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:"clamp(290px,38vw,470px)", height:"clamp(290px,38vw,470px)", borderRadius:"50%", border:"1px solid rgba(79,157,255,.06)", animation:"reg-idle-ring 4s ease-out infinite", animationDelay:"-.8s", pointerEvents:"none" }} />
+
+        {/* SVG ring */}
+        <svg
+          key={ringKey}
+          width="clamp(260px,34vw,420px)"
+          height="clamp(260px,34vw,420px)"
+          viewBox="0 0 280 280"
+          style={{ transform:"rotate(-90deg)", flexShrink:0 }}
+        >
+          <defs>
+            <linearGradient id="reg-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%"   stopColor="#4f9dff" />
+              <stop offset="100%" stopColor="#5ee1ff" />
+            </linearGradient>
+          </defs>
+
+          {/* Static dim track ring */}
+          <circle cx="140" cy="140" r={R} fill="none"
+            stroke="rgba(79,157,255,.1)" strokeWidth="7" />
+
+          {/* Animated ring arc */}
+          <circle cx="140" cy="140" r={R} fill="none"
+            stroke="url(#reg-grad)"
+            strokeWidth="7"
+            strokeLinecap="round"
+            strokeDasharray={`${CIRC} ${CIRC}`}
+            style={{
+              animation: bump || ringKey > 0
+                ? "reg-ring-spin 1.2s cubic-bezier(.2,.8,.2,1) forwards"
+                : undefined,
+            }}
+          />
+
+          {/* Glow dot that orbits once with the arc */}
+
+          {(bump || ringKey > 0) && (
+            <circle cx="140" cy={140 - R} r="6" fill="#5ee1ff"
+              style={{ animation:"reg-dot-orbit 1.2s cubic-bezier(.2,.8,.2,1) forwards",
+                       filter:"url(#glow)" }} />
+          )}
+
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+        </svg>
+
+        {/* Counter inside the ring */}
+        <div style={{ position:"absolute", textAlign:"center", pointerEvents:"none" }}>
+          <div style={{
+            fontSize:"clamp(90px,12vw,155px)", fontWeight:800,
+            letterSpacing:"-4px", lineHeight:1,
+            fontVariantNumeric:"tabular-nums",
+            color:"#fff",
+            textShadow:"0 0 60px rgba(79,157,255,.65)",
+            transform: bump ? "scale(1.1)" : "scale(1)",
+            transition:"transform 0.45s cubic-bezier(0.34,1.56,0.64,1)",
+            display:"inline-block",
+          }}>
+            {count === null ? "—" : displayCount}
+          </div>
+          <div style={{ fontSize:"clamp(12px,1.3vw,18px)", fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(140,190,255,.5)", marginTop:6 }}>
+            mentees registered
+          </div>
+        </div>
       </div>
 
-      {/* Live indicator */}
-      <div style={{ marginTop: "2vh", display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", animation: "mcLivePulse 2s ease-out infinite" }} />
-        <span style={{ fontSize: "clamp(10px,1vw,13px)", fontWeight: 600, color: "rgba(199,210,254,0.4)", letterSpacing: "1px" }}>
-          LIVE · updates every 3s
-        </span>
+      {/* ── Sparkline history bar ── */}
+      {history.length > 1 && (
+        <div style={{ display:"flex", alignItems:"flex-end", gap:5, height:40, marginTop:"clamp(20px,3vh,38px)" }}>
+          {history.map((v, i) => {
+            const maxH = Math.max(...history);
+            const h = maxH > 0 ? Math.round((v / maxH) * 36) : 4;
+            const isLast = i === history.length - 1;
+            return (
+              <div key={i} style={{ width:7, height:`${Math.max(h,4)}px`, borderRadius:4, background: isLast ? "#5ee1ff" : "rgba(79,157,255,.32)", transition:"height .5s ease", boxShadow: isLast ? "0 0 10px #5ee1ff" : undefined }} />
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Live indicator ── */}
+      <div style={{ marginTop:"clamp(20px,3vh,36px)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(52,211,153,.08)", border:"1px solid rgba(52,211,153,.2)", borderRadius:999, padding:"clamp(7px,.8vh,11px) clamp(16px,1.6vw,24px)" }}>
+          <div style={{ width:9, height:9, borderRadius:"50%", background:"#34d399", flexShrink:0, animation:"reg-live 2s ease-out infinite" }} />
+          <span style={{ fontSize:"clamp(12px,1.2vw,16px)", fontWeight:700, color:"rgba(134,239,172,.9)", letterSpacing:".1em", textTransform:"uppercase" }}>
+            Live · updates every 3s
+          </span>
+        </div>
       </div>
+
+      {/* ── Bump flash overlay ── */}
+      {bump && (
+        <div style={{ position:"fixed", inset:0, background:"radial-gradient(circle at 50% 50%,rgba(79,157,255,.07),transparent 65%)", pointerEvents:"none", animation:"reg-flash .7s ease-out forwards" }} />
+      )}
 
       <style>{`
-        @keyframes mcDrift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,4vh) scale(1.1)} }
-        @keyframes mcDrift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(6vw,-4vh) scale(1.12)} }
-        @keyframes mcLivePulse { 0%{box-shadow:0 0 0 0 rgba(52,211,153,0.6)} 70%{box-shadow:0 0 0 10px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
+        @keyframes reg-drift1 { 0%,100%{transform:translateX(-50%) translate(0,0)}   50%{transform:translateX(-50%) translate(4vw,-5vh)} }
+        @keyframes reg-drift2 { 0%,100%{transform:translate(0,0)}   50%{transform:translate(3vw,-4vh)} }
+        @keyframes reg-drift3 { 0%,100%{transform:translate(0,0)}   50%{transform:translate(-4vw,3vh)} }
+        @keyframes reg-live   { 0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)} 70%{box-shadow:0 0 0 10px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
+        @keyframes reg-idle-ring { 0%{opacity:.6;transform:scale(1)} 60%{opacity:0;transform:scale(1.05)} 100%{opacity:0;transform:scale(1.05)} }
+        @keyframes reg-flash  { 0%{opacity:1} 100%{opacity:0} }
+        /* Ring arc draws from 0 → full circle once, then fades back */
+        @keyframes reg-ring-spin {
+          0%   { stroke-dashoffset: ${CIRC};  opacity: 0.2; }
+          15%  { opacity: 1; }
+          70%  { stroke-dashoffset: 0;        opacity: 1; }
+          100% { stroke-dashoffset: 0;        opacity: 0.18; }
+        }
+        /* Dot travels the full circle once */
+        @keyframes reg-dot-orbit {
+          0%   { transform: rotate(0deg)   translateY(${-R}px); opacity:0.4; }
+          15%  { opacity: 1; }
+          70%  { transform: rotate(360deg) translateY(${-R}px); opacity:1; }
+          100% { transform: rotate(360deg) translateY(${-R}px); opacity:0; }
+        }
       `}</style>
     </div>
   );
