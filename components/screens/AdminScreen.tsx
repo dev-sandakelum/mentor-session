@@ -912,7 +912,6 @@ function DisplayControlTab({ overview, onRunAllocation }: {
                 { icon:"📊", label:"Live Registrations",  scene:{ type:"live-registrations" },                                           color:"#1e293b" },
                 { icon:"🙏", label:"Thank You",           scene:{ type:"thankyou" },                                                     color:"#1e293b" },
                 { icon:"✅", label:"Show Results",         scene:{ type:"results", assigned:s.assigned, unmatched:s.unassigned, satisfaction:s.preferenceSatisfaction }, color:"#14532d", textColor:"#bbf7d0" },
-                { icon:"🖥", label:"Allocation Screen",   scene:{ type:"allocation", count:0, total:s.totalMentees },                    color:"#172554" },
               ] as { icon:string; label:string; scene:object; color:string; textColor?:string }[]).map((item) => (
                 <button
                   key={item.label}
@@ -937,49 +936,29 @@ function DisplayControlTab({ overview, onRunAllocation }: {
             </div>
           </div>
 
-          {/* ── Allocation Display ── */}
+          {/* ── Run Allocation ── */}
           <div>
             <div style={{ color:"rgba(148,163,184,0.55)", fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>Allocation</div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              <button
-                disabled={sending}
-                onClick={() => void push({ type:"allocation", count:0, total:s.totalMentees })}
-                style={{
-                  width:"100%", padding:"20px 16px",
-                  background: sending ? "rgba(30,58,138,0.4)" : "#172554",
-                  color:"#93c5fd", border:"1px solid rgba(59,130,246,0.25)", borderRadius:18,
-                  fontSize:16, fontWeight:700, cursor: sending ? "not-allowed" : "pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center", gap:10,
-                  boxShadow:"0 4px 16px rgba(0,0,0,0.35)",
-                  transition:"transform 0.1s", userSelect:"none",
-                }}
-                onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.97)"; }}
-                onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
-                onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
-              >
-                <span style={{ fontSize:24 }}>🖥</span>
-                Go to Allocation Screen
-              </button>
-              <button
-                disabled={sending}
-                onClick={() => void push({ type:"allocation", count:0, total:s.totalMentees })}
-                style={{
-                  width:"100%", padding:"20px 16px",
-                  background: sending ? "rgba(37,99,235,0.4)" : "linear-gradient(135deg,#1d4ed8,#4f46e5)",
-                  color:"#fff", border:"none", borderRadius:18,
-                  fontSize:16, fontWeight:700, cursor: sending ? "not-allowed" : "pointer",
-                  display:"flex", alignItems:"center", justifyContent:"center", gap:10,
-                  boxShadow:"0 6px 24px rgba(37,99,235,0.45)",
-                  transition:"transform 0.1s", userSelect:"none",
-                }}
-                onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.97)"; }}
-                onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
-                onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
-              >
-                <span style={{ fontSize:24 }}>⚡</span>
-                Allocation Running (Preview)
-              </button>
-            </div>
+            <button
+              disabled={sending}
+              onClick={() => void handleRunAllocation()}
+              style={{
+                width:"100%", padding:"22px 16px",
+                background: sending ? "rgba(37,99,235,0.4)" : "linear-gradient(135deg,#1d4ed8,#4f46e5)",
+                color:"#fff", border:"none", borderRadius:18,
+                fontSize:17, fontWeight:700, cursor: sending ? "not-allowed" : "pointer",
+                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4,
+                boxShadow:"0 6px 24px rgba(37,99,235,0.45)",
+                transition:"transform 0.1s", userSelect:"none",
+              }}
+              onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.97)"; }}
+              onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+              onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+            >
+              <span style={{ fontSize:26, lineHeight:1 }}>⚡</span>
+              <span>Run Allocation</span>
+              <span style={{ fontSize:11, fontWeight:500, opacity:0.75 }}>FCFS + Fallback</span>
+            </button>
           </div>
 
           {/* ── Carousel Controls ── */}
@@ -1159,13 +1138,8 @@ function DisplayControlTab({ overview, onRunAllocation }: {
             onClick={() => void push({ type: "thankyou" })}>
             🙏 Thank You
           </button>
-          <button className="btn btn-outline btn-sm" disabled={sending}
-            title="Switch display to allocation screen with counter at 0"
-            onClick={() => void push({ type: "allocation", count: 0, total: s.totalMentees })}>
-            🖥 Go to Allocation Screen
-          </button>
           <button className="btn btn-primary btn-sm" disabled={sending}
-            title="Run allocation and show live counter on display"
+            title="Run allocation with fallback and show live counter on display"
             onClick={() => void handleRunAllocation()}>
             ⚡ Run Allocation
           </button>
@@ -1632,7 +1606,7 @@ export function AdminScreen() {
       const res = await fetch("/api/admin/allocations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "commit", includeFallback: false }),
+        body: JSON.stringify({ mode: "commit", includeFallback: true }),
       });
       const data: unknown = await res.json();
       if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Allocation failed.");
