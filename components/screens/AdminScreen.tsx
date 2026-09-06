@@ -912,6 +912,7 @@ function DisplayControlTab({ overview, onRunAllocation }: {
                 { icon:"📊", label:"Live Registrations",  scene:{ type:"live-registrations" },                                           color:"#1e293b" },
                 { icon:"🙏", label:"Thank You",           scene:{ type:"thankyou" },                                                     color:"#1e293b" },
                 { icon:"✅", label:"Show Results",         scene:{ type:"results", assigned:s.assigned, unmatched:s.unassigned, satisfaction:s.preferenceSatisfaction }, color:"#14532d", textColor:"#bbf7d0" },
+                { icon:"🖥", label:"Allocation Screen",   scene:{ type:"allocation", count:0, total:s.totalMentees },                    color:"#172554" },
               ] as { icon:string; label:string; scene:object; color:string; textColor?:string }[]).map((item) => (
                 <button
                   key={item.label}
@@ -1137,6 +1138,11 @@ function DisplayControlTab({ overview, onRunAllocation }: {
           <button className="btn btn-outline btn-sm" disabled={sending}
             onClick={() => void push({ type: "thankyou" })}>
             🙏 Thank You
+          </button>
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            title="Switch display to allocation screen with counter at 0"
+            onClick={() => void push({ type: "allocation", count: 0, total: s.totalMentees })}>
+            🖥 Go to Allocation Screen
           </button>
           <button className="btn btn-primary btn-sm" disabled={sending}
             title="Run allocation with fallback and show live counter on display"
