@@ -937,28 +937,49 @@ function DisplayControlTab({ overview, onRunAllocation }: {
             </div>
           </div>
 
-          {/* ── Run Allocation ── */}
+          {/* ── Allocation Display ── */}
           <div>
             <div style={{ color:"rgba(148,163,184,0.55)", fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>Allocation</div>
-            <button
-              disabled={sending}
-              onClick={() => void handleRunAllocation()}
-              style={{
-                width:"100%", padding:"22px 16px",
-                background: sending ? "rgba(37,99,235,0.4)" : "linear-gradient(135deg,#1d4ed8,#4f46e5)",
-                color:"#fff", border:"none", borderRadius:18,
-                fontSize:17, fontWeight:700, cursor: sending ? "not-allowed" : "pointer",
-                display:"flex", alignItems:"center", justifyContent:"center", gap:10,
-                boxShadow:"0 6px 24px rgba(37,99,235,0.45)",
-                transition:"transform 0.1s", userSelect:"none",
-              }}
-              onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.97)"; }}
-              onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
-              onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
-            >
-              <span style={{ fontSize:26 }}>⚡</span>
-              Run Allocation
-            </button>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <button
+                disabled={sending}
+                onClick={() => void push({ type:"allocation", count:0, total:s.totalMentees })}
+                style={{
+                  width:"100%", padding:"20px 16px",
+                  background: sending ? "rgba(30,58,138,0.4)" : "#172554",
+                  color:"#93c5fd", border:"1px solid rgba(59,130,246,0.25)", borderRadius:18,
+                  fontSize:16, fontWeight:700, cursor: sending ? "not-allowed" : "pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                  boxShadow:"0 4px 16px rgba(0,0,0,0.35)",
+                  transition:"transform 0.1s", userSelect:"none",
+                }}
+                onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.97)"; }}
+                onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+              >
+                <span style={{ fontSize:24 }}>🖥</span>
+                Go to Allocation Screen
+              </button>
+              <button
+                disabled={sending}
+                onClick={() => void push({ type:"allocation", count:0, total:s.totalMentees })}
+                style={{
+                  width:"100%", padding:"20px 16px",
+                  background: sending ? "rgba(37,99,235,0.4)" : "linear-gradient(135deg,#1d4ed8,#4f46e5)",
+                  color:"#fff", border:"none", borderRadius:18,
+                  fontSize:16, fontWeight:700, cursor: sending ? "not-allowed" : "pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                  boxShadow:"0 6px 24px rgba(37,99,235,0.45)",
+                  transition:"transform 0.1s", userSelect:"none",
+                }}
+                onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.97)"; }}
+                onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+              >
+                <span style={{ fontSize:24 }}>⚡</span>
+                Allocation Running (Preview)
+              </button>
+            </div>
           </div>
 
           {/* ── Carousel Controls ── */}
