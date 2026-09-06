@@ -34,9 +34,10 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseAdmin();
     const session = await getCurrentSession();
-    // prefs_open is always present on SessionConfig (getCurrentSession handles the fallback)
-    const prefsOpen = session.prefs_open;
-    if (!prefsOpen || session.status !== "registration") {
+    // prefs_open is always present on SessionConfig (getCurrentSession handles the fallback).
+    // The prefs_open flag is independent of session lifecycle status — the admin controls it
+    // explicitly, so we only check that flag (not session.status).
+    if (!session.prefs_open) {
       throw new ApiError("Preference selection is currently closed.", 403);
     }
     const { data: mentee, error: menteeError } = await supabase
