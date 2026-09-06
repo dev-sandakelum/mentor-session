@@ -787,8 +787,12 @@ function DataTab({
 
 // ─── Display control tab ─────────────────────────────────────────────────────
 
-function DisplayControlTab({ overview }: { overview: Overview }) {
+function DisplayControlTab({ overview, onRunAllocation }: {
+  overview: Overview;
+  onRunAllocation: () => Promise<number>;
+}) {
   const [sending,    setSending]    = useState(false);
+  const [remoteMode, setRemoteMode] = useState(false);
   const [customText, setCustomText] = useState("");
   const [customSub,  setCustomSub]  = useState("");
   const [lastScene,  setLastScene]  = useState("");
@@ -806,15 +810,23 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
     } finally { setSending(false); }
   };
 
+  const pushCarousel = (control: "play" | "pause" | "next" | "prev" | "stop") => {
+    void push({ type: "mentor-carousel", control, seq: Date.now() });
+  };
+
+  const handleRunAllocation = async () => {
+    await push({ type: "allocation", count: 0, total: overview.stats.totalMentees });
+    const assigned = await onRunAllocation();
+    void push({ type: "allocation", count: assigned, total: overview.stats.totalMentees });
+  };
+
   // Build mentor-card scene from overview data
   const pushMentorCard = (idx: number) => {
     const mentor = overview.mentors[idx];
     if (!mentor) return;
-    // Find mentees assigned to this mentor
     const mentees = overview.mentees
       .filter((m) => m.assignedMentor === mentor.full_name)
       .map((m) => ({ name: m.full_name, studentId: m.student_id }));
-
     void push({
       type: "mentor-card",
       mentor: {
@@ -844,6 +856,238 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
 
   const s = overview.stats;
 
+  // ── Remote Control overlay ─────────────────────────────────────────────────
+  if (remoteMode) {
+    return (
+      <div style={{
+        position:"fixed", inset:0, zIndex:9999, overflowY:"auto",
+        background:"linear-gradient(160deg,#0f172a 0%,#1e293b 100%)",
+        fontFamily:"'Inter',system-ui,sans-serif",
+        display:"flex", flexDirection:"column",
+      }}>
+        {/* Header */}
+        <div style={{
+          display:"flex", alignItems:"center", justifyContent:"space-between",
+          padding:"18px 20px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)",
+          flexShrink:0,
+        }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ fontSize:22 }}>📡</span>
+            <div>
+              <div style={{ color:"#f1f5f9", fontWeight:700, fontSize:17, lineHeight:1 }}>Remote Control</div>
+              <div style={{ color:"rgba(148,163,184,0.7)", fontSize:12, marginTop:3 }}>
+                {lastScene
+                  ? <span>Active: <b style={{ color:"#38bdf8" }}>{lastScene}</b></span>
+                  : <span>No scene active</span>}
+                {sending && <span style={{ marginLeft:8, color:"#fbbf24" }}>● sending…</span>}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setRemoteMode(false)}
+            style={{
+              background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.12)",
+              borderRadius:10, padding:"8px 18px", color:"#94a3b8",
+              fontSize:13, fontWeight:600, cursor:"pointer",
+            }}
+          >
+            ✕ Exit Remote
+          </button>
+        </div>
+
+        {/* Sections */}
+        <div style={{
+          flex:1, padding:"20px 16px 40px",
+          display:"flex", flexDirection:"column", gap:24,
+          maxWidth:540, width:"100%", margin:"0 auto",
+        }}>
+
+          {/* ── Scenes ── */}
+          <div>
+            <div style={{ color:"rgba(148,163,184,0.55)", fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>Scenes</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              {([
+                { icon:"🌌", label:"Cover / Idle",        scene:{ type:"idle" },                                                          color:"#1e293b" },
+                { icon:"🎠", label:"Mentor Carousel",     scene:{ type:"mentor-carousel" },                                              color:"#172554" },
+                { icon:"📊", label:"Live Registrations",  scene:{ type:"live-registrations" },                                           color:"#1e293b" },
+                { icon:"🙏", label:"Thank You",           scene:{ type:"thankyou" },                                                     color:"#1e293b" },
+                { icon:"✅", label:"Show Results",         scene:{ type:"results", assigned:s.assigned, unmatched:s.unassigned, satisfaction:s.preferenceSatisfaction }, color:"#14532d", textColor:"#bbf7d0" },
+                { icon:"🖥", label:"Allocation Screen",   scene:{ type:"allocation", count:0, total:s.totalMentees },                    color:"#172554" },
+              ] as { icon:string; label:string; scene:object; color:string; textColor?:string }[]).map((item) => (
+                <button
+                  key={item.label}
+                  disabled={sending}
+                  onClick={() => void push(item.scene)}
+                  style={{
+                    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                    gap:6, padding:"20px 12px", background:item.color, color: item.textColor ?? "#f1f5f9",
+                    border:"none", borderRadius:18, cursor: sending ? "not-allowed" : "pointer",
+                    opacity: sending ? 0.5 : 1, minHeight:90,
+                    boxShadow:"0 4px 16px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.07)",
+                    transition:"transform 0.1s", userSelect:"none",
+                  }}
+                  onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.94)"; }}
+                  onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                  onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                >
+                  <span style={{ fontSize:28, lineHeight:1 }}>{item.icon}</span>
+                  <span style={{ fontSize:12, fontWeight:700, textAlign:"center", lineHeight:1.3 }}>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Run Allocation ── */}
+          <div>
+            <div style={{ color:"rgba(148,163,184,0.55)", fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>Allocation</div>
+            <button
+              disabled={sending}
+              onClick={() => void handleRunAllocation()}
+              style={{
+                width:"100%", padding:"22px 16px",
+                background: sending ? "rgba(37,99,235,0.4)" : "linear-gradient(135deg,#1d4ed8,#4f46e5)",
+                color:"#fff", border:"none", borderRadius:18,
+                fontSize:17, fontWeight:700, cursor: sending ? "not-allowed" : "pointer",
+                display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+                boxShadow:"0 6px 24px rgba(37,99,235,0.45)",
+                transition:"transform 0.1s", userSelect:"none",
+              }}
+              onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.97)"; }}
+              onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+              onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+            >
+              <span style={{ fontSize:26 }}>⚡</span>
+              Run Allocation
+            </button>
+          </div>
+
+          {/* ── Carousel Controls ── */}
+          <div>
+            <div style={{ color:"rgba(148,163,184,0.55)", fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>Carousel Controls</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10 }}>
+              {([
+                { icon:"◀",  label:"Prev",  ctrl:"prev"  as const, color:"#1e293b" },
+                { icon:"▶",  label:"Play",  ctrl:"play"  as const, color:"#14532d", textColor:"#bbf7d0" },
+                { icon:"▶|", label:"Next",  ctrl:"next"  as const, color:"#1e293b" },
+                { icon:"⏸",  label:"Pause", ctrl:"pause" as const, color:"#422006", textColor:"#fde68a" },
+                { icon:"⏹",  label:"Stop",  ctrl:"stop"  as const, color:"#450a0a", textColor:"#fca5a5", wide:true },
+              ] as { icon:string; label:string; ctrl:"play"|"pause"|"next"|"prev"|"stop"; color:string; textColor?:string; wide?:boolean }[]).map((item) => (
+                <button
+                  key={item.ctrl}
+                  disabled={sending}
+                  onClick={() => pushCarousel(item.ctrl)}
+                  style={{
+                    gridColumn: item.wide ? "span 2" : "span 1",
+                    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                    gap:5, padding:"16px 10px", background:item.color, color: item.textColor ?? "#f1f5f9",
+                    border:"none", borderRadius:16, cursor: sending ? "not-allowed" : "pointer",
+                    opacity: sending ? 0.5 : 1, minHeight:76,
+                    boxShadow:"0 4px 14px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.07)",
+                    transition:"transform 0.1s", userSelect:"none",
+                  }}
+                  onPointerDown={(e) => { (e.currentTarget as HTMLButtonElement).style.transform="scale(0.93)"; }}
+                  onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                  onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                >
+                  <span style={{ fontSize:24, lineHeight:1 }}>{item.icon}</span>
+                  <span style={{ fontSize:11, fontWeight:700 }}>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Mentor Card Nav ── */}
+          {approvedMentors.length > 0 && (
+            <div>
+              <div style={{ color:"rgba(148,163,184,0.55)", fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>
+                Mentor Card — {safeMentorIdx + 1} / {approvedMentors.length}
+              </div>
+              <div style={{
+                background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)",
+                borderRadius:12, padding:"12px 16px", color:"#f1f5f9", fontWeight:600,
+                fontSize:15, marginBottom:10, textAlign:"center",
+              }}>
+                {approvedMentors[safeMentorIdx]?.full_name}
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:10 }}>
+                {([
+                  { icon:"◀", label:"Prev",    action:() => goTo(safeMentorIdx - 1), disabled: safeMentorIdx === 0 },
+                  { icon:"📺", label:"Show",    action:() => goTo(safeMentorIdx),     disabled: false },
+                  { icon:"▶", label:"Next",    action:() => goTo(safeMentorIdx + 1), disabled: safeMentorIdx >= approvedMentors.length - 1 },
+                ] as { icon:string; label:string; action:()=>void; disabled:boolean }[]).map((item) => (
+                  <button
+                    key={item.label}
+                    disabled={sending || item.disabled}
+                    onClick={item.action}
+                    style={{
+                      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                      gap:5, padding:"14px 8px", background:"#1e293b", color:"#f1f5f9",
+                      border:"none", borderRadius:14, cursor: (sending || item.disabled) ? "not-allowed" : "pointer",
+                      opacity: (sending || item.disabled) ? 0.4 : 1, minHeight:70,
+                      boxShadow:"0 4px 12px rgba(0,0,0,0.3)", transition:"transform 0.1s", userSelect:"none",
+                    }}
+                    onPointerDown={(e) => { if (!item.disabled) (e.currentTarget as HTMLButtonElement).style.transform="scale(0.93)"; }}
+                    onPointerUp={(e)   => { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                    onPointerLeave={(e)=> { (e.currentTarget as HTMLButtonElement).style.transform=""; }}
+                  >
+                    <span style={{ fontSize:22, lineHeight:1 }}>{item.icon}</span>
+                    <span style={{ fontSize:11, fontWeight:700 }}>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+              <select
+                value={safeMentorIdx}
+                onChange={(e) => goTo(Number(e.target.value))}
+                style={{
+                  width:"100%", padding:"10px 14px",
+                  background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)",
+                  borderRadius:10, color:"#f1f5f9", fontSize:13,
+                }}
+              >
+                {approvedMentors.map((m, i) => (
+                  <option key={m.id} value={i} style={{ background:"#1e293b" }}>
+                    {i + 1}. {m.full_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* ── Custom Message ── */}
+          <div>
+            <div style={{ color:"rgba(148,163,184,0.55)", fontSize:11, fontWeight:700, letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:10 }}>Custom Message</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <input
+                type="text" placeholder="Main text…" value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:10, padding:"12px 14px", color:"#f1f5f9", fontSize:14 }}
+              />
+              <input
+                type="text" placeholder="Sub-text (optional)" value={customSub}
+                onChange={(e) => setCustomSub(e.target.value)}
+                style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:10, padding:"12px 14px", color:"#f1f5f9", fontSize:14 }}
+              />
+              <button
+                disabled={sending || !customText.trim()}
+                onClick={() => void push({ type:"custom", text:customText.trim(), sub:customSub.trim() || undefined })}
+                style={{
+                  padding:"14px", borderRadius:12, border:"none", fontSize:14, fontWeight:700, cursor:"pointer",
+                  background: customText.trim() ? "#4f46e5" : "rgba(255,255,255,0.05)",
+                  color: customText.trim() ? "#fff" : "#475569",
+                  opacity: (sending || !customText.trim()) ? 0.5 : 1,
+                }}
+              >
+                Push Message →
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal tab view ────────────────────────────────────────────────────────
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
@@ -858,6 +1102,18 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
             style={{ display:"inline-flex", alignItems:"center", gap:6, background:"var(--indigo-soft)", color:"var(--indigo)", fontWeight:700, fontSize:13, padding:"8px 16px", borderRadius:9, textDecoration:"none" }}>
             /display ↗
           </a>
+          <button
+            onClick={() => setRemoteMode(true)}
+            style={{
+              display:"inline-flex", alignItems:"center", gap:7,
+              background:"linear-gradient(135deg,#1d4ed8,#4f46e5)", color:"#fff",
+              border:"none", borderRadius:9, fontWeight:700, fontSize:13,
+              padding:"8px 18px", cursor:"pointer",
+              boxShadow:"0 2px 10px rgba(79,70,229,0.4)",
+            }}
+          >
+            📡 Remote Control Mode
+          </button>
           {lastScene && <span className="muted" style={{ fontSize:12 }}>Active scene: <b>{lastScene}</b></span>}
         </div>
       </div>
@@ -882,9 +1138,15 @@ function DisplayControlTab({ overview }: { overview: Overview }) {
             onClick={() => void push({ type: "thankyou" })}>
             🙏 Thank You
           </button>
+          <button className="btn btn-outline btn-sm" disabled={sending}
+            title="Switch display to allocation screen with counter at 0"
+            onClick={() => void push({ type: "allocation", count: 0, total: s.totalMentees })}>
+            🖥 Go to Allocation Screen
+          </button>
           <button className="btn btn-primary btn-sm" disabled={sending}
-            onClick={() => void push({ type: "allocation", count: s.assigned, total: s.totalMentees })}>
-            ⚡ Allocation Running
+            title="Run allocation and show live counter on display"
+            onClick={() => void handleRunAllocation()}>
+            ⚡ Run Allocation
           </button>
           <button className="btn btn-sm" disabled={sending}
             style={{ background:"var(--green)", color:"#fff" }}
@@ -1343,6 +1605,26 @@ export function AdminScreen() {
     finally { setRunning(false); }
   };
 
+  // Called by DisplayControlTab remote — commits allocation and returns the count
+  const runAllocationForDisplay = async (): Promise<number> => {
+    try {
+      const res = await fetch("/api/admin/allocations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "commit", includeFallback: false }),
+      });
+      const data: unknown = await res.json();
+      if (!res.ok) throw new Error(typeof data === "object" && data && "error" in data && typeof data.error === "string" ? data.error : "Allocation failed.");
+      const result = data as { allocationCount: number };
+      showToast(`Allocation complete: ${result.allocationCount} assigned.`);
+      void loadOverview();
+      return result.allocationCount;
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Allocation failed.");
+      return 0;
+    }
+  };
+
   const resetAllocation = async () => {
     setRunning(true);
     try {
@@ -1584,7 +1866,9 @@ export function AdminScreen() {
               onBulkDelete={(target) => void bulkDelete(target)}
             />
           )}
-          {activeTab === "display"    && <DisplayControlTab overview={overview} />}
+          {activeTab === "display" && (
+            <DisplayControlTab overview={overview} onRunAllocation={runAllocationForDisplay} />
+          )}}
         </>
       )}
 
