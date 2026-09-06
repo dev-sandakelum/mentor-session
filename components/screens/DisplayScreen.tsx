@@ -147,117 +147,693 @@ function LiveRegistrationsScene() {
   );
 }
 
+// ─── Shared robot logo mark + keyframes ──────────────────────────────────────
+
+/**
+ * RoboStyles — inject keyframes once. Render it anywhere; the <style> tag is
+ * idempotent in the browser (duplicate keyframe names just overwrite each other).
+ */
+function RoboStyles() {
+  return (
+    <style>{`
+      @keyframes robo-blink {
+        0%,44%,48%,52%,100% { transform: scaleY(1); }
+        46%,50%             { transform: scaleY(0.08); }
+      }
+      @keyframes robo-glance-l {
+        0%,30%,70%,100% { left:20%; top:39%; }
+        35%,45%         { left:25%; top:37%; }
+        50%,60%         { left:15%; top:41%; }
+        65%             { left:20%; top:39%; }
+      }
+      @keyframes robo-glance-r {
+        0%,30%,70%,100% { right:20%; top:39%; }
+        35%,45%         { right:15%; top:37%; }
+        50%,60%         { right:25%; top:41%; }
+        65%             { right:20%; top:39%; }
+      }
+      @keyframes robo-scan {
+        0%   { transform: translateY(-100%); opacity:0; }
+        10%  { opacity:1; }
+        90%  { opacity:1; }
+        100% { transform: translateY(100%);  opacity:0; }
+      }
+      @keyframes robo-halo {
+        0%,100% { opacity:.55; transform:scale(1);    }
+        50%     { opacity:1;   transform:scale(1.08); }
+      }
+      @keyframes robo-breathe {
+        0%,100% { box-shadow: 0 20px 70px rgba(79,157,255,.45), 0 0 0 1px rgba(255,255,255,.12), inset 0 2px 0 rgba(255,255,255,.2); }
+        50%     { box-shadow: 0 24px 90px rgba(79,157,255,.75), 0 0 0 1px rgba(255,255,255,.18), inset 0 2px 0 rgba(255,255,255,.28); }
+      }
+    `}</style>
+  );
+}
+
+/**
+ * RobotLogoMark — the animated blue rounded-square face.
+ *
+ * size  — CSS length string for both width & height, e.g. "clamp(40px,3.4vh,52px)"
+ * glow  — whether to render the pulsing halo ring (used on loading screen, not header)
+ */
+function RobotLogoMark({ size, glow = false }: { size: string; glow?: boolean }) {
+  return (
+    <div style={{ position:"relative", flexShrink:0 }}>
+      {glow && (
+        <div style={{
+          position:"absolute", inset:"-35%", borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(79,157,255,.32) 0%,transparent 70%)",
+          filter:"blur(32px)", pointerEvents:"none",
+          animation:"robo-halo 3s ease-in-out infinite",
+        }} />
+      )}
+      <div style={{
+        position:"relative",
+        width: size, height: size,
+        borderRadius:"30%",
+        background:"linear-gradient(145deg,#4f9dff,#2d6cf0)",
+        boxShadow: glow
+          ? "0 0 0 1px rgba(255,255,255,.12), inset 0 2px 0 rgba(255,255,255,.2)"
+          : "0 10px 32px rgba(79,157,255,.35)",
+        animation: glow ? "robo-breathe 3s ease-in-out infinite" : undefined,
+        overflow:"hidden",
+        display:"flex", alignItems:"center", justifyContent:"center",
+      }}>
+        {/* Scan sweep */}
+        <div style={{
+          position:"absolute", inset:0,
+          background:"linear-gradient(180deg,transparent 30%,rgba(255,255,255,.13) 50%,transparent 70%)",
+          animation:"robo-scan 4s ease-in-out infinite",
+          pointerEvents:"none",
+        }} />
+        {/* Left eye */}
+        <div style={{
+          position:"absolute", width:"22%", height:"22%",
+          background:"#06122e", borderRadius:"30%",
+          top:"39%", left:"20%",
+          animation:"robo-blink 5s ease-in-out infinite, robo-glance-l 9s ease-in-out infinite",
+          boxShadow: glow ? "inset 0 1px 3px rgba(0,0,0,.8)" : undefined,
+        }} />
+        {/* Right eye */}
+        <div style={{
+          position:"absolute", width:"22%", height:"22%",
+          background:"#06122e", borderRadius:"30%",
+          top:"39%", right:"20%",
+          animation:"robo-blink 5s ease-in-out infinite, robo-glance-r 9s ease-in-out infinite",
+          boxShadow: glow ? "inset 0 1px 3px rgba(0,0,0,.8)" : undefined,
+        }} />
+      </div>
+    </div>
+  );
+}
+
 function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allocation" }> }) {
-  const [count, setCount] = useState(0);
-  const [rows,  setRows]  = useState<GhostRow[]>([]);
-  const rowIdRef = useRef(0);
-  const startRef = useRef(Date.now());
+  // ── Types ──────────────────────────────────────────────────────────────
+  type AllocRow = { mentee: string; mentor: string; method: "preference" | "fallback" | "manual"; priority: number | null };
+  type AllocData = { allocations: AllocRow[]; fcfsCount: number; fallbackCount: number; total: number; menteeTotal: number };
 
-  // Count-up
-  useEffect(() => {
-    startRef.current = Date.now();
-    const DURATION = 7000;
-    const iv = setInterval(() => {
-      const elapsed  = Date.now() - startRef.current;
-      const progress = Math.min(elapsed / (DURATION * 0.80), 1);
-      const eased    = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(eased * scene.count));
-      if (progress >= 1) clearInterval(iv);
-    }, 60);
-    return () => clearInterval(iv);
-  }, [scene.count]);
+  // ── Refs & state ───────────────────────────────────────────────────────
+  const allDataRef      = useRef<AllocRow[]>([]);
+  const revealedRef     = useRef(0);
+  const tickerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+  const menteeTotalRef  = useRef(scene.total || 83);
 
-  // Ghost rows
+  // DOM refs for flying-chip positioning
+  const queueNodeRef    = useRef<HTMLDivElement>(null);
+  const fcfsEngineRef   = useRef<HTMLDivElement>(null);
+  const fbEngineRef     = useRef<HTMLDivElement>(null);
+  const assignedNodeRef = useRef<HTMLDivElement>(null);
+
+  const [displayed,    setDisplayed]   = useState<AllocRow[]>([]);   // "Latest matches" column
+  const [feedItems,    setFeedItems]   = useState<(AllocRow & {key:number})[]>([]);  // activity feed
+  const [fcfsCount,    setFcfsCount]   = useState(0);
+  const [fbCount,      setFbCount]     = useState(0);
+  const [revealedCount,setRevealedCount] = useState(0);
+  const [masterPct,    setMasterPct]   = useState(0);
+  const [fcfsPct,      setFcfsPct]     = useState(0);
+  const [fbPct,        setFbPct]       = useState(0);
+  const [activeEngine, setActiveEngine]= useState<"fcfs"|"fallback"|null>(null);
+  const [isComplete,   setIsComplete]  = useState(false);
+  const [hasData,      setHasData]     = useState(false);
+  const [minDelayDone, setMinDelayDone]= useState(false);   // 4s minimum loading screen
+  const [queueItems,   setQueueItems]  = useState<{id:number;name:string;exiting?:boolean}[]>([]);
+  const feedKeyRef     = useRef(0);
+  const qIdRef         = useRef(0);
+
+  // ── 4-second minimum loading screen ───────────────────────────────────
   useEffect(() => {
-    const iv = setInterval(() => {
-      const id = ++rowIdRef.current;
-      setRows((prev) => [...prev.slice(-14), { id, mentee: fakeName(), mentor: fakeName(), method: rand(METHODS), age: 0 }]);
-    }, 380);
-    return () => clearInterval(iv);
+    const t = setTimeout(() => setMinDelayDone(true), 4000);
+    return () => clearTimeout(t);
   }, []);
 
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setRows((prev) => prev.map((r) => ({ ...r, age: r.age + 80 })).filter((r) => r.age < 3000));
-    }, 80);
-    return () => clearInterval(iv);
+  // ── Flying chip ────────────────────────────────────────────────────────
+  const flyChip = React.useCallback((initials: string, method: "fcfs" | "fallback") => {
+    const from = queueNodeRef.current?.getBoundingClientRect();
+    const via  = (method === "fcfs" ? fcfsEngineRef : fbEngineRef).current?.getBoundingClientRect();
+    const to   = assignedNodeRef.current?.getBoundingClientRect();
+    if (!from || !via || !to) return;
+
+    const isFb  = method === "fallback";
+    const chip  = document.createElement("div");
+    chip.textContent = initials;
+    Object.assign(chip.style, {
+      position: "fixed", zIndex: "999", pointerEvents: "none",
+      border: "1px solid rgba(255,255,255,.2)",
+      background: isFb ? "#0f4a63" : "#1b3d8a",
+      color: isFb ? "#e6fbff" : "#e8f1ff",
+      borderRadius: "999px", padding: "8px 13px",
+      fontSize: "13px", fontWeight: "800",
+      fontFamily: "Manrope,sans-serif",
+      boxShadow: `0 8px 25px rgba(0,0,0,.4),0 0 22px ${isFb ? "rgba(94,225,255,.3)" : "rgba(79,157,255,.3)"}`,
+      whiteSpace: "nowrap",
+      left: `${from.right - 60}px`,
+      top:  `${from.top + from.height * 0.4}px`,
+    });
+    document.body.appendChild(chip);
+
+    const y0  = from.top + from.height * 0.4;
+    const viaX = via.left - (from.right - 60) + 70;
+    const viaY = via.top  + via.height / 2    - y0;
+    const toX  = to.left  - (from.right - 60) + 90;
+    const toY  = to.top   + 80                 - y0;
+
+    chip.animate(
+      [
+        { transform: "translate(0,0) scale(.8)",                      opacity: "0" },
+        { transform: `translate(${viaX}px,${viaY}px) scale(1)`,      opacity: "1", offset: 0.46 },
+        { transform: `translate(${toX}px,${toY}px)   scale(.7)`,     opacity: "0" },
+      ],
+      { duration: 1050, easing: "cubic-bezier(.2,.75,.2,1)" }
+    ).onfinish = () => chip.remove();
   }, []);
+
+  // ── Confetti burst ─────────────────────────────────────────────────────
+  const fireConfetti = React.useCallback(() => {
+    const colors = ["#4f9dff","#5ee1ff","#ffc766","#eef5ff","#22c55e"];
+    const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)];
+    for (let i = 0; i < 50; i++) {
+      const c = document.createElement("div");
+      const x = `${(Math.random() - 0.5) * 700}px`;
+      const y = `${-120 + Math.random() * 460}px`;
+      const r = `${Math.random() * 700 - 350}deg`;
+      Object.assign(c.style, {
+        position: "fixed", zIndex: "9999", pointerEvents: "none",
+        width: "6px", height: "13px", borderRadius: "3px",
+        left: `${48 + Math.random() * 4}%`, top: "55%",
+        background: pick(colors),
+        animationDelay: `${Math.random() * 0.18}s`,
+        animation: `alloc-confetti 1.4s ease-out forwards`,
+      });
+      c.style.setProperty("--x", x);
+      c.style.setProperty("--y", y);
+      c.style.setProperty("--r", r);
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 1800);
+    }
+  }, []);
+
+  // ── Helper: rebuild queue ──────────────────────────────────────────────
+  // Shows the next ~4 unallocated mentees from the real data as the queue stack.
+  // Falls back to synthetic names only when real data runs out.
+  const rebuildQueue = React.useCallback((revealedCount: number) => {
+    const all  = allDataRef.current;
+    // Peek the next up-to-4 rows after the current revealed index
+    const next4 = all.slice(revealedCount, revealedCount + 4);
+
+    // If real data covers all 4 slots, use it directly
+    const realNames = next4.map((r) => r.mentee);
+
+    // Pad with synthetic names if not enough real rows remain
+    while (realNames.length < 4) {
+      realNames.push(`${rand(FIRST)} ${rand(LAST)}`);
+    }
+
+    const next = realNames.map((name) => ({ id: ++qIdRef.current, name, exiting: false }));
+
+    setQueueItems((prev) => {
+      if (prev.length > 0) {
+        // Flag the top card as exiting, then swap in fresh list after 300ms
+        const withExit = [{ ...prev[0], exiting: true }, ...prev.slice(1)];
+        setTimeout(() => setQueueItems(next), 300);
+        return withExit;
+      }
+      return next;
+    });
+  }, []);
+
+  // ── Drip-feed ticker ──────────────────────────────────────────────────
+  const TICK_MS = 620;
+
+  const scheduleNext = React.useCallback(() => {
+    if (tickerRef.current) clearTimeout(tickerRef.current);
+    tickerRef.current = setTimeout(() => {
+      const all = allDataRef.current;
+      const idx = revealedRef.current;
+      if (idx >= all.length) return;
+
+      const row    = all[idx];
+      const newIdx = idx + 1;
+      revealedRef.current = newIdx;
+
+      const isFcfs = row.method === "preference";
+      const eng    = isFcfs ? "fcfs" : "fallback";
+      const ini    = row.mentee.split(/\s+/).slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+
+      // Flash engine + launch chip
+      setActiveEngine(eng);
+      setTimeout(() => setActiveEngine(null), 500);
+      flyChip(ini, eng);
+
+      // Cards appear when chip lands (~510ms)
+      setTimeout(() => {
+        setDisplayed((prev) => [row, ...prev].slice(0, 7));
+        setFeedItems((prev) => [{ ...row, key: ++feedKeyRef.current }, ...prev].slice(0, 14));
+      }, 510);
+
+      setRevealedCount(newIdx);
+
+      const total   = menteeTotalRef.current;
+      const newFcfs = all.slice(0, newIdx).filter((r) => r.method === "preference").length;
+      const newFb   = newIdx - newFcfs;
+      const allTot  = Math.max(newFcfs + newFb, 1);
+      setFcfsCount(newFcfs);
+      setFbCount(newFb);
+      setMasterPct((newIdx / total) * 100);
+      setFcfsPct(Math.min((newFcfs / allTot) * 100, 100));
+      setFbPct(Math.min((newFb   / allTot) * 100, 100));
+
+      rebuildQueue(newIdx);
+
+      if (newIdx >= all.length && all.length >= total) {
+        setTimeout(() => { setIsComplete(true); fireConfetti(); }, 600);
+      } else {
+        scheduleNext();
+      }
+    }, TICK_MS);
+  }, [rebuildQueue, flyChip, fireConfetti]);
+
+  // ── Poll DB every 5s for new committed rows ────────────────────────────
+  const fetchData = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/display/allocations");
+      if (!res.ok) return;
+      const d = await res.json() as AllocData;
+      menteeTotalRef.current = d.menteeTotal || scene.total || 83;
+
+      const prev = allDataRef.current.length;
+      // Merge: keep existing order, append new ones at the end
+      allDataRef.current = d.allocations;
+      setHasData(true);
+
+      // Seed the queue with real names on first load (or whenever new rows arrive)
+      if (prev === 0 && d.allocations.length > 0) {
+        rebuildQueue(0);
+      }
+
+      if (d.allocations.length > prev && revealedRef.current >= prev) {
+        // New rows arrived — start ticking if not already running
+        scheduleNext();
+      }
+    } catch { /* ignore */ }
+  }, [scene.total, scheduleNext, rebuildQueue]);
+
+  useEffect(() => {
+    fetchData();
+    pollRef.current = setInterval(fetchData, 5000);
+    return () => {
+      if (pollRef.current)  clearInterval(pollRef.current);
+      if (tickerRef.current) clearTimeout(tickerRef.current);
+    };
+  }, [fetchData]);
+
+  // ── Idle / loading state — robot face (same as header logo, 4s min display) ─
+  if (!hasData || !minDelayDone) {
+    return (
+      <div style={{
+        position:"fixed", inset:0,
+        background:"radial-gradient(circle at 50% 40%,#061640 0%,#030a1c 60%,#020810 100%)",
+        display:"flex", flexDirection:"column",
+        alignItems:"center", justifyContent:"center",
+        overflow:"hidden", fontFamily:"Manrope,sans-serif",
+      }}>
+        {/* Background grid */}
+        <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+          backgroundImage:"linear-gradient(rgba(79,157,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,157,255,.04) 1px,transparent 1px)",
+          backgroundSize:"60px 60px",
+          WebkitMaskImage:"radial-gradient(ellipse 70% 70% at 50% 50%,#000 20%,transparent 80%)",
+          maskImage:"radial-gradient(ellipse 70% 70% at 50% 50%,#000 20%,transparent 80%)" }} />
+
+        {/* Ambient orbs */}
+        <div style={{ position:"absolute", width:"50vw", height:"50vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(79,157,255,.22) 0%,transparent 70%)", filter:"blur(80px)", top:"-10%", left:"50%", transform:"translateX(-50%)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:"30vw", height:"30vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(94,225,255,.15) 0%,transparent 70%)", filter:"blur(60px)", bottom:"-5%", left:"20%", animation:"rf-drift1 10s ease-in-out infinite", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", width:"30vw", height:"30vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(45,108,240,.2) 0%,transparent 70%)", filter:"blur(60px)", bottom:"-5%", right:"20%", animation:"rf-drift2 12s ease-in-out infinite", pointerEvents:"none" }} />
+
+        {/* ── Logo robot — same component as header, scaled up with glow ── */}
+        <RobotLogoMark size="clamp(160px,22vw,260px)" glow />
+
+        {/* Title */}
+        <div style={{ marginTop:"clamp(28px,4vh,48px)", textAlign:"center" }}>
+          <div style={{ fontSize:"clamp(26px,3.5vw,42px)", fontWeight:800, color:"#eef5ff", letterSpacing:"-.03em", lineHeight:1 }}>
+            MentorFlow
+          </div>
+          <div style={{ fontSize:"clamp(11px,1.2vw,15px)", fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(140,190,255,.45)", marginTop:10 }}>
+            Mentor session · 2026
+          </div>
+        </div>
+
+        {/* Loading indicator */}
+        <div style={{ marginTop:"clamp(24px,3.5vh,42px)", display:"flex", flexDirection:"column", alignItems:"center", gap:14 }}>
+          <div style={{ display:"flex", gap:10 }}>
+            {[0,1,2].map(i => (
+              <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#4f9dff", animation:"rf-dot 1.2s ease-in-out infinite", animationDelay:`${i * 0.22}s`, boxShadow:"0 0 10px #4f9dff" }} />
+            ))}
+          </div>
+          <div style={{ fontSize:"clamp(12px,1.1vw,15px)", fontWeight:600, color:"rgba(140,190,255,.4)", letterSpacing:".1em", textTransform:"uppercase" }}>
+            Initialising allocation engine…
+          </div>
+        </div>
+
+        <RoboStyles />
+        <style>{`
+          @keyframes rf-dot    { 0%,80%,100%{transform:scale(.7);opacity:.4} 40%{transform:scale(1.3);opacity:1} }
+          @keyframes rf-drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(4vw,-3vh)} }
+          @keyframes rf-drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-4vw,3vh)} }
+        `}</style>
+      </div>
+    );
+  }
+
+  const total      = menteeTotalRef.current;
+
+  const methodLabel = (m: string, p: number | null) => {
+    if (m === "preference") return p === 1 ? "1st choice" : p === 2 ? "2nd choice" : p === 3 ? "3rd choice" : "Preference";
+    if (m === "fallback")   return "Fallback";
+    return "Manual";
+  };
+  const methodColor = (m: string, p: number | null) => {
+    if (m === "preference") return p === 1 ? "#22c55e" : p === 2 ? "#f59e0b" : "#a78bfa";
+    return "#38bdf8";
+  };
+
+  // ── icon helpers ──────────────────────────────────────────────────────
+  const FcfsIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" style={{ width:"clamp(14px,1.2vh,19px)", height:"clamp(14px,1.2vh,19px)" }}>
+      <path d="M5 7h14M5 12h10M5 17h6"/>
+    </svg>
+  );
+  const FallbackIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width:"clamp(14px,1.2vh,19px)", height:"clamp(14px,1.2vh,19px)" }}>
+      <path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>
+    </svg>
+  );
+  const PeopleIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" style={{ width:"clamp(22px,2.2vh,30px)", height:"clamp(22px,2.2vh,30px)" }}>
+      <circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
+      <circle cx="17" cy="7" r="3" opacity=".5"/><path d="M21 21v-2a4 4 0 0 0-3-3.87" opacity=".5"/>
+    </svg>
+  );
+  const LightningIcon = () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" style={{ width:"clamp(11px,1vh,15px)", height:"clamp(11px,1vh,15px)" }}>
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+  );
 
   return (
     <div style={{
-      width:"100%", height:"100%",
-      background:"rgba(10,10,30,0.97)",
-      display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center",
-      overflow:"hidden", position:"relative",
+      position:"fixed", inset:0, overflow:"hidden",
+      fontFamily:'"DM Sans","Manrope",system-ui,sans-serif',
+      WebkitFontSmoothing:"antialiased",
+      color:"#eef5ff",
+      background:"radial-gradient(circle at 10% 10%,rgba(45,108,240,.28),transparent 34rem),radial-gradient(circle at 90% 15%,rgba(18,182,221,.16),transparent 30rem),radial-gradient(circle at 50% 110%,rgba(79,157,255,.12),transparent 40rem),linear-gradient(150deg,#03081a 0%,#061131 55%,#04091c 100%)",
     }}>
-      {/* Ghost rows */}
-      <div style={{
-        position:"absolute", inset:0, pointerEvents:"none",
-        display:"flex", flexDirection:"column",
-        alignItems:"center", justifyContent:"center",
-        gap:8, padding:"0 10%", overflow:"hidden",
-      }}>
-        {rows.map((row) => {
-          const opacity = Math.max(0, 1 - row.age / 3000) * 0.22;
-          return (
-            <div key={row.id} style={{
-              display:"flex", alignItems:"center", gap:16,
-              color:"#fff", fontSize:"clamp(11px,1.2vw,15px)", fontWeight:500,
-              opacity, transition:"opacity 0.08s linear",
-              maxWidth:600, width:"100%",
-            }}>
-              <span style={{ flex:1, textAlign:"right", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:"rgba(255,255,255,0.7)" }}>{row.mentee}</span>
-              <span style={{ color:"rgba(255,255,255,0.25)", flexShrink:0 }}>→</span>
-              <span style={{ flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:"rgba(255,255,255,0.7)" }}>{row.mentor}</span>
-              <span style={{ flexShrink:0, fontSize:"clamp(9px,1vw,12px)", fontWeight:700, color: METHOD_COLORS[row.method], minWidth:72, textAlign:"right" }}>{row.method}</span>
-            </div>
-          );
-        })}
-      </div>
+      {/* Grid overlay */}
+      <div style={{ position:"absolute", inset:0, pointerEvents:"none", opacity:.4,
+        backgroundImage:"linear-gradient(rgba(140,190,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(140,190,255,.05) 1px,transparent 1px)",
+        backgroundSize:"60px 60px",
+        WebkitMaskImage:"linear-gradient(to bottom,#000,transparent 92%)",
+        maskImage:"linear-gradient(to bottom,#000,transparent 92%)" }} />
 
-      {/* Centre */}
-      <div style={{ position:"relative", textAlign:"center", userSelect:"none" }}>
-        <div style={{
-          position:"absolute", top:"50%", left:"50%",
-          transform:"translate(-50%,-50%)",
-          width:"40vw", height:"40vw", maxWidth:500, maxHeight:500,
-          borderRadius:"50%",
-          background:"radial-gradient(circle,rgba(99,102,241,0.28) 0%,transparent 70%)",
-          pointerEvents:"none",
-        }} />
-        <div style={{
-          fontSize:"clamp(80px,15vw,200px)", fontWeight:800, lineHeight:1,
-          color:"#fff", letterSpacing:"-4px", fontVariantNumeric:"tabular-nums",
-          textShadow:"0 0 80px rgba(99,102,241,0.7)",
-          position:"relative",
-        }}>
-          {count}
-        </div>
-        <div style={{ marginTop:16, fontSize:"clamp(12px,1.5vw,18px)", fontWeight:600, color:"rgba(199,210,254,0.8)", letterSpacing:"4px", textTransform:"uppercase" }}>
-          Allocating
-        </div>
-        {scene.total > 0 && (
-          <div style={{ marginTop:8, fontSize:"clamp(11px,1.2vw,15px)", color:"rgba(199,210,254,0.4)" }}>
-            of {scene.total} mentees
+      {/* Orbs */}
+      <div style={{ position:"fixed", width:520, height:520, borderRadius:"50%", filter:"blur(100px)", opacity:.16, left:-200, top:"35%", background:"#4f9dff", animation:"alloc-orb 14s ease-in-out infinite alternate", pointerEvents:"none" }} />
+      <div style={{ position:"fixed", width:520, height:520, borderRadius:"50%", filter:"blur(100px)", opacity:.16, right:-200, bottom:-160, background:"#5ee1ff", animation:"alloc-orb 14s ease-in-out infinite alternate", animationDelay:"-6s", pointerEvents:"none" }} />
+
+      {/* Shell */}
+      <div style={{ position:"relative", height:"100vh", width:"min(1720px,100%)", margin:"0 auto", padding:"clamp(10px,1.3vh,20px) clamp(20px,3vw,52px)", display:"flex", flexDirection:"column", gap:"clamp(8px,1vh,16px)" }}>
+
+        {/* ── Header ── */}
+        <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+          {/* Brand */}
+          <div style={{ display:"flex", alignItems:"center", gap:16, fontFamily:"Manrope,sans-serif", fontWeight:800, letterSpacing:"-.035em", fontSize:"clamp(20px,2.2vh,30px)" }}>
+            <RobotLogoMark size="clamp(40px,3.4vh,52px)" />
+            <span>MentorFlow
+              <small style={{ display:"block", font:`600 clamp(11px,1vh,14px) "DM Sans",sans-serif`, letterSpacing:".14em", textTransform:"uppercase", color:"#8ea6c9", marginTop:2 }}>Mentor session · 2026</small>
+            </span>
           </div>
-        )}
-        <div style={{ marginTop:24, display:"flex", justifyContent:"center", gap:10 }}>
-          {[0,1,2].map((i) => (
-            <div key={i} style={{
-              width:"clamp(6px,0.8vw,10px)", height:"clamp(6px,0.8vw,10px)",
-              borderRadius:"50%", background:"#6366f1",
-              animation:`ds-dot 1.8s ease-in-out ${i*0.3}s infinite`,
-            }} />
-          ))}
+          {/* Live pill */}
+          <div style={{ display:"flex", alignItems:"center", gap:10, border:"1px solid rgba(140,190,255,.13)", background:"rgba(8,20,50,.7)", padding:"clamp(8px,.8vh,13px) clamp(14px,1.3vh,20px)", borderRadius:999, color: isComplete ? "#86efac" : "#c3d6f5", fontSize:"clamp(13px,1.15vh,17px)", fontWeight:700, letterSpacing:".1em", textTransform:"uppercase" }}>
+            <span style={{ width:10, height:10, borderRadius:"50%", background: isComplete ? "#22c55e" : "#4f9dff", boxShadow: isComplete ? "0 0 8px rgba(34,197,94,.7)" : "0 0 0 0 rgba(79,157,255,.55)", animation: isComplete ? "none" : "alloc-live 1.8s infinite", flexShrink:0, display:"inline-block" }} />
+            {isComplete ? "Allocation Complete" : "Allocation Live"}
+          </div>
+        </header>
+
+        {/* ── Dashboard grid ── */}
+        <div style={{ flex:1, minHeight:0, display:"grid", gridTemplateColumns:"minmax(0,1fr) clamp(320px,24vw,420px)", gap:"clamp(8px,1vh,16px)" }}>
+
+          {/* ── Main card ── */}
+          <div style={{ position:"relative", minHeight:0, border:"1px solid rgba(140,190,255,.13)", background:"linear-gradient(145deg,rgba(13,30,70,.82),rgba(6,14,38,.86))", boxShadow:"0 30px 90px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)", backdropFilter:"blur(20px)", borderRadius:28, padding:"clamp(14px,1.5vh,24px)", display:"flex", flexDirection:"column" }}>
+            <div style={{ position:"absolute", inset:0, pointerEvents:"none", borderRadius:28, background:"linear-gradient(115deg,rgba(255,255,255,.035),transparent 28%)" }} />
+
+            {/* Card head */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:14, paddingBottom:"clamp(10px,1.2vh,18px)", flexShrink:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                <h2 style={{ font:`800 clamp(18px,1.7vh,26px) Manrope,sans-serif`, letterSpacing:"-.02em" }}>Allocation pipeline</h2>
+                <span style={{ color:"#6f89b3", fontSize:"clamp(13px,1.1vh,17px)" }}>Two strategies · one live process</span>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:9, color: isComplete ? "#22c55e" : "#4f9dff", fontSize:"clamp(13px,1.1vh,16px)", fontWeight:700, padding:"clamp(6px,.65vh,10px) clamp(12px,1.2vh,18px)", border:`1px solid ${isComplete ? "rgba(34,197,94,.3)" : "rgba(79,157,255,.25)"}`, borderRadius:999, background: isComplete ? "rgba(34,197,94,.1)" : "rgba(79,157,255,.12)" }}>
+                {!isComplete && <div style={{ width:13, height:13, border:"2px solid rgba(79,157,255,.25)", borderTopColor:"#4f9dff", borderRadius:"50%", animation:"alloc-spin .8s linear infinite", flexShrink:0 }} />}
+                {isComplete ? "Complete" : "Processing"}
+              </div>
+            </div>
+
+            {/* Flow */}
+            <div style={{ position:"relative", flex:1, minHeight:0, display:"grid", gridTemplateColumns:"minmax(180px,.78fr) 52px minmax(260px,1.4fr) 52px minmax(200px,.9fr)", alignItems:"stretch", gap:10 }}>
+
+              {/* ── Queue node ── */}
+              <div ref={queueNodeRef} style={{ position:"relative", border:"1px solid rgba(140,190,255,.1)", background:"rgba(3,10,30,.5)", borderRadius:22, padding:"clamp(14px,1.5vh,22px)", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
+                <div>
+                  <div style={{ color:"#7d97c2", font:`800 clamp(11px,1vh,14px) Manrope,sans-serif`, letterSpacing:".14em", textTransform:"uppercase", marginBottom:"clamp(12px,1.2vh,18px)", display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ width:"clamp(22px,2vh,28px)", height:"clamp(22px,2vh,28px)", borderRadius:8, background:"rgba(79,157,255,.12)", display:"grid", placeItems:"center", flexShrink:0 }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#4f9dff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width:"clamp(12px,1.1vh,16px)", height:"clamp(12px,1.1vh,16px)" }}>
+                        <path d="M12 5v14M5 12l7 7 7-7"/>
+                      </svg>
+                    </span>
+                    Incoming queue
+                  </div>
+                  {/* Queue stack */}
+                  <div style={{ position:"relative", height:"clamp(140px,15vh,220px)", margin:"0 4px 4px" }}>
+                    {queueItems.slice(0, 4).map((item, qi) => {
+                      const scales    = [1, 0.94, 0.88, 0.82];
+                      const tops      = ["0%", "25%", "50%", "75%"];
+                      const opacities = [1, 0.65, 0.38, 0.18];
+                      return (
+                        <div key={item.id} style={{ position:"absolute", left:0, right:0, height:"clamp(50px,5.2vh,76px)", border:"1px solid rgba(140,190,255,.14)", background:"linear-gradient(145deg,#12275a,#0b1a40)", borderRadius:16, display:"flex", alignItems:"center", gap:12, padding:"clamp(8px,.9vh,13px)", boxShadow:"0 12px 26px rgba(0,0,0,.25)", top:tops[qi], zIndex:4-qi, transform:`scale(${scales[qi]})`, opacity: item.exiting ? 0 : opacities[qi], transformOrigin:"top center", transition:"all .45s cubic-bezier(.2,.8,.2,1)", animation: item.exiting ? "alloc-queueExit .3s cubic-bezier(.4,0,1,1) forwards" : qi === 0 ? "alloc-queueEnter .35s cubic-bezier(.16,1,.3,1) both" : "none" }}>
+                          <div style={{ width:"clamp(32px,3.2vh,46px)", height:"clamp(32px,3.2vh,46px)", borderRadius:12, display:"grid", placeItems:"center", background:"linear-gradient(145deg,#2a4f9a,#1a3570)", color:"#d8e8ff", fontSize:"clamp(12px,1.1vh,16px)", fontWeight:800, flexShrink:0 }}>
+                            {item.name.split(/\s+/).slice(0,2).map((w:string)=>w[0]).join("").toUpperCase()}
+                          </div>
+                          <span style={{ minWidth:0 }}>
+                            <b style={{ display:"block", fontSize:"clamp(14px,1.3vh,18px)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</b>
+                            <small style={{ display:"block", color:"#7c95bf", fontSize:"clamp(11px,1vh,14px)", marginTop:3 }}>Pending</small>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div style={{ display:"flex", alignItems:"flex-end", gap:10 }}>
+                  <strong style={{ font:`800 clamp(34px,3.8vh,58px)/.9 Manrope,sans-serif`, letterSpacing:"-.05em", color:"#fff" }}>{total - revealedCount}</strong>
+                  <span style={{ fontSize:"clamp(14px,1.2vh,18px)", color:"#7d97c2", paddingBottom:6 }}>waiting</span>
+                </div>
+              </div>
+
+              {/* Connector → */}
+              <div style={{ position:"relative", display:"flex", alignItems:"center" }}>
+                <div style={{ height:2, width:"100%", background:"linear-gradient(90deg,rgba(79,157,255,.12),rgba(79,157,255,.7),rgba(79,157,255,.12))" }} />
+                <div style={{ position:"absolute", right:0, width:9, height:9, borderTop:"2px solid #4f9dff", borderRight:"2px solid #4f9dff", transform:"rotate(45deg)" }} />
+                <div style={{ position:"absolute", width:10, height:10, borderRadius:"50%", background:"#4f9dff", boxShadow:"0 0 14px #4f9dff", animation:"alloc-travel 1.35s linear infinite" }} />
+              </div>
+
+              {/* ── Engines ── */}
+              <div style={{ display:"grid", gridTemplateRows:"1fr 1fr", gap:10, minHeight:0 }}>
+                {([
+                  { key:"fcfs",     label:"FCFS allocation",    sub:"First come, first served · queue order preserved", badge:"Primary", count:fcfsCount, pct:fcfsPct, color:"#4f9dff", rgb:"79,157,255", border:"rgba(79,157,255,.28)", bg:"rgba(79,157,255,.16)", Icon: FcfsIcon     },
+                  { key:"fallback", label:"Fallback allocation", sub:"Unmatched mentees · random available mentor",       badge:"Random",  count:fbCount,  pct:fbPct,  color:"#5ee1ff", rgb:"94,225,255", border:"rgba(94,225,255,.25)", bg:"rgba(94,225,255,.13)", Icon: FallbackIcon },
+                ] as const).map((eng) => (
+                  <div key={eng.key} ref={eng.key === "fcfs" ? fcfsEngineRef : fbEngineRef}
+                    style={{ position:"relative", border:`1px solid ${eng.border}`, background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`, borderRadius:20, padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
+                    {activeEngine === eng.key && (
+                      <div style={{ position:"absolute", inset:0, background:"linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent)", animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards", pointerEvents:"none" }} />
+                    )}
+                    <div>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:12, font:`800 clamp(15px,1.4vh,20px) Manrope,sans-serif` }}>
+                          <div style={{ width:"clamp(30px,2.8vh,42px)", height:"clamp(30px,2.8vh,42px)", borderRadius:11, display:"grid", placeItems:"center", color:eng.color, background:`rgba(${eng.rgb},.15)`, flexShrink:0 }}>
+                            <eng.Icon />
+                          </div>
+                          {eng.label}
+                        </div>
+                        <span style={{ fontSize:"clamp(11px,1vh,14px)", fontWeight:800, letterSpacing:".08em", textTransform:"uppercase", borderRadius:99, padding:"6px 12px", color:eng.color, background:`rgba(${eng.rgb},.13)`, flexShrink:0 }}>{eng.badge}</span>
+                      </div>
+                      <p style={{ fontSize:"clamp(12px,1.1vh,15px)", color:"#8aa3cc", marginTop:"clamp(5px,.6vh,9px)" }}>{eng.sub}</p>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:"clamp(8px,.9vh,14px)" }}>
+                      <div style={{ height:6, flex:1, background:"rgba(255,255,255,.07)", borderRadius:6, overflow:"hidden" }}>
+                        <div style={{ display:"block", height:"100%", width:`${eng.pct}%`, borderRadius:6, background:eng.color, boxShadow:`0 0 10px ${eng.color}`, transition:"width .45s cubic-bezier(.2,.8,.2,1)" }} />
+                      </div>
+                      <strong style={{ font:`800 clamp(15px,1.4vh,20px) Manrope,sans-serif`, minWidth:"clamp(46px,4.2vh,64px)", textAlign:"right", color:"#eef5ff" }}>
+                        {eng.count}<span style={{ color:"#6f89b3", fontWeight:600 }}>/{total}</span>
+                      </strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Connector → */}
+              <div style={{ position:"relative", display:"flex", alignItems:"center" }}>
+                <div style={{ height:2, width:"100%", background:"linear-gradient(90deg,rgba(79,157,255,.12),rgba(79,157,255,.7),rgba(79,157,255,.12))" }} />
+                <div style={{ position:"absolute", right:0, width:9, height:9, borderTop:"2px solid #4f9dff", borderRight:"2px solid #4f9dff", transform:"rotate(45deg)" }} />
+                <div style={{ position:"absolute", width:10, height:10, borderRadius:"50%", background:"#4f9dff", boxShadow:"0 0 14px #4f9dff", animation:"alloc-travel 1.35s linear infinite", animationDelay:"-.7s" }} />
+              </div>
+
+              {/* ── Latest matches node ── */}
+              <div ref={assignedNodeRef} style={{ border:"1px solid rgba(140,190,255,.1)", background:"rgba(3,10,30,.5)", borderRadius:22, padding:"clamp(14px,1.5vh,22px)", overflow:"hidden", display:"flex", flexDirection:"column", minHeight:0 }}>
+                <div style={{ color:"#7d97c2", font:`800 clamp(11px,1vh,14px) Manrope,sans-serif`, letterSpacing:".14em", textTransform:"uppercase", marginBottom:"clamp(10px,1.1vh,16px)", flexShrink:0, display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ width:"clamp(22px,2vh,28px)", height:"clamp(22px,2vh,28px)", borderRadius:8, background:"rgba(79,157,255,.12)", display:"grid", placeItems:"center", flexShrink:0 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#4f9dff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width:"clamp(12px,1.1vh,15px)", height:"clamp(12px,1.1vh,15px)" }}>
+                      <circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/>
+                      <path d="M14 7H7a5 5 0 0 0 0 10h3"/>
+                    </svg>
+                  </span>
+                  Latest matches
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:9, overflow:"hidden", flex:1, minHeight:0 }}>
+                  {displayed.map((row, i) => (
+                    <div key={i} style={{ display:"flex", alignItems:"center", gap:11, border:"1px solid rgba(140,190,255,.1)", background:"rgba(14,30,72,.7)", padding:"clamp(8px,.85vh,12px)", borderRadius:14, flexShrink:0, animation:"alloc-cardIn .55s cubic-bezier(.2,.8,.2,1) both" }}>
+                      <div style={{ width:"clamp(34px,3.2vh,46px)", height:"clamp(34px,3.2vh,46px)", borderRadius:11, flexShrink:0, display:"grid", placeItems:"center", background:"linear-gradient(145deg,#1e3a78,#152b5e)", color:"#c3d8ff", fontSize:"clamp(11px,1vh,14px)", fontWeight:800, letterSpacing:".04em" }}>
+                        {row.mentee.split(/\s+/).slice(0,2).map((w:string)=>w[0]).join("").toUpperCase()}
+                      </div>
+                      <span style={{ minWidth:0, flex:1 }}>
+                        <b style={{ display:"block", fontSize:"clamp(14px,1.3vh,18px)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentee}</b>
+                        <small style={{ display:"block", color:"#7c95bf", fontSize:"clamp(12px,1.1vh,15px)", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentor}</small>
+                      </span>
+                      <div style={{ width:10, height:10, borderRadius:"50%", background: methodColor(row.method, row.priority), boxShadow:`0 0 8px ${methodColor(row.method, row.priority)}`, flexShrink:0 }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Progress footer ── */}
+            <div style={{ flexShrink:0, display:"grid", gridTemplateColumns:"1fr auto", gap:18, alignItems:"center", borderTop:"1px solid rgba(140,190,255,.13)", padding:"clamp(10px,1.1vh,16px) 3px 2px", marginTop:"clamp(10px,1.1vh,16px)" }}>
+              <div style={{ height:8, borderRadius:10, background:"rgba(255,255,255,.07)", overflow:"hidden" }}>
+                <div style={{ display:"block", height:"100%", width:`${masterPct}%`, background:"linear-gradient(90deg,#2d6cf0,#4f9dff,#5ee1ff)", borderRadius:"inherit", boxShadow:"0 0 18px rgba(79,157,255,.55)", transition:"width .45s cubic-bezier(.2,.8,.2,1)" }} />
+              </div>
+              <div style={{ font:`700 clamp(15px,1.3vh,20px) Manrope,sans-serif`, color:"#8aa3cc", whiteSpace:"nowrap" }}>
+                <strong style={{ color:"#eef5ff", fontSize:"clamp(20px,1.8vh,28px)" }}>{revealedCount}</strong>/{total}
+                <span style={{ marginLeft:6, color:"#6f89b3", fontSize:"clamp(12px,1vh,15px)", fontWeight:600, textTransform:"uppercase", letterSpacing:".06em" }}>assigned</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Sidebar ── */}
+          <div style={{ display:"grid", gridTemplateRows:"auto minmax(0,1fr)", gap:"clamp(8px,1vh,16px)", minHeight:0 }}>
+
+            {/* Stats card */}
+            <div style={{ border:"1px solid rgba(140,190,255,.13)", background:"linear-gradient(145deg,rgba(13,30,70,.82),rgba(6,14,38,.86))", boxShadow:"0 30px 90px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)", backdropFilter:"blur(20px)", borderRadius:24, padding:"clamp(14px,1.4vh,22px)", display:"flex", flexDirection:"column", gap:12 }}>
+              {/* Total allocated — full width */}
+              <div style={{ position:"relative", padding:"clamp(14px,1.4vh,20px) clamp(16px,1.5vh,24px)", borderRadius:18, background:"linear-gradient(135deg,rgba(79,157,255,.14),rgba(45,108,240,.1))", border:"1px solid rgba(79,157,255,.18)", overflow:"hidden" }}>
+                <div style={{ position:"absolute", width:90, height:90, borderRadius:"50%", right:-22, top:-22, background:"#4f9dff", filter:"blur(32px)", opacity:.2, pointerEvents:"none" }} />
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between" }}>
+                  <div>
+                    <div style={{ color:"#7d97c2", fontSize:"clamp(11px,1vh,14px)", fontWeight:800, letterSpacing:".12em", textTransform:"uppercase", marginBottom:"clamp(6px,.6vh,10px)" }}>Total allocated</div>
+                    <div style={{ font:`800 clamp(42px,4.2vh,66px)/1 Manrope,sans-serif`, letterSpacing:"-.05em" }}>
+                      {revealedCount}<small style={{ fontSize:"clamp(18px,1.6vh,24px)", color:"#6f89b3", fontWeight:600, letterSpacing:0 }}>/{total}</small>
+                    </div>
+                  </div>
+                  <div style={{ color:"#4f9dff", opacity:.7, flexShrink:0, marginTop:4 }}>
+                    <PeopleIcon />
+                  </div>
+                </div>
+              </div>
+
+              {/* FCFS + Fallback side by side */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                {/* FCFS stat */}
+                <div style={{ position:"relative", padding:"clamp(12px,1.2vh,18px)", borderRadius:16, background:"rgba(255,255,255,.03)", border:"1px solid rgba(79,157,255,.12)", overflow:"hidden" }}>
+                  <div style={{ position:"absolute", width:70, height:70, borderRadius:"50%", right:-20, top:-20, background:"#4f9dff", filter:"blur(26px)", opacity:.18, pointerEvents:"none" }} />
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(6px,.6vh,10px)" }}>
+                    <div style={{ color:"#7d97c2", fontSize:"clamp(11px,1vh,14px)", fontWeight:800, letterSpacing:".1em", textTransform:"uppercase" }}>FCFS</div>
+                    <div style={{ color:"#4f9dff", opacity:.7 }}><FcfsIcon /></div>
+                  </div>
+                  <div style={{ font:`800 clamp(32px,3.2vh,50px)/1 Manrope,sans-serif`, letterSpacing:"-.04em", color:"#eef5ff" }}>{fcfsCount}</div>
+                </div>
+                {/* Fallback stat */}
+                <div style={{ position:"relative", padding:"clamp(12px,1.2vh,18px)", borderRadius:16, background:"rgba(255,255,255,.03)", border:"1px solid rgba(94,225,255,.12)", overflow:"hidden" }}>
+                  <div style={{ position:"absolute", width:70, height:70, borderRadius:"50%", right:-20, top:-20, background:"#5ee1ff", filter:"blur(26px)", opacity:.18, pointerEvents:"none" }} />
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"clamp(6px,.6vh,10px)" }}>
+                    <div style={{ color:"#7d97c2", fontSize:"clamp(11px,1vh,14px)", fontWeight:800, letterSpacing:".1em", textTransform:"uppercase" }}>Fallback</div>
+                    <div style={{ color:"#5ee1ff", opacity:.7 }}><FallbackIcon /></div>
+                  </div>
+                  <div style={{ font:`800 clamp(32px,3.2vh,50px)/1 Manrope,sans-serif`, letterSpacing:"-.04em", color:"#eef5ff" }}>{fbCount}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Activity feed */}
+            <div style={{ border:"1px solid rgba(140,190,255,.13)", background:"linear-gradient(145deg,rgba(13,30,70,.82),rgba(6,14,38,.86))", boxShadow:"0 30px 90px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)", backdropFilter:"blur(20px)", borderRadius:24, padding:"clamp(14px,1.4vh,22px)", display:"flex", flexDirection:"column", minHeight:0 }}>
+              <div style={{ flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", paddingBottom:"clamp(10px,1vh,15px)", borderBottom:"1px solid rgba(140,190,255,.13)", marginBottom:"clamp(6px,.6vh,10px)" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:9, font:`800 clamp(15px,1.4vh,20px) Manrope,sans-serif` }}>
+                  <span style={{ color:"#fbbf24", display:"flex" }}><LightningIcon /></span>
+                  Live activity
+                </div>
+                <span style={{ font:`700 clamp(11px,1vh,14px) Manrope,sans-serif`, letterSpacing:".1em", color:"#7d97c2", textTransform:"uppercase" }}>Newest first</span>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, flex:1, marginLeft:-4, paddingLeft:4 }}>
+                {feedItems.map((row) => {
+                  const isFallback = row.method === "fallback";
+                  const dotColor   = isFallback ? "#5ee1ff" : "#4f9dff";
+                  return (
+                    <div key={row.key} style={{ position:"relative", flexShrink:0, padding:"clamp(9px,1vh,14px) 4px clamp(9px,1vh,14px) 26px", borderBottom:"1px solid rgba(140,190,255,.07)", animation:"alloc-feedIn .5s cubic-bezier(.2,.8,.2,1) both" }}>
+                      <div style={{ position:"absolute", left:4, top:"clamp(14px,1.4vh,20px)", width:10, height:10, borderRadius:"50%", background:dotColor, boxShadow:`0 0 10px 2px ${dotColor}` }} />
+                      <b style={{ display:"block", fontSize:"clamp(14px,1.3vh,18px)", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentee}</b>
+                      <p style={{ fontSize:"clamp(12px,1.1vh,15px)", color:"#7d97c2", marginTop:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        <span style={{ color: isFallback ? "#5ee1ff" : "#4f9dff", fontWeight:600 }}>
+                          {isFallback ? "Fallback" : methodLabel(row.method, row.priority)}
+                        </span>
+                        {" → "}{row.mentor}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
+      <RoboStyles />
       <style>{`
-        @keyframes ds-dot {
-          0%,80%,100% { transform:scale(0.6); opacity:0.4; }
-          40%          { transform:scale(1.3); opacity:1; }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+        @keyframes alloc-orb      { to { transform: translate3d(46px,-38px,0) scale(1.12); } }
+        @keyframes alloc-live     { 70% { box-shadow: 0 0 0 12px rgba(79,157,255,0); } }
+        @keyframes alloc-spin     { to { transform: rotate(360deg); } }
+        @keyframes alloc-travel   { 0%{left:0;opacity:0}15%,80%{opacity:1}100%{left:calc(100% - 8px);opacity:0} }
+        @keyframes alloc-cardIn   { from{opacity:0;transform:translateX(-14px) scale(.96)}to{opacity:1;transform:none} }
+        @keyframes alloc-feedIn   { from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none} }
+        @keyframes alloc-sweep    { 0%{transform:translateX(-100%)}100%{transform:translateX(200%)} }
+        @keyframes alloc-confetti { to{transform:translate(var(--x),var(--y)) rotate(var(--r));opacity:0} }
+        @keyframes alloc-queueExit  { 0%{opacity:1;transform:scale(1) translateY(0)} 100%{opacity:0;transform:scale(.88) translateY(-20px)} }
+        @keyframes alloc-queueEnter { 0%{opacity:0;transform:scale(.92) translateY(14px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
       `}</style>
     </div>
   );
@@ -265,49 +841,115 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
 
 function ResultsScene({ scene }: { scene: Extract<DisplayScene, { type: "results" }> }) {
   const [vis, setVis] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setVis(true), 100); return () => clearTimeout(t); }, []);
+  useEffect(() => { const t = setTimeout(() => setVis(true), 120); return () => clearTimeout(t); }, []);
+
+  const stats = [
+    { value: String(scene.assigned),          label: "Assigned",     color: "#22c55e", glow: "rgba(34,197,94,.35)",   sub: "mentees matched" },
+    { value: String(scene.unmatched),          label: "Unmatched",    color: "#f59e0b", glow: "rgba(245,158,11,.35)",  sub: "need follow-up"  },
+    { value: `${scene.satisfaction}%`,         label: "Satisfaction", color: "#6366f1", glow: "rgba(99,102,241,.35)", sub: "1st or 2nd choice" },
+  ];
 
   return (
     <div style={{
-      width:"100%", height:"100%",
-      background:"linear-gradient(145deg,#0f0c29,#1a1a3e)",
+      position:"fixed", inset:0,
+      fontFamily:'"Roboto","DM Sans",system-ui,sans-serif',
+      WebkitFontSmoothing:"antialiased",
+      background:"radial-gradient(ellipse 120% 80% at 50% 0%,#0d1b4a 0%,#06091c 60%),linear-gradient(180deg,#06091c 0%,#040713 100%)",
       display:"flex", flexDirection:"column",
       alignItems:"center", justifyContent:"center",
-      gap:"3vh",
+      overflow:"hidden",
     }}>
+      {/* Background grid */}
+      <div style={{ position:"absolute", inset:0, pointerEvents:"none",
+        backgroundImage:"linear-gradient(rgba(99,102,241,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,.06) 1px,transparent 1px)",
+        backgroundSize:"72px 72px",
+        WebkitMaskImage:"radial-gradient(ellipse 80% 70% at 50% 50%,#000 20%,transparent 80%)",
+        maskImage:"radial-gradient(ellipse 80% 70% at 50% 50%,#000 20%,transparent 80%)" }} />
+
+      {/* Glow orbs */}
+      <div style={{ position:"absolute", width:"55vw", height:"55vw", top:"-20%", left:"50%", transform:"translateX(-50%)", borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,.22) 0%,transparent 70%)", filter:"blur(60px)", pointerEvents:"none" }} />
+      <div style={{ position:"absolute", width:"30vw", height:"30vw", bottom:"-8%", left:"15%", borderRadius:"50%", background:"radial-gradient(circle,rgba(34,197,94,.14) 0%,transparent 70%)", filter:"blur(60px)", pointerEvents:"none" }} />
+      <div style={{ position:"absolute", width:"30vw", height:"30vw", bottom:"-8%", right:"15%", borderRadius:"50%", background:"radial-gradient(circle,rgba(245,158,11,.12) 0%,transparent 70%)", filter:"blur(60px)", pointerEvents:"none" }} />
+
+      {/* Logo + title */}
       <div style={{
-        fontSize:"clamp(14px,2vw,20px)", fontWeight:700,
-        letterSpacing:"4px", textTransform:"uppercase",
-        color:"rgba(199,210,254,0.5)",
+        display:"flex", flexDirection:"column", alignItems:"center", gap:"clamp(10px,1.6vh,20px)",
+        marginBottom:"clamp(28px,4.5vh,56px)",
+        opacity: vis ? 1 : 0, transform: vis ? "translateY(0)" : "translateY(-18px)",
+        transition:"opacity .7s ease, transform .7s ease",
       }}>
-        Allocation Complete
+        <img src="/logo2.png" alt="Logo" style={{ width:"clamp(48px,6vh,80px)", height:"clamp(48px,6vh,80px)", objectFit:"contain" }} />
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+          <div style={{
+            display:"inline-flex", alignItems:"center", gap:10,
+            background:"rgba(34,197,94,.1)", border:"1px solid rgba(34,197,94,.3)",
+            borderRadius:999, padding:"clamp(5px,.6vh,8px) clamp(14px,1.6vw,22px)",
+          }}>
+            <div style={{ width:8, height:8, borderRadius:"50%", background:"#22c55e", boxShadow:"0 0 10px #22c55e", animation:"res-pulse 2s ease-out infinite" }} />
+            <span style={{ fontSize:"clamp(11px,1vw,14px)", fontWeight:700, letterSpacing:".14em", textTransform:"uppercase", color:"#86efac" }}>
+              Allocation Complete
+            </span>
+          </div>
+          <div style={{ fontSize:"clamp(13px,1.2vw,17px)", color:"rgba(199,210,254,.45)", fontWeight:400, letterSpacing:".04em" }}>
+            Mentor Session 2026 · 9th Batch
+          </div>
+        </div>
       </div>
 
-      <div style={{ display:"flex", gap:"4vw", flexWrap:"wrap", justifyContent:"center" }}>
-        {[
-          { value: scene.assigned,     label: "Assigned",   color: "#22c55e" },
-          { value: scene.unmatched,    label: "Unmatched",  color: "#f59e0b" },
-          { value: `${scene.satisfaction}%`, label: "Satisfaction", color: "#6366f1" },
-        ].map((stat, i) => (
+      {/* Stat cards */}
+      <div style={{ display:"flex", gap:"clamp(14px,2.5vw,36px)", flexWrap:"wrap", justifyContent:"center", alignItems:"stretch" }}>
+        {stats.map((s, i) => (
           <div key={i} style={{
+            position:"relative",
+            minWidth:"clamp(160px,18vw,240px)",
+            padding:"clamp(24px,3.5vh,44px) clamp(28px,3vw,44px)",
+            borderRadius:"clamp(20px,2vw,28px)",
+            background:"linear-gradient(145deg,rgba(13,22,60,.85),rgba(6,10,30,.9))",
+            border:"1px solid rgba(255,255,255,.07)",
+            boxShadow:`0 0 0 1px rgba(255,255,255,.04),0 24px 60px rgba(0,0,0,.5),0 0 40px ${s.glow}`,
+            backdropFilter:"blur(20px)",
             textAlign:"center",
+            overflow:"hidden",
             opacity: vis ? 1 : 0,
-            transform: vis ? "translateY(0)" : "translateY(30px)",
-            transition: `opacity 0.6s ease ${i*0.15}s, transform 0.6s ease ${i*0.15}s`,
+            transform: vis ? "translateY(0) scale(1)" : "translateY(32px) scale(.96)",
+            transition: `opacity .65s cubic-bezier(.16,1,.3,1) ${.1 + i*.12}s, transform .65s cubic-bezier(.16,1,.3,1) ${.1 + i*.12}s`,
           }}>
+            {/* Inner glow */}
+            <div style={{ position:"absolute", inset:0, borderRadius:"inherit", background:`radial-gradient(ellipse 80% 60% at 50% 0%,${s.glow} 0%,transparent 70%)`, pointerEvents:"none" }} />
+            {/* Top accent line */}
+            <div style={{ position:"absolute", top:0, left:"15%", right:"15%", height:2, background:`linear-gradient(90deg,transparent,${s.color},transparent)`, borderRadius:2 }} />
+
             <div style={{
-              fontSize:"clamp(48px,8vw,120px)", fontWeight:800,
-              color: stat.color, lineHeight:1,
-              textShadow:`0 0 40px ${stat.color}66`,
+              fontSize:"clamp(52px,7.5vw,100px)", fontWeight:900, lineHeight:1,
+              color: s.color,
+              textShadow:`0 0 50px ${s.glow},0 0 20px ${s.glow}`,
+              fontVariantNumeric:"tabular-nums", letterSpacing:"-.03em",
+              position:"relative",
             }}>
-              {stat.value}
+              {s.value}
             </div>
-            <div style={{ fontSize:"clamp(12px,1.5vw,18px)", fontWeight:600, color:"rgba(199,210,254,0.6)", marginTop:8, letterSpacing:"2px", textTransform:"uppercase" }}>
-              {stat.label}
+            <div style={{
+              marginTop:"clamp(8px,1vh,14px)",
+              fontSize:"clamp(11px,1vw,15px)", fontWeight:700,
+              letterSpacing:".14em", textTransform:"uppercase",
+              color:"rgba(199,210,254,.7)",
+            }}>
+              {s.label}
+            </div>
+            <div style={{
+              marginTop:"clamp(4px,.5vh,7px)",
+              fontSize:"clamp(10px,.85vw,13px)",
+              color:"rgba(199,210,254,.35)", fontWeight:400,
+            }}>
+              {s.sub}
             </div>
           </div>
         ))}
       </div>
+
+      <style>{`
+        @keyframes res-pulse { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)} 70%{box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+      `}</style>
     </div>
   );
 }
@@ -894,6 +1536,93 @@ function MentorCardScene({ scene }: { scene: Extract<DisplayScene, { type: "ment
 }
 // ─── Main display screen ──────────────────────────────────────────────────────
 
+// ─── Scene transition wrapper ─────────────────────────────────────────────────
+
+/**
+ * SceneTransition — smooth crossfade + subtle upward slide between any two scenes.
+ *
+ * Strategy:
+ *  - Keep the previous scene mounted underneath while animating it out
+ *  - Animate the new scene in on top
+ *  - Once the exit animation finishes, drop the previous scene from the DOM
+ */
+function SceneTransition({ sceneKey, children }: { sceneKey: string; children: React.ReactNode }) {
+  // The currently visible layer
+  const [current,  setCurrent]  = useState<{ key: string; node: React.ReactNode }>({ key: sceneKey, node: children });
+  // The outgoing layer (being faded out)
+  const [outgoing, setOutgoing] = useState<{ key: string; node: React.ReactNode } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (sceneKey === current.key) {
+      // Same scene type — just update the node in-place (e.g. allocation progress)
+      setCurrent({ key: sceneKey, node: children });
+      return;
+    }
+
+    // New scene — push old one to outgoing, bring new one in
+    setOutgoing({ key: current.key, node: current.node });
+    setCurrent({ key: sceneKey, node: children });
+
+    // Purge outgoing after the CSS transition finishes (700ms)
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setOutgoing(null), 750);
+
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneKey]);
+
+  // Keep current node up-to-date (children can change without sceneKey changing)
+  useEffect(() => {
+    setCurrent(prev => ({ ...prev, node: children }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [children]);
+
+  return (
+    <div style={{ position:"fixed", inset:0, isolation:"isolate" }}>
+      <style>{`
+        @keyframes st-enter {
+          from { opacity: 0; transform: translateY(18px) scale(.985); }
+          to   { opacity: 1; transform: translateY(0)    scale(1);    }
+        }
+        @keyframes st-exit {
+          from { opacity: 1; transform: translateY(0)     scale(1);    }
+          to   { opacity: 0; transform: translateY(-14px) scale(.985); }
+        }
+      `}</style>
+
+      {/* Outgoing layer — animates out underneath */}
+      {outgoing && (
+        <div
+          key={outgoing.key}
+          style={{
+            position:"absolute", inset:0, zIndex:1,
+            animation:"st-exit 0.65s cubic-bezier(0.4,0,0.2,1) forwards",
+            pointerEvents:"none",
+          }}
+        >
+          {outgoing.node}
+        </div>
+      )}
+
+      {/* Current layer — animates in on top */}
+      <div
+        key={current.key}
+        style={{
+          position:"absolute", inset:0, zIndex:2,
+          animation: outgoing
+            ? "st-enter 0.65s cubic-bezier(0.16,1,0.3,1) forwards"
+            : undefined,
+        }}
+      >
+        {current.node}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main display screen ──────────────────────────────────────────────────────
+
 export function DisplayScreen() {
   const [state, setState] = useState<DisplayState | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -916,20 +1645,29 @@ export function DisplayScreen() {
 
   const scene = state?.scene ?? { type: "idle" } as DisplayScene;
 
-  return (
-    <div style={{
-      position:"fixed", inset:0,
-      background:"#0f0c29",
-      fontFamily:"inherit",
-    }}>
+  // Derive a stable key for the scene type so transitions only fire on type changes
+  const sceneKey = scene.type === "mentor-card"
+    ? `mentor-card-${(scene as Extract<DisplayScene,{type:"mentor-card"}>).mentor.id}`
+    : scene.type;
+
+  const sceneNode = (
+    <>
       {scene.type === "idle"               && <IdleScene />}
       {scene.type === "thankyou"           && <ThankYouScene />}
       {scene.type === "live-registrations" && <LiveRegistrationsScene />}
       {scene.type === "mentor-carousel"    && <MentorCarouselScene scene={scene} />}
       {scene.type === "allocation"         && <AllocationScene scene={scene} />}
-      {scene.type === "results"     && <ResultsScene   scene={scene} />}
-      {scene.type === "custom"      && <CustomScene    scene={scene} />}
-      {scene.type === "mentor-card" && <MentorCardScene scene={scene} />}
+      {scene.type === "results"            && <ResultsScene   scene={scene} />}
+      {scene.type === "custom"             && <CustomScene    scene={scene} />}
+      {scene.type === "mentor-card"        && <MentorCardScene scene={scene} />}
+    </>
+  );
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"#0f0c29", fontFamily:"inherit" }}>
+      <SceneTransition sceneKey={sceneKey}>
+        {sceneNode}
+      </SceneTransition>
     </div>
   );
 }
