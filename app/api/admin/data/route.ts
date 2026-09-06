@@ -35,6 +35,14 @@ export async function DELETE(request: Request) {
         .from("allocations").select("id", { count: "exact", head: true }).eq("session_id", session.id);
       if (allocCount && allocCount > 0)
         throw new ApiError("Cannot remove mentors while allocations exist. Reset allocations first.", 409);
+
+      // Delete mentor_preferences that reference mentors in this session before removing mentors
+      const { data: mentorRows } = await supabase.from("mentors").select("id").eq("session_id", session.id);
+      const mentorIds = (mentorRows ?? []).map((r) => r.id);
+      if (mentorIds.length) {
+        await supabase.from("mentor_preferences").delete().in("mentor_id", mentorIds);
+      }
+
       const { error } = await supabase.from("mentors").delete().eq("session_id", session.id);
       if (error) throw databaseError("Unable to remove mentors.", error.code);
       await supabase.from("allocation_logs").insert({
