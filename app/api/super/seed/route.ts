@@ -37,7 +37,8 @@ export async function POST(request: Request) {
         session_id:           session.id,
         full_name:            m.fullName,
         student_id:           mentorStudentId(m.last4),
-        email:                m.email,
+        // email is NOT NULL in schema — generate a unique placeholder when not provided
+        email:                m.email ?? `tg2024${m.last4}.${session.id.slice(0, 8)}@mentor-session.local`,
         phone:                m.phone,
         batch:                MENTOR_BATCH,
         communication_method: m.communicationMethod,
@@ -67,11 +68,13 @@ export async function POST(request: Request) {
         const sid = menteeStudentId(m.last4);
         // Spread submission times 1 second apart to simulate FCFS order
         const submittedAt = new Date(now.getTime() + i * 1000).toISOString();
+        // Include session id prefix in email to avoid cross-session unique constraint collisions
+        const sessionPrefix = session.id.slice(0, 8);
         return {
           session_id:               session.id,
           full_name:                m.fullName,
           student_id:               sid,
-          email:                    `${sid.replace(/\//g, "-").toLowerCase()}@mentor-session.local`,
+          email:                    `${sid.replace(/\//g, "-").toLowerCase()}.${sessionPrefix}@mentor-session.local`,
           phone:                    m.phone,
           batch:                    "10th",
           preference_submitted_at:  submittedAt,
