@@ -1868,7 +1868,7 @@ export function AdminScreen() {
           )}
           {activeTab === "display" && (
             <DisplayControlTab overview={overview} onRunAllocation={runAllocationForDisplay} />
-          )}}
+          )}
         </>
       )}
 
