@@ -117,14 +117,8 @@ function LiveRegistrationsScene() {
       <div style={{ position:"absolute", width:"35vw", height:"35vw", bottom:"-8%", right:"8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(94,225,255,.16) 0%,transparent 70%)", filter:"blur(70px)", pointerEvents:"none", animation:"reg-drift3 20s ease-in-out infinite" }} />
 
       {/* Header brand */}
-      <div style={{ position:"absolute", top:"clamp(20px,3vh,40px)", left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", gap:14, flexShrink:0 }}>
+      <div style={{ position:"absolute", top:"clamp(20px,3vh,40px)", left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", flexShrink:0 }}>
         <RobotLogoMark size="clamp(32px,2.8vh,42px)" />
-        <div style={{ fontWeight:800, fontSize:"clamp(16px,1.6vh,22px)", letterSpacing:"-.03em" }}>
-          MentorFlow
-          <small style={{ display:"block", font:`600 clamp(9px,.8vh,12px) "DM Sans",sans-serif`, letterSpacing:".16em", textTransform:"uppercase", color:"#8ea6c9", marginTop:2 }}>
-            Mentor session · 2026
-          </small>
-        </div>
       </div>
 
       {/* Central ring + counter */}
@@ -604,12 +598,6 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
 
         {/* Title */}
         <div style={{ marginTop:"clamp(28px,4vh,48px)", textAlign:"center" }}>
-          <div style={{ fontSize:"clamp(26px,3.5vw,42px)", fontWeight:800, color:"#eef5ff", letterSpacing:"-.03em", lineHeight:1 }}>
-            MentorFlow
-          </div>
-          <div style={{ fontSize:"clamp(11px,1.2vw,15px)", fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(140,190,255,.45)", marginTop:10 }}>
-            Mentor session · 2026
-          </div>
         </div>
 
         {/* Loading indicator */}
@@ -694,11 +682,8 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
         {/* ── Header ── */}
         <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           {/* Brand */}
-          <div style={{ display:"flex", alignItems:"center", gap:16, fontFamily:"Manrope,sans-serif", fontWeight:800, letterSpacing:"-.035em", fontSize:"clamp(20px,2.2vh,30px)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:16, fontFamily:"Manrope,sans-serif" }}>
             <RobotLogoMark size="clamp(40px,3.4vh,52px)" />
-            <span>MentorFlow
-              <small style={{ display:"block", font:`600 clamp(11px,1vh,14px) "DM Sans",sans-serif`, letterSpacing:".14em", textTransform:"uppercase", color:"#8ea6c9", marginTop:2 }}>Mentor session · 2026</small>
-            </span>
           </div>
           {/* Live pill */}
           <div style={{ display:"flex", alignItems:"center", gap:10, border:"1px solid rgba(140,190,255,.13)", background:"rgba(8,20,50,.7)", padding:"clamp(8px,.8vh,13px) clamp(14px,1.3vh,20px)", borderRadius:999, color: isComplete ? "#86efac" : "#c3d6f5", fontSize:"clamp(13px,1.15vh,17px)", fontWeight:700, letterSpacing:".1em", textTransform:"uppercase" }}>
