@@ -1,0 +1,851 @@
+<!doctype html>
+  <html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#05070f" />
+    <title>Mentor Carousel — 9th Batch</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { height: 100%; overflow: hidden; }
+  
+      :root {
+        --blue:   #3b82f6;
+        --cyan:   #22d3ee;
+        --indigo: #6366f1;
+        --sky:    #38bdf8;
+      }
+  
+      body {
+        font-family: "Sora", "Inter", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        background: #05070f;
+        color: #eef5ff;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+  
+      /* ── background layer ── */
+      #bg {
+        position: fixed; inset: 0; overflow: hidden;
+        background:
+          radial-gradient(120% 120% at 15% 0%,  #0d2a66 0%, transparent 55%),
+          radial-gradient(120% 120% at 100% 100%, #0a1c3d 0%, transparent 55%),
+          linear-gradient(160deg, #060a1c 0%, #0a1230 55%, #04060f 100%);
+      }
+      #bg canvas { position: absolute; inset: 0; }
+      .aurora {
+        position: absolute; border-radius: 50%;
+        filter: blur(70px); opacity: .55; mix-blend-mode: screen;
+      }
+      .a1 {
+        width: 46vw; height: 46vw; top: -14%; right: -8%;
+        background: radial-gradient(circle, rgba(59,130,246,.9) 0%, transparent 68%);
+        animation: mc-drift1 24s ease-in-out infinite;
+      }
+      .a2 {
+        width: 40vw; height: 40vw; bottom: -16%; left: -6%;
+        background: radial-gradient(circle, rgba(56,189,248,.6) 0%, transparent 68%);
+        animation: mc-drift2 28s ease-in-out infinite;
+      }
+      .a3 {
+        width: 34vw; height: 34vw; top: 30%; left: 42%;
+        background: radial-gradient(circle, rgba(99,102,241,.4) 0%, transparent 68%);
+        animation: mc-drift3 32s ease-in-out infinite;
+      }
+      #bg-grid {
+        position: absolute; inset: -2px;
+        background-image:
+          linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+        background-size: 60px 60px;
+        -webkit-mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 75%);
+                mask-image: radial-gradient(120% 90% at 50% 40%, #000 30%, transparent 75%);
+        animation: mc-gridpan 40s linear infinite;
+      }
+      #bg-vignette {
+        position: absolute; inset: 0;
+        background: radial-gradient(120% 120% at 50% 45%, transparent 55%, rgba(0,0,0,.6) 100%);
+      }
+      /* soft beam of light that slowly sweeps the whole scene */
+      #bg-beam {
+        position: absolute; inset: -30%;
+        background: conic-gradient(from 0deg at 50% 50%,
+          transparent 0deg, rgba(56,189,248,.05) 30deg, transparent 70deg,
+          transparent 180deg, rgba(99,102,241,.05) 210deg, transparent 250deg);
+        animation: mc-spin 60s linear infinite;
+        mix-blend-mode: screen; pointer-events: none;
+      }
+  
+      /* ── header ── */
+      header {
+        position: relative; z-index: 2; flex-shrink: 0;
+        display: flex; justify-content: space-between; align-items: center;
+        padding: clamp(18px,3vh,32px) clamp(18px,4vw,40px) 0;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: clamp(11px,1.1vw,14px);
+        letter-spacing: .14em; text-transform: uppercase;
+        color: #c7d2fe;
+      }
+      .brand { display: inline-flex; align-items: center; gap: 10px; opacity: .85; }
+      .brand-mark {
+        width: 22px; height: 22px; border-radius: 7px;
+        background: linear-gradient(135deg, var(--blue), var(--cyan));
+        box-shadow: 0 0 18px rgba(56,189,248,.6), inset 0 1px 0 rgba(255,255,255,.4);
+        position: relative; overflow: hidden;
+        animation: mc-markpulse 4s ease-in-out infinite;
+      }
+      .brand-mark::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.7) 50%, transparent 70%);
+        transform: translateX(-120%);
+        animation: mc-sheen 4s ease-in-out infinite;
+      }
+      header .right { opacity: .7; }
+      #live-badge { display: inline-flex; align-items: center; gap: 8px; opacity: .8; }
+      #live-dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--cyan); box-shadow: 0 0 10px var(--cyan);
+        animation: mc-live 2s ease-out infinite;
+      }
+  
+      /* ── stage ── */
+      #stage {
+        position: relative; z-index: 2;
+        flex: 1; min-height: 0;
+        perspective: 1600px;
+        perspective-origin: 50% 40%;
+        user-select: none; -webkit-user-select: none;
+        display: flex; align-items: center; justify-content: center;
+        overflow: visible;
+      }
+      #stage-inner { position: relative; width: 0; height: 0; transform-style: preserve-3d; }
+  
+      /* ── card ── */
+      .card {
+        position: absolute; top: 0; left: 0;
+        --card-w: clamp(280px, 38vw, 420px);
+        --card-h: clamp(340px, 44vw, 500px);
+        --shift:  clamp(200px, 32vw, 360px);
+        width: var(--card-w);
+        transform-origin: 50% 40%;
+        will-change: transform, opacity, filter;
+        cursor: pointer;
+        transition:
+          transform 0.85s cubic-bezier(.22,.61,.36,1),
+          opacity   0.7s  cubic-bezier(.22,.61,.36,1),
+          filter    0.7s  cubic-bezier(.22,.61,.36,1);
+      }
+      .card.no-anim { transition: none !important; }
+  
+      /* slot positions */
+      .card[data-slot="center"] {
+        transform: translateX(calc(var(--card-w) / -2)) translateY(-50%) translate3d(0,0,0) rotateY(0deg) scale(1);
+        opacity: 1; filter: none; z-index: 10; cursor: default;
+      }
+      .card[data-slot="right"] {
+        transform: translateX(calc(var(--card-w) / -2)) translateY(-50%) translate3d(var(--shift),0,-200px) rotateY(-18deg) scale(0.70);
+        opacity: .8; filter: saturate(.7) brightness(.8); z-index: 5;
+      }
+      .card[data-slot="left"] {
+        transform: translateX(calc(var(--card-w) / -2)) translateY(-50%) translate3d(calc(var(--shift)*-1),0,-200px) rotateY(18deg) scale(0.70);
+        opacity: .8; filter: saturate(.7) brightness(.8); z-index: 5;
+      }
+      .card[data-slot="right2"] {
+        transform: translateX(calc(var(--card-w) / -2)) translateY(-50%) translate3d(calc(var(--shift)*1.72),0,-380px) rotateY(-24deg) scale(0.52);
+        opacity: .4; filter: saturate(.55) brightness(.65); z-index: 3;
+      }
+      .card[data-slot="left2"] {
+        transform: translateX(calc(var(--card-w) / -2)) translateY(-50%) translate3d(calc(var(--shift)*-1.72),0,-380px) rotateY(24deg) scale(0.52);
+        opacity: .4; filter: saturate(.55) brightness(.65); z-index: 3;
+      }
+      .card[data-slot="hidden-right"] {
+        transform: translateX(calc(var(--card-w) / -2)) translateY(-50%) translate3d(calc(var(--shift)*2.4),0,-560px) rotateY(-30deg) scale(0.4);
+        opacity: 0; z-index: 1; pointer-events: none;
+      }
+      .card[data-slot="hidden-left"] {
+        transform: translateX(calc(var(--card-w) / -2)) translateY(-50%) translate3d(calc(var(--shift)*-2.4),0,-560px) rotateY(30deg) scale(0.4);
+        opacity: 0; z-index: 1; pointer-events: none;
+      }
+  
+      /* inner wrappers: float + tilt kept separate so JS + CSS don't fight */
+      .card__inner { transform-style: preserve-3d; }
+      .card[data-slot="center"] .card__inner { animation: mc-float 7s ease-in-out infinite; }
+      .card__tilt {
+        transform-style: preserve-3d;
+        transition: transform .3s cubic-bezier(.22,.61,.36,1);
+      }
+  
+      /* ── photo box ── */
+      .card__photo {
+        position: relative; width: 100%; height: var(--card-h);
+        border-radius: 28px; overflow: hidden;
+        background: linear-gradient(180deg, #274a8a 0%, #1c3766 100%);
+        transition: box-shadow 0.7s cubic-bezier(.22,.61,.36,1);
+      }
+      .card[data-slot="center"] .card__photo {
+        box-shadow:
+          0 60px 130px -26px rgba(0,0,0,.95),
+          0 0 0 1px rgba(255,255,255,.16),
+          0 0 110px -10px rgba(59,130,246,.9);
+        animation: mc-glowpulse 5s ease-in-out infinite;
+      }
+      .card:not([data-slot="center"]) .card__photo {
+        box-shadow: 0 32px 70px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.09);
+      }
+      /* animated ring around the featured photo */
+      .card__ring {
+        position: absolute; inset: 0; border-radius: 28px; padding: 1.5px;
+        background: conic-gradient(from var(--ang,0deg), var(--blue), var(--cyan), var(--indigo), var(--sky), var(--blue));
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor; mask-composite: exclude;
+        opacity: 0; transition: opacity .6s ease; pointer-events: none; z-index: 3;
+      }
+      .card[data-slot="center"] .card__ring { opacity: .9; animation: mc-rotring 6s linear infinite; }
+  
+      .card__photo img {
+        width: 100%; height: 100%; object-fit: cover;
+        object-position: center 20%; display: block;
+        transform: scale(1.02);
+        transition: transform 1.2s cubic-bezier(.22,.61,.36,1);
+      }
+      /* slow ken-burns zoom on the featured photo */
+      .card[data-slot="center"] .card__photo img { animation: mc-kenburns 12s ease-in-out infinite alternate; }
+      .card__photo .shade {
+        position: absolute; inset: 0; z-index: 1;
+        background: rgba(4,6,14,.45);
+        transition: opacity 0.7s cubic-bezier(.22,.61,.36,1);
+      }
+      .card[data-slot="center"] .card__photo .shade { opacity: 0; }
+      .card__photo .grad {
+        position: absolute; inset: 0; z-index: 1;
+        background: linear-gradient(to bottom, rgba(6,10,25,.1) 0%, transparent 35%, rgba(6,10,25,.65) 100%);
+        pointer-events: none;
+      }
+      /* interactive glare that follows the cursor on the featured card */
+      .card__glare {
+        position: absolute; inset: 0; z-index: 2; opacity: 0;
+        background: radial-gradient(240px 240px at var(--gx,50%) var(--gy,50%), rgba(255,255,255,.28), transparent 60%);
+        mix-blend-mode: soft-light; pointer-events: none;
+        transition: opacity .4s ease;
+      }
+      .card[data-slot="center"] .card__glare { opacity: 1; }
+      /* diagonal light sweep across the featured photo */
+      .card__sweep {
+        position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.14) 48%, rgba(255,255,255,.04) 55%, transparent 62%);
+        transform: translateX(-120%);
+      }
+      .card[data-slot="center"] .card__sweep { animation: mc-sweep 6.5s ease-in-out 1s infinite; }
+  
+      /* initials fallback */
+      .card__initials {
+        width: 100%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: clamp(52px,8vw,96px); font-weight: 800;
+        color: transparent;
+        background: linear-gradient(135deg, #93c5fd, #dbeafe 50%, #bfdbfe);
+        -webkit-background-clip: text; background-clip: text;
+      }
+  
+      /* batch badge on side cards */
+      .card__badge {
+        position: absolute; bottom: 16px; left: 50%;
+        transform: translateX(-50%);
+        display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+        background: linear-gradient(120deg, var(--blue), #2563eb);
+        border: 1px solid rgba(255,255,255,.25); border-radius: 99px;
+        padding: 8px 18px;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: clamp(12px,1.15vw,15px); font-weight: 600; color: #fff;
+        box-shadow: 0 14px 30px -12px rgba(37,99,235,.9), inset 0 1px 0 rgba(255,255,255,.3);
+        z-index: 4;
+        transition: opacity 0.55s cubic-bezier(.22,.61,.36,1), transform 0.55s cubic-bezier(.22,.61,.36,1);
+      }
+      .card[data-slot="center"] .card__badge { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  
+      /* ── info panel (grid expand) ── */
+      .card__expand {
+        display: grid;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.8s cubic-bezier(.22,.61,.36,1);
+      }
+      .card[data-slot="center"] .card__expand { grid-template-rows: 1fr; }
+      .card__expand-inner { overflow: hidden; min-height: 0; }
+  
+      /* ══════ THE NAME CARD ══════ */
+      .card__panel {
+        position: relative; margin-top: 18px;
+        background:
+          linear-gradient(160deg, rgba(30,58,138,.34), rgba(10,16,40,.55));
+        backdrop-filter: blur(20px) saturate(150%);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        border-radius: 22px; padding: 20px 24px 22px;
+        box-shadow: 0 26px 55px -26px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.1);
+        opacity: 0; transform: translateY(-10px) scale(.97);
+        overflow: hidden;
+      }
+      .card[data-slot="center"] .card__panel {
+        animation: mc-panelin .7s cubic-bezier(.22,.61,.36,1) .06s both;
+      }
+      /* animated gradient border */
+      .card__panel::before {
+        content: ""; position: absolute; inset: 0; border-radius: 22px; padding: 1.3px;
+        background: conic-gradient(from var(--ang,0deg), var(--blue), var(--cyan), var(--indigo), var(--sky), var(--blue));
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor; mask-composite: exclude;
+        opacity: .6; pointer-events: none;
+      }
+      .card[data-slot="center"] .card__panel::before { animation: mc-rotring 6s linear infinite; }
+      /* holographic sheen sweeping the name card */
+      .card__panel::after {
+        content: ""; position: absolute; top: 0; left: 0; width: 60%; height: 100%;
+        background: linear-gradient(105deg, transparent, rgba(255,255,255,.12) 45%, rgba(255,255,255,.03) 55%, transparent);
+        transform: translateX(-160%) skewX(-14deg); pointer-events: none;
+      }
+      .card[data-slot="center"] .card__panel::after { animation: mc-holo 5s ease-in-out 1.2s infinite; }
+  
+      .card__toprow {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .chip {
+        display: inline-flex; align-items: center; gap: 7px;
+        background: linear-gradient(120deg, rgba(59,130,246,.28), rgba(34,211,238,.18));
+        border: 1px solid rgba(147,197,253,.35);
+        border-radius: 99px; padding: 6px 13px;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: clamp(10px,.95vw,12px); font-weight: 600; letter-spacing: .1em;
+        text-transform: uppercase; color: #dbeafe;
+      }
+      .chip .pip {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--cyan); box-shadow: 0 0 8px var(--cyan);
+        animation: mc-live 2s ease-out infinite;
+      }
+      .verified {
+        display: inline-flex; align-items: center; gap: 6px;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: clamp(10px,.95vw,12px); font-weight: 600; letter-spacing: .06em;
+        color: #7dd3fc;
+      }
+      .verified svg { width: 15px; height: 15px; }
+  
+      .card__meta {
+        font-family: "Space Grotesk", ui-monospace, monospace;
+        font-size: clamp(10px,.9vw,12px); letter-spacing: .14em;
+        text-transform: uppercase; color: #c7d2fe; opacity: .7;
+        margin-bottom: 8px;
+      }
+      .card__name {
+        font-family: "Sora", sans-serif;
+        font-size: clamp(23px,2.5vw,34px); font-weight: 700;
+        letter-spacing: -.5px; line-height: 1.12; margin-bottom: 10px;
+        color: #fff; text-shadow: 0 2px 24px rgba(59,130,246,.35);
+      }
+      /* per-letter reveal */
+      .card__name .ch {
+        display: inline-block; white-space: pre;
+        opacity: 0; transform: translateY(14px) rotateX(-40deg);
+        transform-origin: bottom;
+      }
+      .card[data-slot="center"] .card__name .ch {
+        animation: mc-letter .5s cubic-bezier(.22,.61,.36,1) forwards;
+        animation-delay: calc(.22s + var(--i) * .028s);
+      }
+  
+      /* separator line with animated fill */
+      .card__rule {
+        height: 1px; margin: 4px 0 12px;
+        background: linear-gradient(90deg, transparent, rgba(147,197,253,.55), transparent);
+        transform: scaleX(0); transform-origin: left;
+      }
+      .card[data-slot="center"] .card__rule { animation: mc-rule .8s cubic-bezier(.22,.61,.36,1) .35s both; }
+  
+      .card__foot {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        opacity: 0;
+      }
+      .card[data-slot="center"] .card__foot { animation: mc-footin .6s ease .5s both; }
+      .card__sub {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: clamp(13px,1.25vw,17px); color: var(--sky);
+        font-weight: 600; letter-spacing: .04em;
+        display: inline-flex; align-items: center; gap: 8px;
+      }
+      .card__sub .role-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--blue), var(--cyan));
+        box-shadow: 0 0 10px rgba(56,189,248,.8);
+      }
+      .card__id {
+        font-family: "Space Grotesk", ui-monospace, monospace;
+        font-size: clamp(11px,1vw,13px); font-weight: 600;
+        color: #93c5fd; letter-spacing: .08em;
+        background: rgba(147,197,253,.1);
+        border: 1px solid rgba(147,197,253,.2);
+        border-radius: 8px; padding: 5px 10px; white-space: nowrap;
+      }
+  
+      /* ── dots + counter ── */
+      #controls {
+        position: relative; z-index: 3; flex-shrink: 0;
+        display: flex; flex-direction: column; align-items: center; gap: 12px;
+        padding: 0 18px clamp(16px,3.5vh,32px);
+      }
+      #controls-row {
+        display: flex; align-items: center; justify-content: center; gap: 18px;
+      }
+      #dots { display: flex; gap: 7px; flex-wrap: wrap; justify-content: center; max-width: 62vw; }
+      .dot {
+        height: 4px; border-radius: 2px;
+        background: rgba(199,210,254,.18);
+        cursor: pointer;
+        transition: width .4s cubic-bezier(.22,.61,.36,1), background .3s, box-shadow .3s;
+        width: 18px;
+      }
+      .dot:hover { background: rgba(199,210,254,.4); }
+      .dot.active {
+        width: 34px;
+        background: linear-gradient(90deg, var(--blue), var(--cyan));
+        box-shadow: 0 0 14px rgba(59,130,246,.75);
+      }
+      .nav-btn {
+        position: relative;
+        width: 44px; height: 44px; border-radius: 50%;
+        border: 1px solid rgba(255,255,255,.12);
+        background: rgba(255,255,255,.05);
+        color: #eef5ff; cursor: pointer;
+        display: grid; place-items: center;
+        backdrop-filter: blur(10px);
+        transition: background .3s, transform .2s, border-color .3s;
+      }
+      .nav-btn:hover {
+        background: rgba(59,130,246,.22);
+        border-color: rgba(59,130,246,.5);
+        transform: translateY(-1px);
+      }
+      .nav-btn:active { transform: scale(.94); }
+      .nav-btn svg.icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+      /* autoplay progress ring around the next button */
+      #ring-progress {
+        position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px);
+        transform: rotate(-90deg); pointer-events: none;
+      }
+      #ring-progress circle { fill: none; stroke-width: 2.5; }
+      #ring-track { stroke: rgba(255,255,255,.08); }
+      #ring-fill  { stroke: url(#ringgrad); stroke-linecap: round; }
+  
+      #counter {
+        font-family: "Space Grotesk", ui-monospace, monospace;
+        font-size: 12px; letter-spacing: .12em;
+        color: #c7d2fe; opacity: .7;
+        min-width: 7ch; text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+  
+      /* ── keyframes ── */
+      @keyframes mc-drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-6vw,5vh) scale(1.12)} }
+      @keyframes mc-drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(7vw,-4vh) scale(1.15)} }
+      @keyframes mc-drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-5vw,-6vh) scale(.85)} }
+      @keyframes mc-live   { 0%,100%{box-shadow:0 0 10px var(--cyan)} 50%{box-shadow:0 0 18px var(--cyan),0 0 30px rgba(34,211,238,.4)} }
+      @keyframes mc-spin   { to { transform: rotate(360deg); } }
+      @keyframes mc-gridpan{ from{background-position:0 0} to{background-position:60px 60px} }
+      @keyframes mc-markpulse{ 0%,100%{box-shadow:0 0 18px rgba(56,189,248,.6),inset 0 1px 0 rgba(255,255,255,.4)} 50%{box-shadow:0 0 28px rgba(56,189,248,.9),inset 0 1px 0 rgba(255,255,255,.5)} }
+      @keyframes mc-sheen  { 0%,100%{transform:translateX(-120%)} 55%,70%{transform:translateX(220%)} }
+      @keyframes mc-float  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+      @keyframes mc-glowpulse {
+        0%,100%{ box-shadow:0 60px 130px -26px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.16),0 0 110px -10px rgba(59,130,246,.9); }
+        50%    { box-shadow:0 66px 140px -24px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.2),0 0 140px -6px rgba(56,189,248,1); }
+      }
+      @keyframes mc-rotring { to { --ang: 360deg; } }
+      @keyframes mc-kenburns { from{transform:scale(1.02)} to{transform:scale(1.12) translateY(-2%)} }
+      @keyframes mc-sweep  { 0%{transform:translateX(-120%)} 45%,100%{transform:translateX(120%)} }
+      @keyframes mc-holo   { 0%{transform:translateX(-160%) skewX(-14deg)} 55%,100%{transform:translateX(320%) skewX(-14deg)} }
+      @keyframes mc-panelin{ from{opacity:0;transform:translateY(-10px) scale(.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+      @keyframes mc-letter { to{opacity:1;transform:translateY(0) rotateX(0)} }
+      @keyframes mc-rule   { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+      @keyframes mc-footin { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  
+      /* register --ang so it can animate */
+      @property --ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+        .card { transition-duration: .25s !important; }
+      }
+      @media (max-width: 600px) {
+        .card { --shift: clamp(140px,40vw,200px); }
+        #dots { max-width: 78vw; }
+      }
+    </style>
+  </head>
+  <body>
+  
+  <!-- background -->
+  <div id="bg">
+    <canvas id="particle-canvas"></canvas>
+    <div id="bg-beam"></div>
+    <div class="aurora a1"></div>
+    <div class="aurora a2"></div>
+    <div class="aurora a3"></div>
+    <div id="bg-grid"></div>
+    <div id="bg-vignette"></div>
+  </div>
+  
+  <!-- header -->
+  <header>
+    <span class="brand"><span class="brand-mark"></span>Mentor Session</span>
+    <div id="live-badge">
+      <span id="live-dot"></span>
+      <span>Autoplay</span>
+    </div>
+    <span class="right">9th Batch · 2026</span>
+  </header>
+  
+  <!-- carousel stage -->
+  <div id="stage">
+    <div id="stage-inner"></div>
+  </div>
+  
+  <!-- dots + nav -->
+  <div id="controls">
+    <div id="controls-row">
+      <button class="nav-btn" id="btn-prev" aria-label="Previous">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div id="dots"></div>
+      <span id="counter">01 / 43</span>
+      <button class="nav-btn" id="btn-next" aria-label="Next">
+        <svg id="ring-progress" viewBox="0 0 52 52">
+          <defs>
+            <linearGradient id="ringgrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#3b82f6"/>
+              <stop offset="1" stop-color="#22d3ee"/>
+            </linearGradient>
+          </defs>
+          <circle id="ring-track" cx="26" cy="26" r="24"/>
+          <circle id="ring-fill"  cx="26" cy="26" r="24"/>
+        </svg>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+  
+  <script>
+  // ── Mentor data (from seed-mentors-real.ts) ─────────────────────────────────
+  const P = '/profile/mentor/Renamed_Photos';
+  const MENTORS = [
+    { name: "Amjad Hassan",           last4: "2061", photo: `${P}/2061.jpeg` },
+    { name: "Udaya Madubashana",      last4: "2063", photo: `${P}/2063.jpg`  },
+    { name: "Ruvisha Lakmina",        last4: "2064", photo: `${P}/2064.jpg`  },
+    { name: "Senitha Samarasinghe",   last4: "2066", photo: `${P}/2066.jpeg` },
+    { name: "Dasindu Dilvan",         last4: "2067", photo: `${P}/2067.jpg`  },
+    { name: "Thisaru Thiwanka",       last4: "2069", photo: `${P}/2069.jpg`  },
+    { name: "Gihan Kavindu",          last4: "2071", photo: `${P}/2071.jpg`  },
+    { name: "Hasitha Sandakelum",     last4: "2073", photo: `${P}/2073.jpeg` },
+    { name: "W. Hiruni Chethana",     last4: "2074", photo: `${P}/2074.jpeg` },
+    { name: "M. L. Omethra Thisagi",  last4: "2075", photo: `${P}/2075.jpg`  },
+    { name: "Vishwa Pramuditha",      last4: "2077", photo: `${P}/2077.jpeg` },
+    { name: "Nadeera Nethmina",       last4: "2078", photo: `${P}/2078.jpeg` },
+    { name: "Tharuka Perera",         last4: "2079", photo: `${P}/2079.jpeg` },
+    { name: "Sudeshika Sandeepani",   last4: "2080", photo: `${P}/2080.jpg`  },
+    { name: "Bineth Vindinu",         last4: "2083", photo: `${P}/2083.jpg`  },
+    { name: "Kaveesh Bandara",        last4: "2084", photo: `${P}/2084.jpg`  },
+    { name: "Dilush Bandara",         last4: "2085", photo: `${P}/2085.jpeg` },
+    { name: "Minula Kudarachchi",     last4: "2086", photo: `${P}/2086.jpg`  },
+    { name: "Vishwa Dasun",           last4: "2087", photo: `${P}/2087.jpeg` },
+    { name: "Chirath Miyuru",         last4: "2089", photo: `${P}/2089.jpeg` },
+    { name: "Nithila Kithnula",       last4: "2090", photo: `${P}/2090.png`  },
+    { name: "Vinuthi Abeywardana",    last4: "2091", photo: `${P}/2091.jpg`  },
+    { name: "Hansika Devindi",        last4: "2092", photo: `${P}/2092.jpeg` },
+    { name: "Hasaranga KHM",          last4: "2095", photo: `${P}/2095.jpeg` },
+    { name: "Nirmal Sasindu",         last4: "2097", photo: `${P}/2097.jpg`  },
+    { name: "Dilmi Ishara",           last4: "2100", photo: `${P}/2100.jpeg` },
+    { name: "Praveen Sandeepa",       last4: "2106", photo: `${P}/2106.jpg`  },
+    { name: "Dilshan Madhusankha",    last4: "2109", photo: `${P}/2109.jpg`  },
+    { name: "Tashiru Dissanayaka",    last4: "2110", photo: `${P}/2110.jpg`  },
+    { name: "Hasindu Nethsara",       last4: "2111", photo: `${P}/2111.jpeg` },
+    { name: "Sahan Buddhika",         last4: "2114", photo: `${P}/2114.jpg`  },
+    { name: "W. L. Bhashitha",        last4: "2115", photo: `${P}/2115.jpeg` },
+    { name: "Wimukthi Weerasinghe",   last4: "2117", photo: `${P}/2117.jpeg` },
+    { name: "Naveen Nethmal",         last4: "2121", photo: `${P}/2121.jpg`  },
+    { name: "Nirasha Weerawardhana",  last4: "2123", photo: `${P}/2123.jpg`  },
+    { name: "Abhisheka Sankalpani",   last4: "2125", photo: `${P}/2125.jpg`  },
+    { name: "Chamindu Dilhara",       last4: "2126", photo: `${P}/2126.jpg`  },
+    { name: "M. A. Aysha",            last4: "2128", photo: `${P}/2128.jpg`  },
+    { name: "Sachin Shehan",          last4: "2131", photo: `${P}/2131.jpeg` },
+    { name: "Chamod Kalhara",         last4: "2139", photo: `${P}/2139.jpg`  },
+    { name: "Pasidu Prasad",          last4: "2143", photo: `${P}/2143.jpeg` },
+    { name: "Isindu Anjana",          last4: "2144", photo: `${P}/2144.jpg`  },
+    { name: "Nadula Ranathunga",      last4: "2147", photo: `${P}/2147.jpeg` },
+  ];
+  
+  const TOTAL    = MENTORS.length;
+  const INTERVAL = 3800;
+  const pad = n => String(n).padStart(2, '0');
+  const initials = n => n.split(' ').filter(w => w && /[A-Za-z]/.test(w[0])).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  
+  // wrap each character in a span for the reveal animation
+  function splitName(name) {
+    return [...name].map((c, i) =>
+      `<span class="ch" style="--i:${i}">${c === ' ' ? '&nbsp;' : c}</span>`
+    ).join('');
+  }
+  
+  // ── DOM build ──────────────────────────────────────────────────────────────
+  const stageInner = document.getElementById('stage-inner');
+  const dotsEl     = document.getElementById('dots');
+  const counterEl  = document.getElementById('counter');
+  
+  const cards = MENTORS.map((m, i) => {
+    const card = document.createElement('div');
+    card.className = 'card no-anim';
+    card.dataset.index = i;
+  
+    card.innerHTML = `
+      <div class="card__inner">
+        <div class="card__tilt">
+          <div class="card__photo">
+            <img src="${m.photo}" alt="${m.name}" loading="lazy" />
+            <div class="shade"></div>
+            <div class="grad"></div>
+            <div class="card__sweep"></div>
+            <div class="card__glare"></div>
+            <div class="card__ring"></div>
+            <div class="card__badge">9th Batch</div>
+          </div>
+          <div class="card__expand">
+            <div class="card__expand-inner">
+              <div class="card__panel">
+                <div class="card__toprow">
+                  <span class="chip"><span class="pip"></span>9th Batch</span>
+                  <span class="verified">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.6 1.9 3.2-.1 1 3 2.6 1.9-1 3 1 3-2.6 1.9-1 3-3.2-.1L12 22l-2.6-1.9-3.2.1-1-3L2.6 15.3l1-3-1-3 2.6-1.9 1-3 3.2.1z"/><path d="M9 12l2 2 4-4"/></svg>
+                    Mentor
+                  </span>
+                </div>
+                <div class="card__meta">Profile · No. ${pad(i + 1)} of ${TOTAL}</div>
+                <div class="card__name">${splitName(m.name)}</div>
+                <div class="card__rule"></div>
+                <div class="card__foot">
+                  <span class="card__sub"><span class="role-dot"></span>9th Batch Mentor</span>
+                  <span class="card__id">TG/2024/${m.last4}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  
+    // fallback: swap broken img → initials div
+    const img = card.querySelector('img');
+    img.addEventListener('error', () => {
+      const fb = document.createElement('div');
+      fb.className = 'card__initials';
+      fb.textContent = initials(m.name);
+      img.replaceWith(fb);
+    });
+  
+    // click side cards to jump
+    card.addEventListener('click', () => {
+      if (card.dataset.slot !== 'center') goTo(i);
+    });
+  
+    stageInner.appendChild(card);
+    return card;
+  });
+  
+  const dots = MENTORS.map((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+    return d;
+  });
+  
+  // ── Slot logic (now with a second visible depth layer) ──────────────────────
+  const mid = Math.floor(TOTAL / 2);
+  function slotFor(offset) {
+    if (offset === 0)          return 'center';
+    if (offset === 1)          return 'right';
+    if (offset === 2)          return 'right2';
+    if (offset === TOTAL - 1)  return 'left';
+    if (offset === TOTAL - 2)  return 'left2';
+    return offset <= mid ? 'hidden-right' : 'hidden-left';
+  }
+  
+  // ── State ──────────────────────────────────────────────────────────────────
+  let active = 0;
+  let timer  = null;
+  let progressStart = 0;
+  let hovering = false;
+  
+  function render() {
+    cards.forEach((card, i) => {
+      const offset   = (i - active + TOTAL) % TOTAL;
+      const prevSlot = card.dataset.slot;
+      const nextSlot = slotFor(offset);
+  
+      // teleport cards jumping between hidden slots without animating across stage
+      if (prevSlot && prevSlot.startsWith('hidden') && nextSlot.startsWith('hidden') && prevSlot !== nextSlot) {
+        card.classList.add('no-anim');
+        card.dataset.slot = nextSlot;
+        void card.offsetWidth;
+        card.classList.remove('no-anim');
+      } else {
+        card.dataset.slot = nextSlot;
+      }
+  
+      // reset tilt on non-center cards
+      if (nextSlot !== 'center') {
+        const t = card.querySelector('.card__tilt');
+        if (t) t.style.transform = '';
+      }
+    });
+  
+    dots.forEach((d, i) => d.classList.toggle('active', i === active));
+    counterEl.textContent = `${pad(active + 1)} / ${pad(TOTAL)}`;
+  }
+  
+  function goTo(i) { active = ((i % TOTAL) + TOTAL) % TOTAL; render(); reschedule(); }
+  function next()  { active = (active + 1) % TOTAL; render(); }
+  function prev()  { active = (active - 1 + TOTAL) % TOTAL; render(); }
+  
+  // ── Autoplay + progress ring ────────────────────────────────────────────────
+  const ringFill = document.getElementById('ring-fill');
+  const R = 24, CIRC = 2 * Math.PI * R;
+  ringFill.style.strokeDasharray = CIRC;
+  
+  function reschedule() {
+    clearTimeout(timer);
+    progressStart = performance.now();
+    if (!hovering) timer = setTimeout(() => { next(); reschedule(); }, INTERVAL);
+  }
+  function tickRing(now) {
+    const frac = hovering ? 0 : Math.min(1, (now - progressStart) / INTERVAL);
+    ringFill.style.strokeDashoffset = CIRC * (1 - frac);
+    requestAnimationFrame(tickRing);
+  }
+  requestAnimationFrame(tickRing);
+  
+  // ── Controls ───────────────────────────────────────────────────────────────
+  document.getElementById('btn-next').addEventListener('click', () => { next(); reschedule(); });
+  document.getElementById('btn-prev').addEventListener('click', () => { prev(); reschedule(); });
+  
+  // pause on hover
+  const stage = document.getElementById('stage');
+  stage.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') { hovering = true; clearTimeout(timer); } });
+  stage.addEventListener('pointerleave', e => {
+    if (e.pointerType === 'mouse') {
+      hovering = false; reschedule();
+      const c = cards[active] && cards[active].querySelector('.card__tilt');
+      if (c) c.style.transform = '';
+    }
+  });
+  
+  // ── Interactive parallax tilt + cursor glare on the featured card ───────────
+  stage.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    const card = cards[active];
+    if (!card) return;
+    const rect = stage.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width  - 0.5;   // -0.5 … 0.5
+    const ny = (e.clientY - rect.top)  / rect.height - 0.5;
+    const tilt = card.querySelector('.card__tilt');
+    if (tilt) tilt.style.transform =
+      `rotateY(${nx * 12}deg) rotateX(${ -ny * 12}deg) translateZ(24px)`;
+    const glare = card.querySelector('.card__glare');
+    if (glare) { glare.style.setProperty('--gx', `${(nx + 0.5) * 100}%`); glare.style.setProperty('--gy', `${(ny + 0.5) * 100}%`); }
+  });
+  
+  // keyboard
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') { next(); reschedule(); }
+    else if (e.key === 'ArrowLeft') { prev(); reschedule(); }
+  });
+  
+  // swipe
+  let sx = null, sy = null;
+  stage.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') { sx = e.clientX; sy = e.clientY; } });
+  stage.addEventListener('pointerup', e => {
+    if (sx === null) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    sx = sy = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { dx < 0 ? next() : prev(); reschedule(); }
+  });
+  
+  // ── Particle constellation ──────────────────────────────────────────────────
+  (function particles() {
+    const canvas = document.getElementById('particle-canvas');
+    const ctx    = canvas.getContext('2d');
+    let W, H, pts, mouse = { x: -999, y: -999 };
+  
+    function resize() {
+      W = canvas.width  = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+    }
+    function mkPt() {
+      return {
+        x: Math.random() * W, y: Math.random() * H,
+        r: Math.random() * 1.5 + 0.4,
+        vx: (Math.random() - 0.5) * 0.22,
+        vy: (Math.random() - 0.5) * 0.22,
+        a: Math.random() * 0.5 + 0.15,
+      };
+    }
+    function init() { resize(); pts = Array.from({ length: 96 }, mkPt); }
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+  
+      // connecting lines (constellation)
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < 13000) {
+            const o = (1 - d2 / 13000) * 0.18;
+            ctx.strokeStyle = `rgba(120,180,255,${o})`;
+            ctx.lineWidth = 0.6;
+            ctx.beginPath();
+            ctx.moveTo(pts[i].x, pts[i].y);
+            ctx.lineTo(pts[j].x, pts[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      // points, with a gentle pull toward the cursor
+      pts.forEach(p => {
+        const mdx = mouse.x - p.x, mdy = mouse.y - p.y;
+        const md2 = mdx * mdx + mdy * mdy;
+        if (md2 < 20000 && md2 > 1) { p.vx += mdx / md2 * 6; p.vy += mdy / md2 * 6; }
+        p.vx *= 0.99; p.vy *= 0.99;
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > W) p.vx *= -1;
+        if (p.y < 0 || p.y > H) p.vy *= -1;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(147,197,253,${p.a})`;
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', resize);
+    window.addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    window.addEventListener('pointerleave', () => { mouse.x = mouse.y = -999; });
+    init(); draw();
+  })();
+  
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  render();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    cards.forEach(c => c.classList.remove('no-anim'));
+    reschedule();
+  }));
+  </script>
+  </body>
+  </html>

@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#020810" />
+  <title>Live Registrations — Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: "Manrope", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #eef5ff;
+      background: radial-gradient(ellipse 130% 90% at 50% -10%, #0d1b4a 0%, #030a1c 55%, #020810 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* ── background grid ── */
+    #grid {
+      position: fixed; inset: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(79,157,255,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(79,157,255,.045) 1px, transparent 1px);
+      background-size: 72px 72px;
+      -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, #000 20%, transparent 75%);
+              mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, #000 20%, transparent 75%);
+    }
+
+    /* ── ambient orbs ── */
+    .orb {
+      position: fixed; border-radius: 50%;
+      filter: blur(80px); pointer-events: none;
+    }
+    .orb-top {
+      width: 55vw; height: 55vw; top: -20%; left: 50%;
+      transform: translateX(-50%);
+      background: radial-gradient(circle, rgba(79,157,255,.2) 0%, transparent 70%);
+      animation: reg-drift1 18s ease-in-out infinite;
+    }
+    .orb-bl {
+      width: 35vw; height: 35vw; bottom: -8%; left: 8%;
+      background: radial-gradient(circle, rgba(99,102,241,.22) 0%, transparent 70%);
+      animation: reg-drift2 24s ease-in-out infinite;
+    }
+    .orb-br {
+      width: 35vw; height: 35vw; bottom: -8%; right: 8%;
+      background: radial-gradient(circle, rgba(94,225,255,.16) 0%, transparent 70%);
+      animation: reg-drift3 20s ease-in-out infinite;
+    }
+
+    /* ── header logo ── */
+    #header-logo {
+      position: absolute;
+      top: clamp(20px, 3vh, 40px);
+      left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center;
+    }
+    #header-logo img {
+      width: clamp(32px, 2.8vh, 42px);
+      height: clamp(32px, 2.8vh, 42px);
+      object-fit: contain;
+      display: block;
+    }
+
+    /* ── central ring stage ── */
+    #ring-stage {
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* pulse rings behind the SVG */
+    .idle-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(79,157,255,.1);
+      pointer-events: none;
+      animation: reg-idle-ring 4s ease-out infinite;
+    }
+    .idle-ring:nth-child(1) {
+      width: clamp(320px,42vw,520px); height: clamp(320px,42vw,520px);
+    }
+    .idle-ring:nth-child(2) {
+      width: clamp(290px,38vw,470px); height: clamp(290px,38vw,470px);
+      border-color: rgba(79,157,255,.06);
+      animation-delay: -.8s;
+    }
+
+    #ring-svg {
+      width:  clamp(260px, 34vw, 420px);
+      height: clamp(260px, 34vw, 420px);
+      transform: rotate(-90deg);
+      flex-shrink: 0;
+      overflow: visible;
+    }
+
+    /* ── counter overlay ── */
+    #counter-wrap {
+      position: absolute;
+      text-align: center;
+      pointer-events: none;
+    }
+    #count-num {
+      font-size: clamp(90px, 12vw, 155px);
+      font-weight: 800;
+      letter-spacing: -4px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+      text-shadow: 0 0 60px rgba(79,157,255,.65);
+      display: inline-block;
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #count-num.bumping { transform: scale(1.1); }
+    #count-label {
+      font-size: clamp(12px, 1.3vw, 18px);
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: rgba(140,190,255,.5);
+      margin-top: 6px;
+    }
+
+    /* ── sparkline ── */
+    #sparkline {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 40px;
+      margin-top: clamp(20px, 3vh, 38px);
+    }
+    .spark-bar {
+      width: 7px;
+      border-radius: 4px;
+      background: rgba(79,157,255,.32);
+      transition: height .5s ease;
+      flex-shrink: 0;
+    }
+    .spark-bar.latest {
+      background: #5ee1ff;
+      box-shadow: 0 0 10px #5ee1ff;
+    }
+
+    /* ── flash overlay ── */
+    #flash {
+      position: fixed; inset: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(79,157,255,.07), transparent 65%);
+      pointer-events: none;
+      opacity: 0;
+    }
+    #flash.active { animation: reg-flash .7s ease-out forwards; }
+
+    /* ── demo controls ── */
+    #controls {
+      position: fixed;
+      bottom: clamp(18px, 3vh, 32px);
+      left: 50%; transform: translateX(-50%);
+      display: flex; align-items: center; gap: 14px;
+      z-index: 10;
+    }
+    .ctrl-btn {
+      font-family: "Manrope", sans-serif;
+      font-size: 13px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: #eef5ff;
+      background: rgba(8,20,50,.85);
+      border: 1px solid rgba(140,190,255,.18);
+      border-radius: 999px;
+      padding: 10px 22px;
+      cursor: pointer;
+      backdrop-filter: blur(12px);
+      transition: border-color .2s, background .2s, transform .15s;
+    }
+    .ctrl-btn:hover {
+      border-color: rgba(79,157,255,.5);
+      background: rgba(79,157,255,.12);
+      transform: translateY(-2px);
+    }
+    .ctrl-btn:active { transform: scale(.96); }
+    .ctrl-btn.primary {
+      color: #4f9dff;
+      border-color: rgba(79,157,255,.35);
+    }
+
+    /* ── live pill ── */
+    #live-pill {
+      position: fixed;
+      top: clamp(20px, 3vh, 40px);
+      right: clamp(20px, 3vw, 40px);
+      display: flex; align-items: center; gap: 9px;
+      background: rgba(8,20,50,.75);
+      border: 1px solid rgba(140,190,255,.13);
+      border-radius: 999px;
+      padding: 9px 18px;
+      font-size: 13px; font-weight: 700;
+      letter-spacing: .1em; text-transform: uppercase;
+      color: #c3d6f5;
+      backdrop-filter: blur(10px);
+    }
+    #live-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #4f9dff;
+      flex-shrink: 0;
+      animation: reg-live-dot 1.8s infinite;
+    }
+
+    /* ── keyframes ── */
+    @keyframes reg-drift1 {
+      0%,100% { transform: translateX(-50%) translate(0,0); }
+      50%     { transform: translateX(-50%) translate(4vw,-5vh); }
+    }
+    @keyframes reg-drift2 {
+      0%,100% { transform: translate(0,0); }
+      50%     { transform: translate(3vw,-4vh); }
+    }
+    @keyframes reg-drift3 {
+      0%,100% { transform: translate(0,0); }
+      50%     { transform: translate(-4vw,3vh); }
+    }
+    @keyframes reg-idle-ring {
+      0%   { opacity: .6; transform: scale(1); }
+      60%  { opacity: 0;  transform: scale(1.05); }
+      100% { opacity: 0;  transform: scale(1.05); }
+    }
+    @keyframes reg-flash {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @keyframes reg-live-dot {
+      70%  { box-shadow: 0 0 0 10px rgba(79,157,255,0); }
+    }
+    @keyframes reg-ring-spin {
+      0%   { stroke-dashoffset: var(--circ); opacity: 0.2; }
+      15%  { opacity: 1; }
+      70%  { stroke-dashoffset: 0;           opacity: 1; }
+      100% { stroke-dashoffset: 0;           opacity: 0.18; }
+    }
+    @keyframes reg-dot-orbit {
+      0%   { transform: rotate(0deg)   translateY(-120px); opacity: 0.4; }
+      15%  { opacity: 1; }
+      70%  { transform: rotate(360deg) translateY(-120px); opacity: 1; }
+      100% { transform: rotate(360deg) translateY(-120px); opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="grid"></div>
+  <div class="orb orb-top"></div>
+  <div class="orb orb-bl"></div>
+  <div class="orb orb-br"></div>
+
+  <!-- header logo -->
+  <div id="header-logo">
+    <img src="/logo2.png" alt="Logo" />
+  </div>
+
+  <!-- live pill -->
+  <div id="live-pill">
+    <span id="live-dot"></span>
+    <span>Live · updates every 3s</span>
+  </div>
+
+  <!-- ring + counter -->
+  <div id="ring-stage">
+    <div class="idle-ring"></div>
+    <div class="idle-ring"></div>
+
+    <svg id="ring-svg" viewBox="0 0 280 280">
+      <defs>
+        <linearGradient id="reg-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%"   stop-color="#4f9dff" />
+          <stop offset="100%" stop-color="#5ee1ff" />
+        </linearGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <!-- dim track -->
+      <circle id="ring-track" cx="140" cy="140" r="120"
+        fill="none" stroke="rgba(79,157,255,.1)" stroke-width="7" />
+      <!-- animated arc -->
+      <circle id="ring-arc" cx="140" cy="140" r="120"
+        fill="none" stroke="url(#reg-grad)" stroke-width="7"
+        stroke-linecap="round"
+        stroke-dasharray="753.98 753.98"
+        stroke-dashoffset="753.98" />
+      <!-- orbiting dot -->
+      <circle id="ring-dot" cx="140" cy="20" r="6"
+        fill="#5ee1ff" filter="url(#glow)"
+        style="opacity:0" />
+    </svg>
+
+    <div id="counter-wrap">
+      <div id="count-num">0</div>
+      <div id="count-label">mentees registered</div>
+    </div>
+  </div>
+
+  <!-- sparkline -->
+  <div id="sparkline"></div>
+
+  <!-- flash -->
+  <div id="flash"></div>
+
+  <!-- demo controls -->
+  <div id="controls">
+    <button class="ctrl-btn" id="btn-minus" title="Remove one registration">− Remove</button>
+    <button class="ctrl-btn primary" id="btn-plus" title="Add one registration">+ Register</button>
+    <button class="ctrl-btn" id="btn-burst" title="Burst +5 registrations">Burst ×5</button>
+    <button class="ctrl-btn" id="btn-reset" title="Reset to 0">Reset</button>
+  </div>
+
+<script>
+  const CIRC = 2 * Math.PI * 120; // 753.98
+  document.getElementById('ring-arc').style.setProperty('--circ', CIRC);
+
+  let count    = 0;
+  let history  = [];
+  let bumping  = false;
+
+  const numEl     = document.getElementById('count-num');
+  const arcEl     = document.getElementById('ring-arc');
+  const dotEl     = document.getElementById('ring-dot');
+  const flashEl   = document.getElementById('flash');
+  const sparkEl   = document.getElementById('sparkline');
+
+  function renderSpark() {
+    if (history.length < 2) { sparkEl.innerHTML = ''; return; }
+    const maxH = Math.max(...history);
+    sparkEl.innerHTML = history.map((v, i) => {
+      const h   = maxH > 0 ? Math.round((v / maxH) * 36) : 4;
+      const last = i === history.length - 1;
+      return `<div class="spark-bar${last ? ' latest' : ''}" style="height:${Math.max(h,4)}px"></div>`;
+    }).join('');
+  }
+
+  function triggerRingAnim() {
+    // restart arc animation
+    arcEl.style.animation = 'none';
+    dotEl.style.animation = 'none';
+    dotEl.style.opacity   = '0';
+    void arcEl.offsetWidth; // reflow
+
+    arcEl.style.setProperty('stroke-dashoffset', CIRC);
+    arcEl.style.animation = `reg-ring-spin 1.2s cubic-bezier(.2,.8,.2,1) forwards`;
+
+    dotEl.style.opacity   = '1';
+    dotEl.style.animation = `reg-dot-orbit 1.2s cubic-bezier(.2,.8,.2,1) forwards`;
+  }
+
+  function triggerFlash() {
+    flashEl.classList.remove('active');
+    void flashEl.offsetWidth;
+    flashEl.classList.add('active');
+  }
+
+  function bump(newCount) {
+    const increased = newCount > count;
+    count = Math.max(0, newCount);
+    numEl.textContent = count;
+
+    history.push(count);
+    if (history.length > 20) history = history.slice(-20);
+    renderSpark();
+
+    if (increased) {
+      // scale bump
+      numEl.classList.add('bumping');
+      setTimeout(() => numEl.classList.remove('bumping'), 700);
+      triggerRingAnim();
+      triggerFlash();
+    }
+  }
+
+  // ── demo auto-increment (simulates real registration stream) ──────────
+  let autoMin = 4000, autoMax = 9000;
+  let autoTimer;
+
+  function scheduleAuto() {
+    clearTimeout(autoTimer);
+    const delay = autoMin + Math.random() * (autoMax - autoMin);
+    autoTimer = setTimeout(() => { bump(count + 1); scheduleAuto(); }, delay);
+  }
+  scheduleAuto();
+
+  // ── controls ──────────────────────────────────────────────────────────
+  document.getElementById('btn-plus').addEventListener('click', () => {
+    bump(count + 1); scheduleAuto();
+  });
+  document.getElementById('btn-minus').addEventListener('click', () => {
+    if (count > 0) { count--; numEl.textContent = count; history.push(count); if (history.length > 20) history = history.slice(-20); renderSpark(); }
+  });
+  document.getElementById('btn-burst').addEventListener('click', () => {
+    let i = 0;
+    const step = () => { if (i++ < 5) { bump(count + 1); setTimeout(step, 280); } else { scheduleAuto(); } };
+    step();
+  });
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    count = 0; history = []; numEl.textContent = '0';
+    arcEl.style.animation = 'none'; dotEl.style.animation = 'none'; dotEl.style.opacity = '0';
+    arcEl.style.strokeDashoffset = CIRC;
+    sparkEl.innerHTML = '';
+    scheduleAuto();
+  });
+
+  // initial render
+  renderSpark();
+</script>
+</body>
+</html>
