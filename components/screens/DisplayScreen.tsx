@@ -3,8 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { DisplayState, DisplayScene } from "@/lib/display-state";
 
-// Ghost row animation helpers
-
+// Allocation scene helpers — name pools used by the AllocationScene queue
 const FIRST = ["Kavindi","Pasindu","Nethmi","Ravindu","Dilani","Thilina","Amali","Buddhika",
                "Chathurika","Dasun","Eranga","Fathima","Geeth","Hasini","Isuru","Janani",
                "Kasun","Lahiru","Malsha","Nuwan","Oshadi","Pranith","Ruwini","Sandali",
@@ -12,14 +11,7 @@ const FIRST = ["Kavindi","Pasindu","Nethmi","Ravindu","Dilani","Thilina","Amali"
 const LAST  = ["Wickramasinghe","Fernando","Perera","Senanayake","Rathnayake","Jayasinghe",
                "Silva","Dissanayake","Bandara","Gunawardena","Rodrigo","Mendis","Pathirana",
                "Amarasinghe","Liyanage","Samaraweera","Weerasinghe","Herath","Tennakoon"];
-const METHODS = ["1st choice","1st choice","1st choice","2nd choice","2nd choice","Fallback"];
-const METHOD_COLORS: Record<string, string> = {
-  "1st choice": "#22c55e", "2nd choice": "#f59e0b", "Fallback": "#94a3b8",
-};
 function rand<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
-function fakeName() { return `${rand(FIRST)} ${rand(LAST)}`; }
-
-interface GhostRow { id: number; mentee: string; mentor: string; method: string; age: number }
 
 // Scene renderers
 
@@ -29,7 +21,7 @@ function IdleScene() {
       width: "100%",
       height: "100%",
       background: "#0f0c29",
-      backgroundImage: "url('/display/cover.png')",
+      backgroundImage: "url('/display/Mentor_Flayer.jpg.jpeg')",
       backgroundSize: "contain",
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat",
@@ -51,200 +43,714 @@ function ThankYouScene() {
   );
 }
 
-function LiveRegistrationsScene() {
-  const [count,    setCount]    = useState<number | null>(null);
-  const [prevCount, setPrevCount] = useState<number | null>(null);
-  const [bump,     setBump]     = useState(false);
-  const [ringKey,  setRingKey]  = useState(0);
-  const [history,  setHistory]  = useState<number[]>([]);
+// ─── Name pool for joiner toasts ──────────────────────────────────────────────
+const REG_NAMES = [
+  "Amaya P.","Kasun J.","Nethmi S.","Ravindu W.","Sanduni F.","Tharindu D.",
+  "Ishara M.","Dilini R.","Aisha K.","Liam O.","Sofia R.","Noah B.",
+  "Priya N.","Yuki T.","Mateo G.","Zara H.","Ethan C.","Hana L.",
+  "Omar A.","Chloe D.","Sahan G.","Nimesha K.","Arjun V.","Maya S.",
+  "Leo F.","Ines M.",
+];
+const REG_SUBS = ["just registered","joined the cohort","signed up","is in!"];
+const MILESTONE_STEP = 10;
 
+// ── Odometer reel helpers (module-level, no DOM dependency) ──────────────────
+const REEL_TRACK_LEN = 30; // digits 0-9 repeated ×3
+
+function LiveRegistrationsScene() {
+  const CIRC = 2 * Math.PI * 150; // 942.477…
+
+  // ── Refs ─────────────────────────────────────────────────────────────────────
+  const starsCanvasRef  = useRef<HTMLCanvasElement>(null);
+  const confCanvasRef   = useRef<HTMLCanvasElement>(null);
+  const stageRef        = useRef<HTMLDivElement>(null);
+  const numElRef        = useRef<HTMLDivElement>(null);
+  const cometRef        = useRef<SVGGElement>(null);
+  const flashColorRef   = useRef("rgba(79,157,255,.10)");
+
+  // canvas-animation state kept in refs (never needs React re-render)
+  const starsRef  = useRef<{ x:number;y:number;vx:number;vy:number;r:number;tw:number;ix:number;iy:number }[]>([]);
+  const confRef   = useRef<{ x:number;y:number;vx:number;vy:number;r:number;rot:number;vr:number;life:number;decay:number;color:string;shape:number }[]>([]);
+  const wRef      = useRef(0);
+  const hRef      = useRef(0);
+  const t0Ref     = useRef(0);
+  const rafRef    = useRef(0);
+
+  // live-data refs
+  const lastJoinRef  = useRef<number | null>(null);
+  const joinTimesRef = useRef<number[]>([]);
+  const countRef     = useRef(0);
+
+  // id counters
+  const toastIdRef = useRef(0);
+  const chipIdRef  = useRef(0);
+  const shockIdRef = useRef(0);
+
+  // ── React state ──────────────────────────────────────────────────────────────
+  const [count,       setCount]       = useState<number | null>(null);
+  const [history,     setHistory]     = useState<{ v: number; down: boolean }[]>([]);
+  const [bump,        setBump]        = useState(false);
+  const [dipCls,      setDipCls]      = useState(false);
+  const [goldCls,     setGoldCls]     = useState(false);
+  const [glitch,      setGlitch]      = useState(false);
+  const [shake,       setShake]       = useState(false);
+  const [toGo,        setToGo]        = useState(MILESTONE_STEP);
+  const [nextGold,    setNextGold]    = useState(false);
+  const [lastPopd,    setLastPopd]    = useState(false);
+  const [arcOffset,   setArcOffset]   = useState(CIRC);
+  const [isMilestone, setIsMilestone] = useState(false);
+  const [showRose,    setShowRose]    = useState(false);
+  const [banner,      setBanner]      = useState<string | null>(null);
+  const [lastAgo,     setLastAgo]     = useState("—");
+  const [rate,        setRate]        = useState(0);
+  const [flashKey,    setFlashKey]    = useState(0);
+  const [cometKey,    setCometKey]    = useState(0);
+  const [toasts,      setToasts]      = useState<{ id:number;name:string;sub:string;hue:number;out:boolean }[]>([]);
+  const [chips,       setChips]       = useState<{ id:number;text:string;kind:string;dx:number;dy:number }[]>([]);
+  const [shocks,      setShocks]      = useState<{ id:number;kind:string }[]>([]);
+
+  // ── Stars + confetti canvas loop ──────────────────────────────────────────────
+  useEffect(() => {
+    const sc = starsCanvasRef.current;
+    const cc = confCanvasRef.current;
+    if (!sc || !cc) return;
+    const sx = sc.getContext("2d")!;
+    const cx = cc.getContext("2d")!;
+
+    function resize() {
+      const W = window.innerWidth, H = window.innerHeight;
+      wRef.current = W; hRef.current = H;
+      const dpr = window.devicePixelRatio || 1;
+      for (const c of [sc, cc] as HTMLCanvasElement[]) {
+        c.width = W * dpr; c.height = H * dpr;
+        c.style.width = W + "px"; c.style.height = H + "px";
+      }
+      sx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const n = Math.min(170, Math.floor(W * H / 11000));
+      starsRef.current = Array.from({ length: n }, () => ({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - .5) * .12, vy: (Math.random() - .5) * .12,
+        r: Math.random() * 1.4 + .4, tw: Math.random() * Math.PI * 2, ix: 0, iy: 0,
+      }));
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    t0Ref.current = performance.now();
+    function frame(now: number) {
+      const dt = Math.min(2, (now - t0Ref.current) / 16.67);
+      t0Ref.current = now;
+      const W = wRef.current, H = hRef.current;
+      const stars = starsRef.current;
+
+      // stars
+      sx.clearRect(0, 0, W, H);
+      for (const s of stars) {
+        s.x += (s.vx + s.ix) * dt; s.y += (s.vy + s.iy) * dt;
+        s.ix *= .94; s.iy *= .94; s.tw += .02 * dt;
+        if (s.x < -5) s.x = W + 5; if (s.x > W + 5) s.x = -5;
+        if (s.y < -5) s.y = H + 5; if (s.y > H + 5) s.y = -5;
+      }
+      sx.strokeStyle = "rgba(94,225,255,.07)"; sx.lineWidth = 1;
+      for (let i = 0; i < stars.length; i++) for (let j = i + 1; j < stars.length; j++) {
+        const a = stars[i], b = stars[j], dx = a.x - b.x, dy = a.y - b.y;
+        if (dx * dx + dy * dy < 110 * 110) { sx.beginPath(); sx.moveTo(a.x, a.y); sx.lineTo(b.x, b.y); sx.stroke(); }
+      }
+      for (const s of stars) {
+        const al = .35 + Math.sin(s.tw) * .3;
+        sx.fillStyle = `rgba(160,205,255,${al.toFixed(3)})`;
+        sx.beginPath(); sx.arc(s.x, s.y, s.r, 0, Math.PI * 2); sx.fill();
+      }
+
+      // confetti
+      cx.clearRect(0, 0, W, H);
+      const conf = confRef.current;
+      if (conf.length) {
+        confRef.current = conf.filter(p => p.life > 0);
+        for (const p of confRef.current) {
+          p.vy += .12 * dt; p.vx *= .985; p.vy *= .985;
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          p.rot += p.vr * dt; p.life -= p.decay * dt;
+          cx.save(); cx.globalAlpha = Math.max(0, p.life);
+          cx.translate(p.x, p.y); cx.rotate(p.rot);
+          cx.fillStyle = p.color; cx.shadowColor = p.color; cx.shadowBlur = 8;
+          if (p.shape) { cx.fillRect(-p.r, -p.r * .5, p.r * 2, p.r); }
+          else { cx.beginPath(); cx.arc(0, 0, p.r * .7, 0, Math.PI * 2); cx.fill(); }
+          cx.restore();
+        }
+      }
+      rafRef.current = requestAnimationFrame(frame);
+    }
+    rafRef.current = requestAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
+  // ── Star ripple ───────────────────────────────────────────────────────────────
+  const ripple = React.useCallback((strength: number) => {
+    const W = wRef.current, H = hRef.current;
+    const cx = W / 2, cy = H / 2;
+    for (const s of starsRef.current) {
+      const dx = s.x - cx, dy = s.y - cy, d = Math.hypot(dx, dy) || 1;
+      const f = strength * 90 / d;
+      s.ix += dx / d * f; s.iy += dy / d * f;
+    }
+  }, []);
+
+  // ── Canvas confetti burst ─────────────────────────────────────────────────────
+  const burst = React.useCallback((n: number, colors: string[], speed: number) => {
+    const W = wRef.current, H = hRef.current;
+    const cx = W / 2, cy = H / 2 - 10;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = speed * (.4 + Math.random());
+      confRef.current.push({
+        x: cx, y: cy, vx: Math.cos(a) * v, vy: Math.sin(a) * v - speed * .5,
+        r: Math.random() * 4 + 2, rot: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+        life: 1, decay: .008 + Math.random() * .012,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        shape: Math.random() < .5 ? 0 : 1,
+      });
+    }
+  }, []);
+
+  // ── Odometer ─────────────────────────────────────────────────────────────────
+  const renderOdometer = React.useCallback((n: number, dir: number) => {
+    const el = numElRef.current;
+    if (!el) return;
+    const str = String(n);
+
+    // Remove any non-reel children React may have left (safety guard)
+    [...el.children].forEach(c => {
+      if (!(c as HTMLElement).classList.contains("lr-reel")) c.remove();
+    });
+
+    // add reels
+    while (el.children.length < str.length) {
+      const reel = document.createElement("div");
+      reel.className = "lr-reel lr-reel-enter";
+      reel.dataset.pos = "10";
+      const track = document.createElement("div");
+      track.className = "lr-reel-track";
+      for (let i = 0; i < REEL_TRACK_LEN; i++) {
+        const s = document.createElement("span"); s.textContent = String(i % 10); track.appendChild(s);
+      }
+      track.style.transform = "translateY(-10em)";
+      reel.appendChild(track);
+      el.prepend(reel);
+      setTimeout(() => reel.classList.remove("lr-reel-enter"), 700);
+    }
+    // remove extra reels
+    while (el.children.length > str.length) el.firstElementChild?.remove();
+    // move each reel
+    [...el.children].forEach((reel, i) => {
+      const d = +str[i];
+      const track = reel.firstElementChild as HTMLElement;
+      if (!track) return;
+      let pos = +(reel as HTMLElement).dataset.pos!;
+      const cur = pos % 10;
+      if (cur === d) return;
+      const delta = dir >= 0 ? (d - cur + 10) % 10 : -((cur - d + 10) % 10);
+      if (pos + delta < 0 || pos + delta >= REEL_TRACK_LEN) {
+        track.style.transition = "none";
+        pos = 10 + cur;
+        track.style.transform = `translateY(${-pos}em)`;
+        void track.offsetWidth;
+        track.style.transition = "";
+      }
+      pos += delta;
+      (reel as HTMLElement).dataset.pos = String(pos);
+      track.style.transform = `translateY(${-pos}em)`;
+      const t = (reel as HTMLElement & { _rt?: ReturnType<typeof setTimeout> })._rt;
+      if (t) clearTimeout(t);
+      (reel as HTMLElement & { _rt?: ReturnType<typeof setTimeout> })._rt = setTimeout(() => {
+        const p = +(reel as HTMLElement).dataset.pos!;
+        const nn = 10 + (p % 10);
+        if (nn !== p) {
+          track.style.transition = "none";
+          (reel as HTMLElement).dataset.pos = String(nn);
+          track.style.transform = `translateY(${-nn}em)`;
+          void track.offsetWidth;
+          track.style.transition = "";
+        }
+      }, 900);
+    });
+  }, []);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+  const popClass = React.useCallback((set: React.Dispatch<React.SetStateAction<boolean>>, ms: number) => {
+    set(true); setTimeout(() => set(false), ms);
+  }, []);
+
+  const addShock = React.useCallback((kind: string) => {
+    const id = ++shockIdRef.current;
+    setShocks(p => [...p, { id, kind }]);
+    setTimeout(() => setShocks(p => p.filter(s => s.id !== id)), 1000);
+  }, []);
+
+  const addChip = React.useCallback((text: string, kind: string) => {
+    const id = ++chipIdRef.current;
+    const stage = stageRef.current;
+    const r = stage ? stage.offsetWidth * 0.33 : 120;
+    const ang = (Math.random() * 120 - 60) * Math.PI / 180;
+    setChips(p => [...p, { id, text, kind, dx: Math.sin(ang) * r - 10, dy: -Math.cos(ang) * r * .55 - 20 }]);
+    setTimeout(() => setChips(p => p.filter(c => c.id !== id)), 1400);
+  }, []);
+
+  const addToast = React.useCallback(() => {
+    const name = REG_NAMES[Math.floor(Math.random() * REG_NAMES.length)];
+    const sub  = REG_SUBS[Math.floor(Math.random() * REG_SUBS.length)];
+    const hue  = [...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+    const id   = ++toastIdRef.current;
+    setToasts(p => [...p.slice(-3), { id, name, sub, hue, out: false }]);
+    // start exit animation
+    setTimeout(() => setToasts(p => p.map(t => t.id === id ? { ...t, out: true } : t)), 4200);
+    // remove from DOM
+    setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 4800);
+  }, []);
+
+  const updateProgress = React.useCallback((n: number) => {
+    const inStep = n % MILESTONE_STEP;
+    const pct = inStep / MILESTONE_STEP;
+    setArcOffset(CIRC * (1 - Math.min(1, Math.max(0, pct))));
+    setToGo(inStep === 0 ? MILESTONE_STEP : MILESTONE_STEP - inStep);
+    setNextGold(inStep >= MILESTONE_STEP - 2 && n > 0);
+  }, [CIRC]);
+
+  // ── Increment handler ─────────────────────────────────────────────────────────
+  // ── Core increment animation (shared by both toast variants) ─────────────────
+  const runIncrementEffects = React.useCallback((newCount: number) => {
+    const milestone = newCount % MILESTONE_STEP === 0;
+    renderOdometer(newCount, +1);
+    setHistory(h => [...h.slice(-23), { v: newCount, down: false }]);
+    lastJoinRef.current = Date.now();
+    joinTimesRef.current = [...joinTimesRef.current.filter(t => Date.now() - t < 60000), Date.now()];
+
+    popClass(setBump, 600);
+    popClass(setGlitch, 350);
+    popClass(setLastPopd, 500);
+    addChip(`+1`, milestone ? "gold" : "");
+    setCometKey(k => k + 1);
+
+    if (milestone) {
+      setArcOffset(0);
+      setIsMilestone(true);
+      setShowRose(false);
+      popClass(setGoldCls, 900);
+      popClass(setShake, 500);
+      addShock("gold");
+      setTimeout(() => addShock("gold"), 150);
+      setTimeout(() => addShock(""), 300);
+      flashColorRef.current = "rgba(255,209,102,.16)";
+      setFlashKey(k => k + 1);
+      ripple(3.2);
+      burst(160, ["#ffd166","#fff3c4","#5ee1ff","#ffffff","#ff9f68"], 9);
+      setBanner(`✦ ${newCount} mentees — milestone reached`);
+      setTimeout(() => setBanner(null), 3200);
+      setTimeout(() => {
+        setIsMilestone(false);
+        setArcOffset(CIRC);
+        updateProgress(newCount);
+      }, 1500);
+    } else {
+      updateProgress(newCount);
+      setShowRose(false);
+      addShock("");
+      flashColorRef.current = "rgba(79,157,255,.10)";
+      setFlashKey(k => k + 1);
+      ripple(1.4);
+      burst(26, ["#5ee1ff","#4f9dff","#ffffff","#a5b4fc"], 5);
+    }
+  }, [addChip, addShock, burst, popClass, renderOdometer, ripple, updateProgress, CIRC]);
+
+  // Used when no real name is available (shouldn't happen in normal flow)
+  const handleIncrement = React.useCallback((newCount: number) => {
+    addToast();
+    runIncrementEffects(newCount);
+  }, [addToast, runIncrementEffects]);
+
+  // Used by the poll when a real name toast is fired separately
+  const handleIncrementNoToast = React.useCallback((newCount: number) => {
+    runIncrementEffects(newCount);
+  }, [runIncrementEffects]);
+
+  // ── Poll API ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    // Track the last joiner name+timestamp we've already acted on, so we
+    // don't fire a toast on every 3-second poll for the same person.
+    let lastSeenAt: string | null = null;
 
     const poll = async () => {
       try {
-        const res  = await fetch("/api/display/registrations");
+        const res = await fetch("/api/display/registrations");
         if (!res.ok) return;
-        const data = await res.json() as { count: number };
-        if (!cancelled) {
-          setCount((prev) => {
-            if (prev !== null && data.count !== prev) {
-              setPrevCount(prev);
-              setBump(true);
-              setRingKey(k => k + 1);
-              setHistory(h => [...h.slice(-19), data.count]);
-              setTimeout(() => setBump(false), 700);
-            } else if (prev === null) {
-              setHistory([data.count]);
-            }
-            return data.count;
-          });
+        const data = await res.json() as { count: number; latestName: string | null; latestAt: string | null };
+        if (cancelled) return;
+
+        // Sync the "last joined" ref from the real DB timestamp so the
+        // "X ago" ticker stays accurate even after a page reload.
+        if (data.latestAt) {
+          const ts = new Date(data.latestAt).getTime();
+          if (!lastJoinRef.current || ts > lastJoinRef.current) {
+            lastJoinRef.current = ts;
+          }
         }
+
+        setCount(prev => {
+          const n = data.count;
+          if (prev === null) {
+            // First load — set everything up without triggering animations.
+            countRef.current = n;
+            updateProgress(n);
+            renderOdometer(n, +1);
+            setHistory([{ v: n, down: false }]);
+            lastSeenAt = data.latestAt;
+          } else if (n > prev) {
+            // New registration(s) arrived.
+            countRef.current = n;
+            // Fire real toast only if it's a new joiner we haven't shown yet.
+            if (data.latestAt && data.latestAt !== lastSeenAt && data.latestName) {
+              lastSeenAt = data.latestAt;
+              // Temporarily override addToast to use the real name.
+              const realName = data.latestName;
+              const sub      = REG_SUBS[Math.floor(Math.random() * REG_SUBS.length)];
+              const hue      = [...realName].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+              const id       = ++toastIdRef.current;
+              setToasts(p => [...p.slice(-3), { id, name: realName, sub, hue, out: false }]);
+              setTimeout(() => setToasts(p => p.map(t => t.id === id ? { ...t, out: true } : t)), 4200);
+              setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 4800);
+            }
+            handleIncrementNoToast(n);
+          } else if (n < prev) {
+            // A registration was removed.
+            countRef.current = n;
+            renderOdometer(n, -1);
+            setHistory(h => [...h.slice(-23), { v: n, down: true }]);
+            popClass(setDipCls, 500);
+            popClass(setShake, 400);
+            setShowRose(true);
+            setTimeout(() => setShowRose(false), 700);
+            addShock("rose");
+            addChip("−1", "minus");
+            flashColorRef.current = "rgba(255,107,139,.09)";
+            setFlashKey(k => k + 1);
+            ripple(-1);
+            updateProgress(n);
+          }
+          return n;
+        });
       } catch { /* ignore */ }
     };
-
     poll();
     const iv = setInterval(poll, 3000);
     return () => { cancelled = true; clearInterval(iv); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleIncrementNoToast, updateProgress, popClass, addShock, addChip, renderOdometer, ripple]);
+
+  // ── Live meta ticker ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setInterval(() => {
+      const lj = lastJoinRef.current;
+      if (lj) {
+        const s = Math.round((Date.now() - lj) / 1000);
+        setLastAgo(s < 3 ? "just now" : s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ago`);
+      }
+      joinTimesRef.current = joinTimesRef.current.filter(t => t > Date.now() - 60000);
+      setRate(joinTimesRef.current.length);
+    }, 1000);
+    return () => clearInterval(t);
   }, []);
 
   const displayCount = count ?? 0;
-  const R    = 120;
-  const CIRC = 2 * Math.PI * R;
 
   return (
     <div style={{
       position:"fixed", inset:0,
-      fontFamily:"Manrope,sans-serif",
-      WebkitFontSmoothing:"antialiased",
+      fontFamily:'"Manrope",sans-serif', WebkitFontSmoothing:"antialiased",
       color:"#eef5ff",
       background:"radial-gradient(ellipse 130% 90% at 50% -10%,#0d1b4a 0%,#030a1c 55%,#020810 100%)",
-      display:"flex", flexDirection:"column",
-      alignItems:"center", justifyContent:"center",
-      overflow:"hidden",
+      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+      overflow:"hidden", minHeight:"100vh",
     }}>
 
-      {/* Background grid */}
-      <div style={{ position:"absolute", inset:0, pointerEvents:"none",
-        backgroundImage:"linear-gradient(rgba(79,157,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(79,157,255,.045) 1px,transparent 1px)",
-        backgroundSize:"72px 72px",
-        WebkitMaskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,#000 20%,transparent 75%)",
-        maskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,#000 20%,transparent 75%)" }} />
+      {/* ── Stars canvas ── */}
+      <canvas ref={starsCanvasRef} style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:0 }} />
 
-      {/* Ambient orbs */}
-      <div style={{ position:"absolute", width:"55vw", height:"55vw", top:"-20%", left:"50%", transform:"translateX(-50%)", borderRadius:"50%", background:"radial-gradient(circle,rgba(79,157,255,.2) 0%,transparent 70%)", filter:"blur(80px)", pointerEvents:"none", animation:"reg-drift1 18s ease-in-out infinite" }} />
-      <div style={{ position:"absolute", width:"35vw", height:"35vw", bottom:"-8%", left:"8%",  borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,.22) 0%,transparent 70%)", filter:"blur(70px)", pointerEvents:"none", animation:"reg-drift2 24s ease-in-out infinite" }} />
-      <div style={{ position:"absolute", width:"35vw", height:"35vw", bottom:"-8%", right:"8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(94,225,255,.16) 0%,transparent 70%)", filter:"blur(70px)", pointerEvents:"none", animation:"reg-drift3 20s ease-in-out infinite" }} />
+      {/* ── Aurora layers ── */}
+      <div style={{ position:"fixed", left:"50%", top:"50%", width:"120vmax", height:"120vmax", margin:"-60vmax 0 0 -60vmax", borderRadius:"50%", pointerEvents:"none", filter:"blur(70px)", opacity:.22, willChange:"transform", background:"conic-gradient(from 0deg,transparent 0deg,rgba(79,157,255,.7) 60deg,transparent 120deg,rgba(99,102,241,.6) 200deg,transparent 260deg,rgba(94,225,255,.5) 320deg,transparent 360deg)", animation:"lr-aurora-a 60s linear infinite" }} />
+      <div style={{ position:"fixed", left:"50%", top:"50%", width:"120vmax", height:"120vmax", margin:"-60vmax 0 0 -60vmax", borderRadius:"50%", pointerEvents:"none", filter:"blur(70px)", opacity:.16, willChange:"transform", background:"conic-gradient(from 180deg,transparent 0deg,rgba(94,225,255,.5) 90deg,transparent 180deg,rgba(99,102,241,.5) 270deg,transparent 360deg)", animation:"lr-aurora-a 85s linear infinite reverse" }} />
 
-      {/* Header brand */}
-      <div style={{ position:"absolute", top:"clamp(20px,3vh,40px)", left:"50%", transform:"translateX(-50%)", display:"flex", alignItems:"center", flexShrink:0 }}>
-        <RobotLogoMark size="clamp(32px,2.8vh,42px)" />
+      {/* ── Grid ── */}
+      <div style={{ position:"fixed", inset:"-72px", pointerEvents:"none", zIndex:0, backgroundImage:"linear-gradient(rgba(79,157,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(79,157,255,.045) 1px,transparent 1px)", backgroundSize:"72px 72px", WebkitMaskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,#000 20%,transparent 75%)", maskImage:"radial-gradient(ellipse 80% 80% at 50% 50%,#000 20%,transparent 75%)", animation:"lr-grid 40s linear infinite" }} />
+
+      {/* ── Orbs ── */}
+      <div style={{ position:"fixed", width:"55vw", height:"55vw", top:"-20%", left:"50%", transform:"translateX(-50%)", borderRadius:"50%", background:"radial-gradient(circle,rgba(79,157,255,.22) 0%,transparent 70%)", filter:"blur(80px)", pointerEvents:"none", zIndex:0, animation:"lr-orb1 18s ease-in-out infinite" }} />
+      <div style={{ position:"fixed", width:"35vw", height:"35vw", bottom:"-8%", left:"8%",  borderRadius:"50%", background:"radial-gradient(circle,rgba(99,102,241,.22) 0%,transparent 70%)", filter:"blur(70px)", pointerEvents:"none", zIndex:0, animation:"lr-orb2 24s ease-in-out infinite" }} />
+      <div style={{ position:"fixed", width:"35vw", height:"35vw", bottom:"-8%", right:"8%", borderRadius:"50%", background:"radial-gradient(circle,rgba(94,225,255,.16) 0%,transparent 70%)", filter:"blur(70px)", pointerEvents:"none", zIndex:0, animation:"lr-orb3 20s ease-in-out infinite" }} />
+
+      {/* ── Vignette ── */}
+      <div style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:1, background:"radial-gradient(ellipse 90% 90% at 50% 50%,transparent 55%,rgba(2,8,16,.65) 100%)" }} />
+
+      {/* ── Flash overlay ── */}
+      <div key={flashKey} style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:2, background:`radial-gradient(circle at 50% 50%,${flashColorRef.current},transparent 65%)`, animation: flashKey > 0 ? "lr-flash .8s ease-out forwards" : "none", opacity: flashKey > 0 ? 1 : 0 }} />
+
+      {/* ── Confetti canvas ── */}
+      <canvas ref={confCanvasRef} style={{ position:"fixed", inset:0, pointerEvents:"none", zIndex:30 }} />
+
+      {/* ── Header logo ── */}
+      <div style={{ position:"absolute", top:"clamp(20px,3vh,40px)", left:"50%", transform:"translateX(-50%)", zIndex:5, animation:"lr-float 6s ease-in-out infinite" }}>
+        <img src="/logo2.png" alt="Logo" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} style={{ width:"clamp(32px,2.8vh,42px)", height:"clamp(32px,2.8vh,42px)", objectFit:"contain", display:"block", filter:"drop-shadow(0 0 14px rgba(79,157,255,.55))" }} />
       </div>
 
-      {/* Central ring + counter */}
-      <div style={{ position:"relative", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+      {/* ── Live pill ── */}
+      <div style={{ position:"fixed", top:"clamp(20px,3vh,40px)", right:"clamp(20px,3vw,40px)", zIndex:5, display:"flex", alignItems:"center", gap:10, background:"rgba(8,20,50,.75)", border:"1px solid rgba(140,190,255,.13)", borderRadius:999, padding:"9px 18px", fontSize:13, fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", color:"#c3d6f5", backdropFilter:"blur(10px)", overflow:"hidden" }}>
+        {/* sheen sweep */}
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(110deg,transparent 30%,rgba(140,190,255,.12) 50%,transparent 70%)", animation:"lr-pill-sheen 6s ease-in-out infinite", pointerEvents:"none" }} />
+        <div style={{ width:9, height:9, borderRadius:"50%", background:"#4f9dff", flexShrink:0, boxShadow:"0 0 0 0 rgba(79,157,255,.6)", animation:"lr-live-dot 1.8s infinite" }} />
+        <span>Live</span>
+        <span style={{ display:"inline-flex", alignItems:"flex-end", gap:2, height:12, marginLeft:2 }}>
+          {[0,-.3,-.6,-.15].map((delay, i) => (
+            <i key={i} style={{ width:3, height:4, background:"#5ee1ff", borderRadius:2, opacity:.8, display:"inline-block", animation:`lr-eq 1.1s ease-in-out ${delay}s infinite` }} />
+          ))}
+        </span>
+      </div>
 
-        {/* Steady background pulse rings */}
-        <div style={{ position:"absolute", width:"clamp(320px,42vw,520px)", height:"clamp(320px,42vw,520px)", borderRadius:"50%", border:"1px solid rgba(79,157,255,.1)", animation:"reg-idle-ring 4s ease-out infinite", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:"clamp(290px,38vw,470px)", height:"clamp(290px,38vw,470px)", borderRadius:"50%", border:"1px solid rgba(79,157,255,.06)", animation:"reg-idle-ring 4s ease-out infinite", animationDelay:"-.8s", pointerEvents:"none" }} />
+      {/* ── Milestone banner ── */}
+      <div style={{ position:"fixed", top:"clamp(80px,12vh,120px)", left:"50%", transform:`translateX(-50%) translateY(${banner ? 0 : -30}px)`, opacity: banner ? 1 : 0, transition:"transform .6s cubic-bezier(.34,1.56,.64,1),opacity .4s", display:"flex", alignItems:"center", gap:12, padding:"12px 26px", borderRadius:999, zIndex:9, background:"linear-gradient(90deg,rgba(255,209,102,.15),rgba(255,209,102,.05))", border:"1px solid rgba(255,209,102,.5)", boxShadow:"0 0 40px rgba(255,209,102,.35)", fontWeight:800, letterSpacing:".12em", textTransform:"uppercase", fontSize:14, color:"#ffd166", backdropFilter:"blur(12px)", pointerEvents:"none" }}>
+        <span style={{ display:"inline-block", animation:"lr-spin 3s linear infinite" }}>✦</span>
+        <span>{banner}</span>
+        <span style={{ display:"inline-block", animation:"lr-spin 3s linear infinite" }}>✦</span>
+      </div>
+
+      {/* ── Ring stage ── */}
+      <div
+        ref={stageRef}
+        style={{ position:"relative", zIndex:3, width:"clamp(280px,36vw,440px)", height:"clamp(280px,36vw,440px)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, animation: shake ? "lr-shake .5s cubic-bezier(.36,.07,.19,.97) both" : "lr-float 7s ease-in-out infinite" }}
+      >
+        {/* idle pulse rings */}
+        <div style={{ position:"absolute", width:"118%", height:"118%", borderRadius:"50%", border:"1px solid rgba(79,157,255,.12)", pointerEvents:"none", animation:"lr-idle-ring 4.5s ease-out 0s infinite" }} />
+        <div style={{ position:"absolute", width:"108%", height:"108%", borderRadius:"50%", border:"1px solid rgba(79,157,255,.07)", pointerEvents:"none", animation:"lr-idle-ring 4.5s ease-out -1.5s infinite" }} />
+        <div style={{ position:"absolute", width:"128%", height:"128%", borderRadius:"50%", border:"1px solid rgba(94,225,255,.05)", pointerEvents:"none", animation:"lr-idle-ring 4.5s ease-out -3s infinite" }} />
+
+        {/* radar sweep */}
+        <div style={{ position:"absolute", inset:0, borderRadius:"50%", pointerEvents:"none", background:"conic-gradient(from 0deg,transparent 0deg 300deg,rgba(94,225,255,.28) 360deg)", WebkitMask:"radial-gradient(circle,transparent 69%,#000 70%,#000 80%,transparent 81%)", mask:"radial-gradient(circle,transparent 69%,#000 70%,#000 80%,transparent 81%)", animation:"lr-spin 7s linear infinite", opacity:.85 }} />
+
+        {/* shockwaves */}
+        {shocks.map(s => {
+          const col = s.kind === "rose" ? "#ff6b8b" : s.kind === "gold" ? "#ffd166" : "#5ee1ff";
+          const glow = s.kind === "rose" ? "0 0 20px #ff6b8b" : s.kind === "gold" ? "0 0 40px #ffd166,inset 0 0 40px #ffd166" : "0 0 30px #4f9dff,inset 0 0 30px #4f9dff";
+          return <div key={s.id} style={{ position:"absolute", left:"50%", top:"50%", width:"75%", height:"75%", margin:"-37.5% 0 0 -37.5%", borderRadius:"50%", border:`2px solid ${col}`, pointerEvents:"none", opacity:0, boxShadow:glow, animation:"lr-shock 1s cubic-bezier(.2,.8,.2,1) forwards" }} />;
+        })}
 
         {/* SVG ring */}
-        <svg
-          key={ringKey}
-          width="clamp(260px,34vw,420px)"
-          height="clamp(260px,34vw,420px)"
-          viewBox="0 0 280 280"
-          style={{ transform:"rotate(-90deg)", flexShrink:0 }}
-        >
+        <svg viewBox="0 0 400 400" style={{ position:"absolute", inset:0, width:"100%", height:"100%", overflow:"visible" }}>
           <defs>
-            <linearGradient id="reg-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%"   stopColor="#4f9dff" />
-              <stop offset="100%" stopColor="#5ee1ff" />
+            <linearGradient id="lr-grad"  x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#4f9dff"/><stop offset="100%" stopColor="#5ee1ff"/></linearGradient>
+            <linearGradient id="lr-gold"  x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#ffd166"/><stop offset="100%" stopColor="#fff3c4"/></linearGradient>
+            <linearGradient id="lr-rose"  x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stopColor="#ff6b8b"/><stop offset="100%" stopColor="#ffa3b8"/></linearGradient>
+            <linearGradient id="lr-tail" gradientUnits="userSpaceOnUse" x1="136.6" y1="64.1" x2="200" y2="50">
+              <stop offset="0%" stopColor="#5ee1ff" stopOpacity="0"/><stop offset="100%" stopColor="#ffffff" stopOpacity="1"/>
             </linearGradient>
-          </defs>
-
-          {/* Static dim track ring */}
-          <circle cx="140" cy="140" r={R} fill="none"
-            stroke="rgba(79,157,255,.1)" strokeWidth="7" />
-
-          {/* Animated ring arc */}
-          <circle cx="140" cy="140" r={R} fill="none"
-            stroke="url(#reg-grad)"
-            strokeWidth="7"
-            strokeLinecap="round"
-            strokeDasharray={`${CIRC} ${CIRC}`}
-            style={{
-              animation: bump || ringKey > 0
-                ? "reg-ring-spin 1.2s cubic-bezier(.2,.8,.2,1) forwards"
-                : undefined,
-            }}
-          />
-
-          {/* Glow dot that orbits once with the arc */}
-
-          {(bump || ringKey > 0) && (
-            <circle cx="140" cy={140 - R} r="6" fill="#5ee1ff"
-              style={{ animation:"reg-dot-orbit 1.2s cubic-bezier(.2,.8,.2,1) forwards",
-                       filter:"url(#glow)" }} />
-          )}
-
-          <defs>
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            <filter id="lr-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="lr-glow-s" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
           </defs>
+
+          {/* tick ring — orbits slowly */}
+          <g style={{ transformOrigin:"200px 200px", animation:"lr-spin 120s linear infinite" }}>
+            {Array.from({ length: 72 }, (_, i) => {
+              const major = i % 6 === 0;
+              const a = (i / 72) * Math.PI * 2;
+              const r1 = 186, r2 = major ? 198 : 193;
+              const x1 = 200 + r1 * Math.sin(a), y1 = 200 - r1 * Math.cos(a);
+              const x2 = 200 + r2 * Math.sin(a), y2 = 200 - r2 * Math.cos(a);
+              return <line key={i} x1={x1.toFixed(2)} y1={y1.toFixed(2)} x2={x2.toFixed(2)} y2={y2.toFixed(2)} stroke={major ? "rgba(94,225,255,.55)" : "rgba(79,157,255,.22)"} strokeWidth={major ? 2 : 1} strokeLinecap="round" />;
+            })}
+          </g>
+
+          {/* dashed counter-rotating ring */}
+          <circle cx="200" cy="200" r="172" fill="none" stroke="rgba(94,225,255,.22)" strokeWidth="1.5" strokeDasharray="2 9" style={{ transformOrigin:"200px 200px", animation:"lr-spin 80s linear infinite reverse" }} />
+
+          {/* dim track */}
+          <circle cx="200" cy="200" r="150" fill="none" stroke={isMilestone ? "rgba(255,209,102,.25)" : "rgba(79,157,255,.12)"} strokeWidth="7" style={{ transition:"stroke .4s" }} />
+
+          {/* progress arc */}
+          <circle cx="200" cy="200" r="150" fill="none"
+            stroke={isMilestone ? "url(#lr-gold)" : showRose ? "url(#lr-rose)" : "url(#lr-grad)"}
+            strokeWidth="7" strokeLinecap="round"
+            transform="rotate(-90 200 200)"
+            strokeDasharray={`${CIRC} ${CIRC}`}
+            strokeDashoffset={arcOffset}
+            filter="url(#lr-glow-s)"
+            style={{ transition:"stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1),stroke .4s" }}
+          />
+
+          {/* satellites */}
+          <g style={{ transformOrigin:"200px 200px", animation:"lr-spin 14s linear infinite" }}>
+            <circle cx="200" cy="50"  r="3.5" fill="#5ee1ff" filter="url(#lr-glow)" />
+          </g>
+          <g style={{ transformOrigin:"200px 200px", animation:"lr-spin 22s linear infinite reverse" }}>
+            <circle cx="200" cy="28"  r="2.5" fill="#8fb8ff" filter="url(#lr-glow)" opacity=".8" />
+          </g>
+          <g style={{ transformOrigin:"200px 200px", animation:"lr-spin 9s linear infinite" }}>
+            <circle cx="200" cy="78"  r="2"   fill="#c7b3ff" filter="url(#lr-glow)" opacity=".8" />
+          </g>
+
+          {/* comet — re-keyed on every registration to restart animation */}
+          <g key={cometKey} ref={cometRef} style={{ transformOrigin:"200px 200px", animation: cometKey > 0 ? "lr-comet 1.15s cubic-bezier(.25,.75,.25,1) forwards" : "none", opacity: cometKey > 0 ? 0 : 0 }}>
+            <path d="M136.6 64.1 A150 150 0 0 1 200 50" stroke="url(#lr-tail)" strokeWidth="5" strokeLinecap="round" fill="none" />
+            <circle cx="200" cy="50" r="6" fill="#fff" filter="url(#lr-glow)" />
+          </g>
         </svg>
 
-        {/* Counter inside the ring */}
-        <div style={{ position:"absolute", textAlign:"center", pointerEvents:"none" }}>
-          <div style={{
-            fontSize:"clamp(90px,12vw,155px)", fontWeight:800,
-            letterSpacing:"-4px", lineHeight:1,
-            fontVariantNumeric:"tabular-nums",
-            color:"#fff",
-            textShadow:"0 0 60px rgba(79,157,255,.65)",
-            transform: bump ? "scale(1.1)" : "scale(1)",
-            transition:"transform 0.45s cubic-bezier(0.34,1.56,0.64,1)",
-            display:"inline-block",
-          }}>
-            {count === null ? "—" : displayCount}
-          </div>
-          <div style={{ fontSize:"clamp(12px,1.3vw,18px)", fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(140,190,255,.5)", marginTop:6 }}>
+        {/* odometer counter */}
+        <div style={{ position:"absolute", textAlign:"center", pointerEvents:"none", zIndex:4 }}>
+          {/* Loading dash — shown only before first poll result, sits OUTSIDE numElRef */}
+          {count === null && (
+            <div style={{
+              fontSize:"clamp(88px,11.5vw,150px)", fontWeight:800, lineHeight:1,
+              color:"rgba(140,190,255,.4)",
+              filter:"drop-shadow(0 0 26px rgba(79,157,255,.3))",
+            }}>—</div>
+          )}
+          {/* numElRef is always empty from React's side — reels are injected imperatively */}
+          <div
+            ref={numElRef}
+            aria-live="polite"
+            style={{
+              fontSize:"clamp(88px,11.5vw,150px)", fontWeight:800, lineHeight:1,
+              fontVariantNumeric:"tabular-nums", color:"#fff",
+              display: count === null ? "none" : "flex",
+              justifyContent:"center",
+              filter: bump ? "drop-shadow(0 0 40px rgba(94,225,255,.95))" : dipCls ? "drop-shadow(0 0 30px rgba(255,107,139,.8))" : goldCls ? "drop-shadow(0 0 46px rgba(255,209,102,1))" : "drop-shadow(0 0 26px rgba(79,157,255,.55))",
+              transform: bump ? "scale(1.12)" : dipCls ? "scale(.94)" : goldCls ? "scale(1.18)" : "scale(1)",
+              transition:"transform .5s cubic-bezier(.34,1.56,.64,1),filter .3s",
+              animation: glitch ? "lr-glitch .35s steps(2) 1" : "lr-num-breathe 5s ease-in-out infinite",
+            }}
+          />
+          <div style={{ fontSize:"clamp(12px,1.3vw,18px)", fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", marginTop:8, background:"linear-gradient(90deg,rgba(140,190,255,.45) 0%,rgba(140,190,255,.45) 40%,#fff 50%,rgba(140,190,255,.45) 60%,rgba(140,190,255,.45) 100%)", backgroundSize:"250% 100%", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent", animation:"lr-shimmer 4.5s linear infinite" }}>
             mentees registered
           </div>
         </div>
+
+        {/* floating chips */}
+        {chips.map(c => (
+          <div key={c.id} style={{ position:"absolute", left:"50%", top:"50%", fontWeight:800, fontSize: c.kind === "gold" ? "clamp(22px,2.6vw,34px)" : "clamp(18px,2vw,26px)", color: c.kind === "minus" ? "#ff6b8b" : c.kind === "gold" ? "#ffd166" : "#5ee1ff", textShadow:`0 0 ${c.kind === "gold" ? 22 : 18}px ${c.kind === "minus" ? "#ff6b8b" : c.kind === "gold" ? "#ffd166" : "#5ee1ff"}`, pointerEvents:"none", zIndex:6, ["--dx" as string]:`${c.dx}px`, ["--dy" as string]:`${c.dy}px`, animation:"lr-chip 1.3s cubic-bezier(.2,.8,.2,1) forwards" }}>
+            {c.text}
+          </div>
+        ))}
       </div>
 
-      {/* ── Sparkline history bar ── */}
+      {/* ── Meta stats ── */}
+      <div style={{ display:"flex", gap:12, marginTop:"clamp(22px,3.2vh,40px)", zIndex:3, flexWrap:"wrap", justifyContent:"center" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderRadius:999, background:"rgba(8,20,50,.6)", border:`1px solid ${nextGold ? "rgba(255,209,102,.5)" : "rgba(140,190,255,.12)"}`, fontSize:12, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color:"rgba(195,214,245,.75)", backdropFilter:"blur(8px)", transition:"border-color .3s,transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background: nextGold ? "#ffd166" : "#5ee1ff", boxShadow:`0 0 8px ${nextGold ? "#ffd166" : "#5ee1ff"}` }} />
+          <span><b style={{ color:"#fff" }}>{toGo}</b> to next milestone</span>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderRadius:999, background:"rgba(8,20,50,.6)", border:`1px solid ${lastPopd ? "rgba(94,225,255,.5)" : "rgba(140,190,255,.12)"}`, fontSize:12, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color:"rgba(195,214,245,.75)", backdropFilter:"blur(8px)", transform: lastPopd ? "scale(1.08)" : "scale(1)", transition:"border-color .3s,transform .3s cubic-bezier(.34,1.56,.64,1)" }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:"#5ee1ff", boxShadow:"0 0 8px #5ee1ff" }} />
+          <span>Last joined <b style={{ color:"#fff" }}>{lastAgo}</b></span>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderRadius:999, background:"rgba(8,20,50,.6)", border:"1px solid rgba(140,190,255,.12)", fontSize:12, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color:"rgba(195,214,245,.75)", backdropFilter:"blur(8px)" }}>
+          <div style={{ width:6, height:6, borderRadius:"50%", background:"#5ee1ff", boxShadow:"0 0 8px #5ee1ff" }} />
+          <span><b style={{ color:"#fff" }}>{rate}</b> / min</span>
+        </div>
+      </div>
+
+      {/* ── Sparkline ── */}
       {history.length > 1 && (
-        <div style={{ display:"flex", alignItems:"flex-end", gap:5, height:40, marginTop:"clamp(20px,3vh,38px)" }}>
-          {history.map((v, i) => {
-            const maxH = Math.max(...history);
-            const h = maxH > 0 ? Math.round((v / maxH) * 36) : 4;
-            const isLast = i === history.length - 1;
-            return (
-              <div key={i} style={{ width:7, height:`${Math.max(h,4)}px`, borderRadius:4, background: isLast ? "#5ee1ff" : "rgba(79,157,255,.32)", transition:"height .5s ease", boxShadow: isLast ? "0 0 10px #5ee1ff" : undefined }} />
-            );
-          })}
+        <div style={{ display:"flex", alignItems:"flex-end", gap:5, height:44, marginTop:18, zIndex:3 }}>
+          {(() => {
+            const maxH = Math.max(...history.map(x => x.v));
+            return history.map((h, i) => {
+              const px = maxH > 0 ? Math.round((h.v / maxH) * 40) : 4;
+              const isLast = i === history.length - 1;
+              return (
+                <div key={i} style={{ width:7, height:`${Math.max(px,4)}px`, borderRadius:4, transformOrigin:"bottom", flexShrink:0, background: h.down ? "linear-gradient(180deg,#ff6b8b,rgba(255,107,139,.2))" : isLast ? "linear-gradient(180deg,#fff,#5ee1ff)" : "linear-gradient(180deg,rgba(79,157,255,.6),rgba(79,157,255,.18))", boxShadow: isLast ? "0 0 12px #5ee1ff" : h.down ? "0 0 10px rgba(255,107,139,.6)" : undefined, transition:"height .6s cubic-bezier(.34,1.56,.64,1),background .4s", animation:"lr-bar-in .5s cubic-bezier(.34,1.56,.64,1) both" }} />
+              );
+            });
+          })()}
         </div>
       )}
 
-      {/* ── Live indicator ── */}
-      <div style={{ marginTop:"clamp(20px,3vh,36px)" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:10, background:"rgba(52,211,153,.08)", border:"1px solid rgba(52,211,153,.2)", borderRadius:999, padding:"clamp(7px,.8vh,11px) clamp(16px,1.6vw,24px)" }}>
-          <div style={{ width:9, height:9, borderRadius:"50%", background:"#34d399", flexShrink:0, animation:"reg-live 2s ease-out infinite" }} />
-          <span style={{ fontSize:"clamp(12px,1.2vw,16px)", fontWeight:700, color:"rgba(134,239,172,.9)", letterSpacing:".1em", textTransform:"uppercase" }}>
-            Live · updates every 3s
-          </span>
-        </div>
+      {/* ── Joiner feed ── */}
+      <div style={{ position:"fixed", left:"clamp(18px,3vw,40px)", bottom:"clamp(24px,5vh,48px)", display:"flex", flexDirection:"column", gap:10, zIndex:8, pointerEvents:"none" }}>
+        {toasts.map(t => (
+          <div key={t.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 16px 10px 10px", borderRadius:16, background:"rgba(8,20,50,.78)", border:"1px solid rgba(140,190,255,.16)", backdropFilter:"blur(12px)", boxShadow:"0 10px 30px rgba(0,0,0,.35),0 0 0 1px rgba(94,225,255,.05) inset", transformOrigin:"left center", animation: t.out ? "lr-toast-out .5s ease-in forwards" : "lr-toast-in .6s cubic-bezier(.34,1.56,.64,1) both" }}>
+            {/* avatar with ring pulse */}
+            <div style={{ position:"relative", width:38, height:38, borderRadius:"50%", flexShrink:0, display:"grid", placeItems:"center", fontWeight:800, fontSize:13, color:"#fff", background:`linear-gradient(135deg,hsl(${t.hue} 90% 60%),hsl(${(t.hue+50)%360} 90% 55%))`, boxShadow:`0 0 16px hsl(${t.hue} 90% 60% / .6)` }}>
+              {t.name.split(" ").map((w: string) => w[0]).join("")}
+              <div style={{ position:"absolute", inset:-4, borderRadius:"50%", border:`2px solid hsl(${t.hue} 90% 65%)`, animation:"lr-avatar-ring 1.2s ease-out forwards", pointerEvents:"none" }} />
+            </div>
+            <div>
+              <div style={{ fontWeight:800, fontSize:14, color:"#fff" }}>{t.name}</div>
+              <div style={{ fontSize:11, fontWeight:600, letterSpacing:".06em", textTransform:"uppercase", color:"rgba(140,190,255,.7)", marginTop:2 }}>{t.sub}</div>
+            </div>
+          </div>
+        ))}
       </div>
-
-      {/* ── Bump flash overlay ── */}
-      {bump && (
-        <div style={{ position:"fixed", inset:0, background:"radial-gradient(circle at 50% 50%,rgba(79,157,255,.07),transparent 65%)", pointerEvents:"none", animation:"reg-flash .7s ease-out forwards" }} />
-      )}
 
       <style>{`
-        @keyframes reg-drift1 { 0%,100%{transform:translateX(-50%) translate(0,0)}   50%{transform:translateX(-50%) translate(4vw,-5vh)} }
-        @keyframes reg-drift2 { 0%,100%{transform:translate(0,0)}   50%{transform:translate(3vw,-4vh)} }
-        @keyframes reg-drift3 { 0%,100%{transform:translate(0,0)}   50%{transform:translate(-4vw,3vh)} }
-        @keyframes reg-live   { 0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)} 70%{box-shadow:0 0 0 10px rgba(52,211,153,0)} 100%{box-shadow:0 0 0 0 rgba(52,211,153,0)} }
-        @keyframes reg-idle-ring { 0%{opacity:.6;transform:scale(1)} 60%{opacity:0;transform:scale(1.05)} 100%{opacity:0;transform:scale(1.05)} }
-        @keyframes reg-flash  { 0%{opacity:1} 100%{opacity:0} }
-        /* Ring arc draws from 0 → full circle once, then fades back */
-        @keyframes reg-ring-spin {
-          0%   { stroke-dashoffset: ${CIRC};  opacity: 0.2; }
-          15%  { opacity: 1; }
-          70%  { stroke-dashoffset: 0;        opacity: 1; }
-          100% { stroke-dashoffset: 0;        opacity: 0.18; }
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap');
+
+        /* ── keyframes ── */
+        @keyframes lr-spin         { to { transform: rotate(360deg); } }
+        @keyframes lr-aurora-a     { to { transform: rotate(360deg); } }
+        @keyframes lr-grid         { to { background-position: 72px 72px; } }
+        @keyframes lr-float        { 0%,100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+        @keyframes lr-orb1         { 0%,100%{transform:translateX(-50%) translate(0,0)}   50%{transform:translateX(-50%) translate(4vw,-5vh)} }
+        @keyframes lr-orb2         { 0%,100%{transform:translate(0,0)} 50%{transform:translate(3vw,-4vh)} }
+        @keyframes lr-orb3         { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-4vw,3vh)} }
+        @keyframes lr-pill-sheen   { 0%,60%{transform:translateX(-120%)} 100%{transform:translateX(120%)} }
+        @keyframes lr-live-dot     { 70%{box-shadow:0 0 0 10px rgba(79,157,255,0)} 100%{box-shadow:0 0 0 0 rgba(79,157,255,0)} }
+        @keyframes lr-eq           { 0%,100%{height:4px} 50%{height:12px} }
+        @keyframes lr-idle-ring    { 0%{opacity:.7;transform:scale(.96)} 70%,100%{opacity:0;transform:scale(1.06)} }
+        @keyframes lr-shock        { 0%{opacity:.9;transform:scale(.92)} 100%{opacity:0;transform:scale(1.7)} }
+        @keyframes lr-comet        { 0%{transform:rotate(0deg);opacity:0} 10%{opacity:1} 85%{opacity:1} 100%{transform:rotate(360deg);opacity:0} }
+        @keyframes lr-num-breathe  { 0%,100%{filter:drop-shadow(0 0 22px rgba(79,157,255,.45))} 50%{filter:drop-shadow(0 0 40px rgba(94,225,255,.75))} }
+        @keyframes lr-shimmer      { to{background-position:-250% 0} }
+        @keyframes lr-glitch       {
+          0%  {transform:translate(0) skewX(0);filter:drop-shadow(-4px 0 0 rgba(255,0,80,.8)) drop-shadow(4px 0 0 rgba(0,255,255,.8))}
+          50% {transform:translate(-3px,1px) skewX(-4deg)}
+          100%{transform:translate(0) skewX(0)}
         }
-        /* Dot travels the full circle once */
-        @keyframes reg-dot-orbit {
-          0%   { transform: rotate(0deg)   translateY(${-R}px); opacity:0.4; }
-          15%  { opacity: 1; }
-          70%  { transform: rotate(360deg) translateY(${-R}px); opacity:1; }
-          100% { transform: rotate(360deg) translateY(${-R}px); opacity:0; }
+        @keyframes lr-shake {
+          10%,90%{transform:translate(-1px,0)} 20%,80%{transform:translate(2px,0)}
+          30%,50%,70%{transform:translate(-3px,0)} 40%,60%{transform:translate(3px,0)}
+        }
+        @keyframes lr-chip {
+          0%  {opacity:0;transform:translate(var(--dx),calc(var(--dy) + 20px)) scale(.6)}
+          20% {opacity:1;transform:translate(var(--dx),var(--dy)) scale(1.15)}
+          100%{opacity:0;transform:translate(calc(var(--dx) * 1.3),calc(var(--dy) - 90px)) scale(.9)}
+        }
+        @keyframes lr-flash        { 0%{opacity:1} 100%{opacity:0} }
+        @keyframes lr-bar-in       { from{transform:scaleY(0);opacity:0} to{transform:scaleY(1);opacity:1} }
+        @keyframes lr-toast-in     { from{opacity:0;transform:translateX(-40px) scale(.8)} to{opacity:1;transform:none} }
+        @keyframes lr-toast-out    { to{opacity:0;transform:translateX(-20px) scale(.9)} }
+        @keyframes lr-avatar-ring  { from{transform:scale(1);opacity:1} to{transform:scale(1.8);opacity:0} }
+
+        /* ── odometer reels ── */
+        .lr-reel {
+          height: 1em; overflow: hidden; display: inline-block; margin: 0 -.015em;
+        }
+        .lr-reel-enter { animation: lr-reel-in .6s cubic-bezier(.34,1.56,.64,1) both; }
+        @keyframes lr-reel-in { from{opacity:0;transform:translateY(-.4em) scale(.6)} to{opacity:1;transform:none} }
+        .lr-reel-track {
+          display: flex; flex-direction: column;
+          transition: transform .75s cubic-bezier(.22,1.15,.36,1);
+          will-change: transform;
+        }
+        .lr-reel-track span { height: 1em; line-height: 1; display: block; }
+
+        @media (max-width: 760px) { #lr-feed { display: none; } }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
         }
       `}</style>
     </div>
@@ -351,6 +857,145 @@ function RobotLogoMark({ size, glow = false }: { size: string; glow?: boolean })
   );
 }
 
+// ── Mentor load constellation ─────────────────────────────────────────────────
+// Renders a responsive grid of mentor tiles, coloured by load level exactly
+// matching new4.html's .tile[data-l] scale.
+function MentorLoadGrid({ mentors, hitName }: { mentors: { name: string; allocated: number; capacity: number }[]; hitName: string | null }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cols, setCols] = useState(6);
+  const [tileSize, setTileSize] = useState(44);
+  // Track which tiles were *previously* hit so we can re-trigger the animation key
+  const hitCountRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const fit = () => {
+      const W = el.clientWidth, H = el.clientHeight, n = mentors.length;
+      if (!W || !H || !n) return;
+      let best = { cols: 6, size: 0 };
+      for (let c = 4; c <= 12; c++) {
+        const rows = Math.ceil(n / c);
+        const size = Math.min((W - 5 * (c - 1)) / c, (H - 5 * (rows - 1)) / rows);
+        if (size > best.size) best = { cols: c, size };
+      }
+      setCols(best.cols);
+      setTileSize(Math.floor(best.size));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mentors.length]);
+
+  // Bump hit counter for the matching tile so key changes → animation restarts
+  if (hitName) {
+    hitCountRef.current.set(hitName, (hitCountRef.current.get(hitName) ?? 0) + 1);
+  }
+
+  const tileStyle = (allocated: number, capacity: number): React.CSSProperties => {
+    // Use capacity-aware level when capacity is known, else use fixed thresholds
+    const level = capacity > 0
+      ? (allocated === 0 ? 0 : allocated < capacity * 0.34 ? 1 : allocated < capacity * 0.67 ? 2 : allocated < capacity ? 3 : 4)
+      : (allocated === 0 ? 0 : allocated === 1 ? 1 : allocated <= 3 ? 2 : allocated <= 5 ? 3 : 4);
+
+    if (level === 0) return { background:"rgba(140,190,255,.08)", border:"1px solid rgba(140,190,255,.12)", color:"#7d97c2" };
+    if (level === 1) return { background:"rgba(79,157,255,.22)",  border:"1px solid rgba(79,157,255,.38)",  color:"#c3d8ff" };
+    if (level === 2) return { background:"rgba(79,157,255,.42)",  border:"1px solid rgba(94,225,255,.5)",   color:"#fff" };
+    if (level === 3) return { background:"rgba(94,225,255,.55)",  border:"1px solid rgba(94,225,255,.75)",  color:"#fff" };
+    return {
+      background:"linear-gradient(145deg,rgba(255,199,102,.6),rgba(94,225,255,.35))",
+      border:"1px solid #ffc766",
+      color:"#fff",
+      boxShadow:"0 0 16px rgba(255,199,102,.32)",
+    };
+  };
+
+  const ini = (name: string) =>
+    name.split(/\s+/).filter((w: string) => w.length > 1 || /^[A-Z]$/.test(w))
+      .slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        display:"grid",
+        gridTemplateColumns:`repeat(${cols},${tileSize}px)`,
+        gridAutoRows:`${tileSize}px`,
+        gap:5,
+        alignContent:"start",
+        width:"100%",
+        height:"100%",
+        overflow:"hidden",
+      }}
+    >
+      {mentors.map((m) => {
+        const isHit = hitName === m.name;
+        const hitCount = hitCountRef.current.get(m.name) ?? 0;
+        return (
+          <div
+            key={`${m.name}-${hitCount}`}
+            title={`${m.name} · ${m.allocated}${m.capacity ? `/${m.capacity}` : ""}`}
+            style={{
+              position:"relative",
+              borderRadius:10,
+              display:"flex",
+              flexDirection:"column",
+              alignItems:"center",
+              justifyContent:"center",
+              gap:2,
+              fontSize:`${Math.max(9, Math.floor(tileSize * 0.27))}px`,
+              fontWeight:800,
+              fontFamily:"Manrope,sans-serif",
+              cursor:"default",
+              overflow:"hidden",
+              transition:"background .45s,border-color .45s,box-shadow .45s",
+              animation: isHit ? "alloc-tile-hit .7s cubic-bezier(.34,1.56,.64,1)" : undefined,
+              ...tileStyle(m.allocated, m.capacity),
+            }}
+          >
+            {/* Sweep flash on hit */}
+            {isHit && (
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent)", animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards", pointerEvents:"none" }} />
+            )}
+            <span>{ini(m.name)}</span>
+            {/* Count indicator — dots ≤5, number badge >5 */}
+            {m.allocated > 0 && (
+              m.allocated <= 5
+                ? (
+                  <div style={{ display:"flex", gap:2 }}>
+                    {Array.from({ length: m.allocated }, (_, j) => (
+                      <span
+                        key={j}
+                        style={{
+                          width:3, height:3, borderRadius:"50%",
+                          background:"currentColor", opacity:.9, display:"inline-block",
+                          animation: isHit && j === m.allocated - 1
+                            ? "alloc-dot-in .35s cubic-bezier(.34,1.56,.64,1) both"
+                            : undefined,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{
+                    fontSize:`${Math.max(8, Math.floor(tileSize * 0.22))}px`,
+                    fontWeight:800,
+                    lineHeight:1,
+                    opacity:.9,
+                    animation: isHit ? "alloc-dot-in .35s cubic-bezier(.34,1.56,.64,1) both" : undefined,
+                  }}>
+                    {m.allocated}
+                  </span>
+                )
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allocation" }> }) {
   // ── Types ──────────────────────────────────────────────────────────────
   type AllocRow = { mentee: string; mentor: string; method: "preference" | "fallback" | "manual"; priority: number | null };
@@ -382,6 +1027,8 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
   const [hasData,      setHasData]     = useState(false);
   const [minDelayDone, setMinDelayDone]= useState(false);   // 4s minimum loading screen
   const [queueItems,   setQueueItems]  = useState<{id:number;name:string;exiting?:boolean}[]>([]);
+  // Mentor load constellation — { name, allocatedCount, capacity }[]
+  const [mentorLoad,   setMentorLoad]  = useState<{ name: string; allocated: number; capacity: number }[]>([]);
   const feedKeyRef     = useRef(0);
   const qIdRef         = useRef(0);
 
@@ -509,10 +1156,24 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
       setTimeout(() => setActiveEngine(null), 500);
       flyChip(ini, eng);
 
-      // Cards appear when chip lands (~510ms)
+      // Cards appear when chip lands (~510ms) — also hit the mentor tile
       setTimeout(() => {
-        setDisplayed((prev) => [row, ...prev].slice(0, 7));
+        setDisplayed((prev) => [row, ...prev].slice(0, 9));
         setFeedItems((prev) => [{ ...row, key: ++feedKeyRef.current }, ...prev].slice(0, 14));
+
+        // ── Mentor load: increment the matched mentor's tile in sync ──────
+        const mentorName = row.mentor;
+        const map = mentorLoadRef.current;
+        // Always upsert — works even if mentor roster fetch hasn't returned yet
+        const existing = map.get(mentorName);
+        if (existing) {
+          map.set(mentorName, { ...existing, allocated: existing.allocated + 1 });
+        } else {
+          map.set(mentorName, { name: mentorName, allocated: 1, capacity: 0 });
+        }
+        setMentorLoad(Array.from(map.values()));
+        setHitMentorName(mentorName);
+        setTimeout(() => setHitMentorName(null), 800);
       }, 510);
 
       setRevealedCount(newIdx);
@@ -546,17 +1207,30 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
       menteeTotalRef.current = d.menteeTotal || scene.total || 83;
 
       const prev = allDataRef.current.length;
-      // Merge: keep existing order, append new ones at the end
       allDataRef.current = d.allocations;
       setHasData(true);
 
-      // Seed the queue with real names on first load (or whenever new rows arrive)
+      // ── Seed mentor load from the initial allocation batch ──────────────
+      // Seed with ZERO allocated counts — the drip-feed ticker will increment
+      // each mentor's tile as it reveals rows, keeping counts exactly in sync
+      // with the animation. We only need the mentor roster (names + capacity).
       if (prev === 0 && d.allocations.length > 0) {
+        try {
+          const mr = await fetch("/api/display/mentors");
+          if (mr.ok) {
+            const md = await mr.json() as { mentors: { name: string; allocatedCount: number; capacity: number }[] };
+            const map = new Map<string, { name: string; allocated: number; capacity: number }>();
+            // Start everyone at 0 — the ticker increments as it animates
+            md.mentors.forEach(m => map.set(m.name, { name: m.name, allocated: 0, capacity: m.capacity }));
+            mentorLoadRef.current = map;
+            setMentorLoad(Array.from(map.values()));
+          }
+        } catch { /* ignore */ }
+
         rebuildQueue(0);
       }
 
       if (d.allocations.length > prev && revealedRef.current >= prev) {
-        // New rows arrived — start ticking if not already running
         scheduleNext();
       }
     } catch { /* ignore */ }
@@ -570,6 +1244,12 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
       if (tickerRef.current) clearTimeout(tickerRef.current);
     };
   }, [fetchData]);
+
+  // ── Mentor load — seeded from allocations, updated in-ticker ─────────────
+  // mentorLoadRef is the live mutable map used inside scheduleNext (sync, no stale closure)
+  const mentorLoadRef = useRef<Map<string, { name: string; allocated: number; capacity: number }>>(new Map());
+  // hitMentorName drives the tile flash animation — set to mentor name on each reveal
+  const [hitMentorName, setHitMentorName] = useState<string | null>(null);
 
   // ── Idle / loading state — robot face (same as header logo, 4s min display) ─
   if (!hasData || !minDelayDone) {
@@ -598,6 +1278,12 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
 
         {/* Title */}
         <div style={{ marginTop:"clamp(28px,4vh,48px)", textAlign:"center" }}>
+          <div style={{ fontSize:"clamp(26px,3.5vw,42px)", fontWeight:800, color:"#eef5ff", letterSpacing:"-.03em", lineHeight:1 }}>
+            MentorFlow
+          </div>
+          <div style={{ fontSize:"clamp(11px,1.2vw,15px)", fontWeight:700, letterSpacing:".22em", textTransform:"uppercase", color:"rgba(140,190,255,.45)", marginTop:10 }}>
+            Mentor session · 2026
+          </div>
         </div>
 
         {/* Loading indicator */}
@@ -682,8 +1368,11 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
         {/* ── Header ── */}
         <header style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
           {/* Brand */}
-          <div style={{ display:"flex", alignItems:"center", gap:16, fontFamily:"Manrope,sans-serif" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:16, fontFamily:"Manrope,sans-serif", fontWeight:800, letterSpacing:"-.035em", fontSize:"clamp(20px,2.2vh,30px)" }}>
             <RobotLogoMark size="clamp(40px,3.4vh,52px)" />
+            <span>MentorFlow
+              <small style={{ display:"block", font:`600 clamp(11px,1vh,14px) "DM Sans",sans-serif`, letterSpacing:".14em", textTransform:"uppercase", color:"#8ea6c9", marginTop:2 }}>Mentor session · 2026</small>
+            </span>
           </div>
           {/* Live pill */}
           <div style={{ display:"flex", alignItems:"center", gap:10, border:"1px solid rgba(140,190,255,.13)", background:"rgba(8,20,50,.7)", padding:"clamp(8px,.8vh,13px) clamp(14px,1.3vh,20px)", borderRadius:999, color: isComplete ? "#86efac" : "#c3d6f5", fontSize:"clamp(13px,1.15vh,17px)", fontWeight:700, letterSpacing:".1em", textTransform:"uppercase" }}>
@@ -802,7 +1491,7 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
 
               {/* ── Latest matches node ── */}
               <div ref={assignedNodeRef} style={{ border:"1px solid rgba(140,190,255,.1)", background:"rgba(3,10,30,.5)", borderRadius:22, padding:"clamp(14px,1.5vh,22px)", overflow:"hidden", display:"flex", flexDirection:"column", minHeight:0 }}>
-                <div style={{ color:"#7d97c2", font:`800 clamp(11px,1vh,14px) Manrope,sans-serif`, letterSpacing:".14em", textTransform:"uppercase", marginBottom:"clamp(10px,1.1vh,16px)", flexShrink:0, display:"flex", alignItems:"center", gap:8 }}>
+                <div style={{ color:"#7d97c2", font:`800 clamp(10px,.9vh,13px) Manrope,sans-serif`, letterSpacing:".14em", textTransform:"uppercase", marginBottom:"clamp(8px,.9vh,13px)", flexShrink:0, display:"flex", alignItems:"center", gap:8 }}>
                   <span style={{ width:"clamp(22px,2vh,28px)", height:"clamp(22px,2vh,28px)", borderRadius:8, background:"rgba(79,157,255,.12)", display:"grid", placeItems:"center", flexShrink:0 }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="#4f9dff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width:"clamp(12px,1.1vh,15px)", height:"clamp(12px,1.1vh,15px)" }}>
                       <circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/>
@@ -811,15 +1500,15 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
                   </span>
                   Latest matches
                 </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:9, overflow:"hidden", flex:1, minHeight:0 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:6, overflow:"hidden", flex:1, minHeight:0 }}>
                   {displayed.map((row, i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"center", gap:11, border:"1px solid rgba(140,190,255,.1)", background:"rgba(14,30,72,.7)", padding:"clamp(8px,.85vh,12px)", borderRadius:14, flexShrink:0, animation:"alloc-cardIn .55s cubic-bezier(.2,.8,.2,1) both" }}>
-                      <div style={{ width:"clamp(34px,3.2vh,46px)", height:"clamp(34px,3.2vh,46px)", borderRadius:11, flexShrink:0, display:"grid", placeItems:"center", background:"linear-gradient(145deg,#1e3a78,#152b5e)", color:"#c3d8ff", fontSize:"clamp(11px,1vh,14px)", fontWeight:800, letterSpacing:".04em" }}>
+                    <div key={i} style={{ display:"flex", alignItems:"center", gap:10, border:"1px solid rgba(140,190,255,.1)", background:"rgba(14,30,72,.7)", padding:"clamp(6px,.65vh,9px) clamp(8px,.85vh,12px)", borderRadius:12, flexShrink:0, animation:"alloc-cardIn .55s cubic-bezier(.2,.8,.2,1) both" }}>
+                      <div style={{ width:"clamp(28px,2.6vh,38px)", height:"clamp(28px,2.6vh,38px)", borderRadius:9, flexShrink:0, display:"grid", placeItems:"center", background:"linear-gradient(145deg,#1e3a78,#152b5e)", color:"#c3d8ff", fontSize:"clamp(10px,.9vh,13px)", fontWeight:800, letterSpacing:".04em" }}>
                         {row.mentee.split(/\s+/).slice(0,2).map((w:string)=>w[0]).join("").toUpperCase()}
                       </div>
                       <span style={{ minWidth:0, flex:1 }}>
-                        <b style={{ display:"block", fontSize:"clamp(14px,1.3vh,18px)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentee}</b>
-                        <small style={{ display:"block", color:"#7c95bf", fontSize:"clamp(12px,1.1vh,15px)", marginTop:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentor}</small>
+                        <b style={{ display:"block", fontSize:"clamp(12px,1.15vh,16px)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentee}</b>
+                        <small style={{ display:"block", color:"#7c95bf", fontSize:"clamp(10px,1vh,13px)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentor}</small>
                       </span>
                       <div style={{ width:10, height:10, borderRadius:"50%", background: methodColor(row.method, row.priority), boxShadow:`0 0 8px ${methodColor(row.method, row.priority)}`, flexShrink:0 }} />
                     </div>
@@ -884,33 +1573,84 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
               </div>
             </div>
 
-            {/* Activity feed */}
-            <div style={{ border:"1px solid rgba(140,190,255,.13)", background:"linear-gradient(145deg,rgba(13,30,70,.82),rgba(6,14,38,.86))", boxShadow:"0 30px 90px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)", backdropFilter:"blur(20px)", borderRadius:24, padding:"clamp(14px,1.4vh,22px)", display:"flex", flexDirection:"column", minHeight:0 }}>
-              <div style={{ flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", paddingBottom:"clamp(10px,1vh,15px)", borderBottom:"1px solid rgba(140,190,255,.13)", marginBottom:"clamp(6px,.6vh,10px)" }}>
-                <div style={{ display:"flex", alignItems:"center", gap:9, font:`800 clamp(15px,1.4vh,20px) Manrope,sans-serif` }}>
-                  <span style={{ color:"#fbbf24", display:"flex" }}><LightningIcon /></span>
-                  Live activity
+            {/* Mentor load constellation */}
+            <div style={{ border:"1px solid rgba(140,190,255,.13)", background:"linear-gradient(145deg,rgba(13,30,70,.82),rgba(6,14,38,.86))", boxShadow:"0 30px 90px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.04)", backdropFilter:"blur(20px)", borderRadius:24, padding:"clamp(14px,1.4vh,22px)", display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden" }}>
+
+              {/* Header */}
+              <div style={{ flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", paddingBottom:"clamp(10px,1vh,15px)", borderBottom:"1px solid rgba(140,190,255,.13)", marginBottom:"clamp(8px,.8vh,12px)" }}>
+                <div style={{ font:`800 clamp(14px,1.3vh,18px) Manrope,sans-serif` }}>
+                  Mentor load · <span style={{ color:"#6f89b3", fontWeight:600 }}>{mentorLoad.length} mentors</span>
                 </div>
-                <span style={{ font:`700 clamp(11px,1vh,14px) Manrope,sans-serif`, letterSpacing:".1em", color:"#7d97c2", textTransform:"uppercase" }}>Newest first</span>
-              </div>
-              <div style={{ display:"flex", flexDirection:"column", overflow:"hidden", minHeight:0, flex:1, marginLeft:-4, paddingLeft:4 }}>
-                {feedItems.map((row) => {
-                  const isFallback = row.method === "fallback";
-                  const dotColor   = isFallback ? "#5ee1ff" : "#4f9dff";
-                  return (
-                    <div key={row.key} style={{ position:"relative", flexShrink:0, padding:"clamp(9px,1vh,14px) 4px clamp(9px,1vh,14px) 26px", borderBottom:"1px solid rgba(140,190,255,.07)", animation:"alloc-feedIn .5s cubic-bezier(.2,.8,.2,1) both" }}>
-                      <div style={{ position:"absolute", left:4, top:"clamp(14px,1.4vh,20px)", width:10, height:10, borderRadius:"50%", background:dotColor, boxShadow:`0 0 10px 2px ${dotColor}` }} />
-                      <b style={{ display:"block", fontSize:"clamp(14px,1.3vh,18px)", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row.mentee}</b>
-                      <p style={{ fontSize:"clamp(12px,1.1vh,15px)", color:"#7d97c2", marginTop:4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                        <span style={{ color: isFallback ? "#5ee1ff" : "#4f9dff", fontWeight:600 }}>
-                          {isFallback ? "Fallback" : methodLabel(row.method, row.priority)}
-                        </span>
-                        {" → "}{row.mentor}
-                      </p>
+                {/* Legend */}
+                <div style={{ display:"flex", gap:8 }}>
+                  {[
+                    { label:"idle",  bg:"rgba(140,190,255,.12)" },
+                    { label:"1",     bg:"rgba(79,157,255,.45)"  },
+                    { label:"2–3",   bg:"rgba(94,225,255,.7)"   },
+                    { label:"4+",    bg:"#ffc766"               },
+                  ].map(l => (
+                    <div key={l.label} style={{ display:"flex", alignItems:"center", gap:4, fontSize:"clamp(9px,.8vh,11px)", fontWeight:700, color:"#6f89b3" }}>
+                      <span style={{ width:9, height:9, borderRadius:3, background:l.bg, display:"inline-block", flexShrink:0 }} />
+                      {l.label}
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
+
+              {/* Tile grid */}
+              <div style={{ flex:1, minHeight:0, overflow:"hidden" }}>
+                {mentorLoad.length === 0 ? (
+                  <div style={{ height:"100%", display:"grid", placeItems:"center", color:"#4a6080", fontSize:"clamp(12px,1.1vh,15px)" }}>
+                    Loading mentor data…
+                  </div>
+                ) : (
+                  <MentorLoadGrid mentors={mentorLoad} hitName={hitMentorName} />
+                )}
+              </div>
+
+              {/* Footer stats — recomputed on every mentorLoad update */}
+              {mentorLoad.length > 0 && (() => {
+                const assigned  = mentorLoad.filter(m => m.allocated > 0);
+                const idle      = mentorLoad.length - assigned.length;
+                const total_a   = mentorLoad.reduce((s, m) => s + m.allocated, 0);
+                const maxLoad   = assigned.length > 0 ? Math.max(...assigned.map(m => m.allocated)) : 0;
+                const avg       = mentorLoad.length > 0 ? (total_a / mentorLoad.length).toFixed(1) : "0";
+                const busiest   = assigned.length > 0
+                  ? assigned.reduce((a, b) => b.allocated > a.allocated ? b : a)
+                  : mentorLoad[0];
+                const ini = busiest.name
+                  .split(/\s+/).filter((w:string) => w.length > 1 || /^[A-Z]$/.test(w))
+                  .slice(0, 2).map((w:string) => w[0]).join("").toUpperCase();
+                return (
+                  <div style={{ flexShrink:0, display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, borderTop:"1px solid rgba(140,190,255,.09)", paddingTop:"clamp(10px,1vh,14px)", marginTop:"clamp(8px,.8vh,12px)" }}>
+                    <div style={{ background:"rgba(255,255,255,.03)", border:"1px solid rgba(140,190,255,.09)", borderRadius:12, padding:"clamp(8px,.8vh,12px)" }}>
+                      <span style={{ display:"block", color:"#7d97c2", fontSize:"clamp(9px,.8vh,11px)", fontWeight:800, letterSpacing:".12em", textTransform:"uppercase" }}>Idle</span>
+                      <strong style={{ display:"block", font:`800 clamp(20px,1.8vh,28px)/1 Manrope,sans-serif`, marginTop:4, letterSpacing:"-.03em" }}>{idle}</strong>
+                    </div>
+                    <div style={{ background:"rgba(255,255,255,.03)", border:"1px solid rgba(140,190,255,.09)", borderRadius:12, padding:"clamp(8px,.8vh,12px)" }}>
+                      <span style={{ display:"block", color:"#7d97c2", fontSize:"clamp(9px,.8vh,11px)", fontWeight:800, letterSpacing:".12em", textTransform:"uppercase" }}>Avg</span>
+                      <strong style={{ display:"block", font:`800 clamp(20px,1.8vh,28px)/1 Manrope,sans-serif`, marginTop:4, letterSpacing:"-.03em" }}>{avg}</strong>
+                    </div>
+                    <div style={{ background:"rgba(255,255,255,.03)", border:"1px solid rgba(140,190,255,.09)", borderRadius:12, padding:"clamp(8px,.8vh,12px)" }}>
+                      <span style={{ display:"block", color:"#7d97c2", fontSize:"clamp(9px,.8vh,11px)", fontWeight:800, letterSpacing:".12em", textTransform:"uppercase" }}>Max</span>
+                      <strong style={{ display:"block", font:`800 clamp(20px,1.8vh,28px)/1 Manrope,sans-serif`, marginTop:4, letterSpacing:"-.03em" }}>{maxLoad}</strong>
+                    </div>
+                    {/* Busiest mentor — full width */}
+                    {assigned.length > 0 && (
+                      <div style={{ gridColumn:"1/-1", background:"rgba(255,255,255,.03)", border:"1px solid rgba(140,190,255,.09)", borderRadius:12, padding:"clamp(8px,.8vh,12px)", display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:"clamp(28px,2.5vh,36px)", height:"clamp(28px,2.5vh,36px)", borderRadius:9, display:"grid", placeItems:"center", fontSize:"clamp(10px,.9vh,13px)", fontWeight:800, color:"#fff", background:"linear-gradient(145deg,rgba(255,199,102,.7),rgba(94,225,255,.4))", flexShrink:0 }}>
+                          {ini}
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                          <span style={{ display:"block", color:"#7d97c2", fontSize:"clamp(9px,.8vh,11px)", fontWeight:800, letterSpacing:".12em", textTransform:"uppercase" }}>Busiest</span>
+                          <strong style={{ display:"block", fontSize:"clamp(12px,1.1vh,15px)", fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{busiest.name}</strong>
+                        </div>
+                        <div style={{ marginLeft:"auto", flexShrink:0, fontSize:"clamp(16px,1.5vh,22px)", fontWeight:800, color:"#ffc766", letterSpacing:"-.02em" }}>{busiest.allocated}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -929,11 +1669,12 @@ function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allo
         @keyframes alloc-confetti { to{transform:translate(var(--x),var(--y)) rotate(var(--r));opacity:0} }
         @keyframes alloc-queueExit  { 0%{opacity:1;transform:scale(1) translateY(0)} 100%{opacity:0;transform:scale(.88) translateY(-20px)} }
         @keyframes alloc-queueEnter { 0%{opacity:0;transform:scale(.92) translateY(14px)} 100%{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes alloc-tile-hit { 0%{transform:scale(1)} 30%{transform:scale(1.22);box-shadow:0 0 0 3px rgba(255,255,255,.2),0 0 22px rgba(94,225,255,.5)} 100%{transform:scale(1)} }
+        @keyframes alloc-dot-in   { from{transform:scale(0)} to{transform:scale(1)} }
       `}</style>
     </div>
   );
 }
-
 function ResultsScene({ scene }: { scene: Extract<DisplayScene, { type: "results" }> }) {
   const [vis, setVis] = useState(false);
   useEffect(() => { const t = setTimeout(() => setVis(true), 120); return () => clearTimeout(t); }, []);
