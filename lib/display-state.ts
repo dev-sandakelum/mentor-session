@@ -10,7 +10,8 @@ export type DisplayScene =
   | { type: "thankyou" }
   | { type: "live-registrations" }
   | { type: "mentor-carousel"; control?: "play" | "pause" | "next" | "prev" | "stop"; seq?: number }
-  | { type: "allocation"; count: number; total: number }
+  | { type: "allocation-load" }                          // engine ready — mentors loaded, no animation yet
+  | { type: "allocation"; count: number; total: number } // running — drip-feed animation
   | { type: "results"; assigned: number; unmatched: number; satisfaction: number }
   | { type: "custom"; text: string; sub?: string }
   | {

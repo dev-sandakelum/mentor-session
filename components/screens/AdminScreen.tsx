@@ -327,7 +327,7 @@ function OverviewTab({ overview }: {
   );
 }
 
-function MentorsTab({ overview, onAdd, onEdit, onDelete, onApprove, onReject }: {
+ function MentorsTab({ overview, onAdd, onEdit, onDelete, onApprove, onReject }: {
   overview: Overview;
   onAdd: () => void;
   onEdit: (mentor: Overview["mentors"][number]) => void;
@@ -890,8 +890,11 @@ function DisplayControlTab({ overview, onRunAllocation }: {
   };
 
   const handleRunAllocation = async () => {
-    await push({ type: "allocation", count: 0, total: overview.stats.totalMentees });
+    // Step 1: Show engine-ready screen while allocation runs in background
+    await push({ type: "allocation-load" });
+    // Step 2: Trigger the actual allocation API
     const assigned = await onRunAllocation();
+    // Step 3: Switch to running animation with real data
     void push({ type: "allocation", count: assigned, total: overview.stats.totalMentees });
   };
 
@@ -987,8 +990,9 @@ function DisplayControlTab({ overview, onRunAllocation }: {
                 { icon:"📊", label:"Live Registrations",  scene:{ type:"live-registrations" },                                           color:"#1e293b" },
                 { icon:"🙏", label:"Thank You",           scene:{ type:"thankyou" },                                                     color:"#1e293b" },
                 { icon:"✅", label:"Show Results",         scene:{ type:"results", assigned:s.assigned, unmatched:s.unassigned, satisfaction:s.preferenceSatisfaction }, color:"#14532d", textColor:"#bbf7d0" },
-                { icon:"🖥", label:"Allocation Screen",   scene:{ type:"allocation", count:0, total:s.totalMentees },                    color:"#172554" },
-              ] as { icon:string; label:string; scene:object; color:string; textColor?:string }[]).map((item) => (
+                { icon:"⚙️", label:"Engine Ready",        scene:{ type:"allocation-load" },                                              color:"#1a1a3a", textColor:"#a5b4fc", desc:"Load mentors, no animation" },
+                { icon:"▶️", label:"Run Allocation",      scene:{ type:"allocation", count:0, total:s.totalMentees },                    color:"#172554", textColor:"#bfdbfe", desc:"Drip-feed animation" },
+              ] as { icon:string; label:string; scene:object; color:string; textColor?:string; desc?:string }[]).map((item) => (
                 <button
                   key={item.label}
                   disabled={sending}
@@ -1007,6 +1011,7 @@ function DisplayControlTab({ overview, onRunAllocation }: {
                 >
                   <span style={{ fontSize:28, lineHeight:1 }}>{item.icon}</span>
                   <span style={{ fontSize:12, fontWeight:700, textAlign:"center", lineHeight:1.3 }}>{item.label}</span>
+                  {item.desc && <span style={{ fontSize:10, fontWeight:500, opacity:0.6, textAlign:"center", lineHeight:1.3 }}>{item.desc}</span>}
                 </button>
               ))}
             </div>

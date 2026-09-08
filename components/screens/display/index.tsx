@@ -2,15 +2,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { DisplayState, DisplayScene } from "@/lib/display-state";
 
-import { IdleScene }             from "./IdleScene";
-import { ThankYouScene }         from "./ThankYouScene";
-import { CustomScene }           from "./CustomScene";
-import { ResultsScene }          from "./ResultsScene";
+import { IdleScene }              from "./IdleScene";
+import { ThankYouScene }          from "./ThankYouScene";
+import { CustomScene }            from "./CustomScene";
+import { ResultsScene }           from "./ResultsScene";
 import { LiveRegistrationsScene } from "./LiveRegistrationsScene";
-import { AllocationScene }       from "./AllocationScene";
-import { MentorCarouselScene }   from "./MentorCarouselScene";
-import { MentorCardScene }       from "./MentorCardScene";
-import { SceneTransition }       from "./SceneTransition";
+import { AllocationScene, AllocationLoadScene } from "./AllocationScene";
+import { MentorCarouselScene }    from "./MentorCarouselScene";
+import { MentorCardScene }        from "./MentorCardScene";
+import { SceneTransition }        from "./SceneTransition";
 
 // ─── Main display screen ──────────────────────────────────────────────────────
 
@@ -33,7 +33,6 @@ export function DisplayScreen() {
 
   const scene = state?.scene ?? ({ type: "idle" } as DisplayScene);
 
-  // Stable key — drives crossfade only on scene TYPE changes
   const sceneKey =
     scene.type === "mentor-card"
       ? `mentor-card-${(scene as Extract<DisplayScene, { type: "mentor-card" }>).mentor.id}`
@@ -45,6 +44,7 @@ export function DisplayScreen() {
       {scene.type === "thankyou"           && <ThankYouScene />}
       {scene.type === "live-registrations" && <LiveRegistrationsScene />}
       {scene.type === "mentor-carousel"    && <MentorCarouselScene scene={scene} />}
+      {scene.type === "allocation-load"    && <AllocationLoadScene />}
       {scene.type === "allocation"         && <AllocationScene     scene={scene} />}
       {scene.type === "results"            && <ResultsScene        scene={scene} />}
       {scene.type === "custom"             && <CustomScene         scene={scene} />}

@@ -5,7 +5,228 @@ import { FIRST, LAST, rand } from "./shared";
 import { MentorLoadGrid, type MentorLoadEntry } from "./MentorLoadGrid";
 import { RobotLogoMark, RoboStyles } from "./RobotLogoMark";
 
+// ─── AllocationLoadScene — Engine ready, mentors loaded, awaiting start ───────
+
+/**
+ * Boot-up stages for the engine-ready cinematic.
+ * Each stage appears after a fixed delay, giving a satisfying initialisation feel.
+ */
+const BOOT_STAGES = [
+  { id:"db",       label:"Connecting to database",        delay:400  },
+  { id:"mentors",  label:"Loading mentor roster",          delay:900  },
+  { id:"prefs",    label:"Reading preference matrix",      delay:1600 },
+  { id:"engine",   label:"Initialising FCFS engine",       delay:2300 },
+  { id:"fallback", label:"Configuring fallback strategy",  delay:3000 },
+  { id:"ready",    label:"MentorFlow engine ready ✓",      delay:3700 },
+];
+
+export function AllocationLoadScene() {
+  const [mentors,       setMentors]       = useState<MentorLoadEntry[]>([]);
+  const [bootStage,     setBootStage]     = useState(-1);   // index into BOOT_STAGES
+  const [scanLine,      setScanLine]      = useState(0);    // 0–100 progress
+  const [coreActive,    setCoreActive]    = useState(false);
+  const [gridVisible,   setGridVisible]   = useState(false);
+  const [statsVisible,  setStatsVisible]  = useState(false);
+
+  // ── Load mentors ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/display/mentors")
+      .then(r => r.json())
+      .then((d: { mentors?: { name: string; allocatedCount: number; capacity: number }[] }) => {
+        setMentors((d.mentors ?? []).map(m => ({ name: m.name, allocated: 0, capacity: m.capacity })));
+      })
+      .catch(() => {/* ignore */});
+  }, []);
+
+  // ── Boot-stage sequence ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    BOOT_STAGES.forEach((stage, i) => {
+      timers.push(setTimeout(() => setBootStage(i), stage.delay));
+    });
+    // Scan-line progress bar
+    timers.push(setTimeout(() => {
+      let p = 0;
+      const tick = setInterval(() => {
+        p += Math.random() * 4 + 1;
+        if (p >= 100) { p = 100; clearInterval(tick); }
+        setScanLine(Math.floor(p));
+      }, 60);
+      timers.push(tick as unknown as ReturnType<typeof setTimeout>);
+    }, 300));
+    // Core activation
+    timers.push(setTimeout(() => setCoreActive(true), 2400));
+    // Grid + stats reveal
+    timers.push(setTimeout(() => setGridVisible(true),  3800));
+    timers.push(setTimeout(() => setStatsVisible(true), 4100));
+    return () => timers.forEach(t => clearTimeout(t));
+  }, []);
+
+  const totalCapacity = mentors.reduce((s, m) => s + m.capacity, 0);
+  const approvedCount = mentors.length;
+
+  return (
+    <div style={{
+      position:"fixed", inset:0, overflow:"hidden",
+      fontFamily:'"DM Sans","Manrope",system-ui,sans-serif',
+      WebkitFontSmoothing:"antialiased", color:"#eef5ff",
+      background:"radial-gradient(circle at 10% 10%,rgba(45,108,240,.32),transparent 34rem),radial-gradient(circle at 90% 12%,rgba(18,182,221,.18),transparent 30rem),radial-gradient(circle at 50% 115%,rgba(79,157,255,.16),transparent 40rem),linear-gradient(150deg,#03081a 0%,#061131 55%,#04091c 100%)",
+    }}>
+
+      {/* Grid overlay */}
+      <div style={{ position:"absolute", inset:0, pointerEvents:"none", opacity:.4, backgroundImage:"linear-gradient(rgba(140,190,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(140,190,255,.05) 1px,transparent 1px)", backgroundSize:"60px 60px", WebkitMaskImage:"linear-gradient(to bottom,#000,transparent 92%)", maskImage:"linear-gradient(to bottom,#000,transparent 92%)" }} />
+
+      {/* Orbs */}
+      <div style={{ position:"fixed", width:520, height:520, borderRadius:"50%", filter:"blur(100px)", opacity:.18, left:-200, top:"35%", background:"#4f9dff", animation:"ald-orb 14s ease-in-out infinite alternate", pointerEvents:"none" }} />
+      <div style={{ position:"fixed", width:520, height:520, borderRadius:"50%", filter:"blur(100px)", opacity:.18, right:-200, bottom:-160, background:"#5ee1ff", animation:"ald-orb 14s ease-in-out infinite alternate", animationDelay:"-6s", pointerEvents:"none" }} />
+
+      {/* Shell */}
+      <div style={{ position:"relative", height:"100vh", width:"min(1400px,100%)", margin:"0 auto", padding:"clamp(24px,3vh,44px) clamp(24px,3vw,56px)", display:"flex", gap:"clamp(32px,4vw,64px)", alignItems:"flex-start" }}>
+
+        {/* ── LEFT: Logo + boot console ── */}
+        <div style={{ flexShrink:0, width:"clamp(280px,32vw,420px)", display:"flex", flexDirection:"column", gap:"clamp(28px,3.5vh,48px)", paddingTop:"clamp(12px,2vh,28px)" }}>
+
+          {/* Brand */}
+          <div style={{ display:"flex", alignItems:"center", gap:18, animation:"ald-fade-up .6s cubic-bezier(.16,1,.3,1) both" }}>
+            <RobotLogoMark size="clamp(52px,5.5vh,72px)" glow />
+            <div>
+              <div style={{ fontSize:"clamp(22px,2.4vh,32px)", fontWeight:800, letterSpacing:"-.03em", background:"linear-gradient(90deg,#eef5ff 20%,#5ee1ff 100%)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>
+                MentorFlow
+              </div>
+              <div style={{ fontSize:"clamp(10px,.9vh,13px)", fontWeight:600, color:"rgba(140,190,255,.45)", letterSpacing:".18em", textTransform:"uppercase", marginTop:3 }}>
+                Allocation Engine
+              </div>
+            </div>
+          </div>
+
+          {/* Scan-line progress */}
+          <div style={{ animation:"ald-fade-up .6s .1s cubic-bezier(.16,1,.3,1) both" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <span style={{ fontSize:"clamp(10px,.85vh,12px)", fontWeight:700, letterSpacing:".12em", textTransform:"uppercase", color:"rgba(140,190,255,.5)" }}>System initialisation</span>
+              <span style={{ fontSize:"clamp(12px,1.1vh,16px)", fontWeight:800, fontFamily:"ui-monospace,monospace", color: scanLine === 100 ? "#6ef0b8" : "#4f9dff" }}>{scanLine}%</span>
+            </div>
+            <div style={{ height:6, background:"rgba(79,157,255,.12)", borderRadius:4, overflow:"hidden" }}>
+              <div style={{ height:"100%", width:`${scanLine}%`, borderRadius:4, background: scanLine === 100 ? "linear-gradient(90deg,#22c55e,#6ef0b8)" : "linear-gradient(90deg,#2d6cf0,#4f9dff,#5ee1ff)", boxShadow:`0 0 12px ${scanLine===100?"rgba(34,197,94,.6)":"rgba(79,157,255,.6)"}`, transition:"width .1s linear,background .4s,box-shadow .4s" }} />
+            </div>
+          </div>
+
+          {/* Boot console */}
+          <div style={{ background:"rgba(0,0,0,.45)", border:"1px solid rgba(140,190,255,.1)", borderRadius:16, padding:"clamp(14px,1.5vh,22px) clamp(16px,1.6vh,24px)", fontFamily:"ui-monospace,monospace", fontSize:"clamp(11px,1vh,14px)", display:"flex", flexDirection:"column", gap:8, animation:"ald-fade-up .6s .15s cubic-bezier(.16,1,.3,1) both" }}>
+            <div style={{ color:"rgba(140,190,255,.35)", fontSize:"clamp(9px,.8vh,11px)", fontWeight:700, letterSpacing:".1em", textTransform:"uppercase", marginBottom:4 }}>Boot log</div>
+            {BOOT_STAGES.map((stage, i) => {
+              const visible = bootStage >= i;
+              const done    = bootStage > i || (bootStage === i && i === BOOT_STAGES.length - 1);
+              const current = bootStage === i && i < BOOT_STAGES.length - 1;
+              return (
+                <div key={stage.id} style={{ display:"flex", alignItems:"center", gap:10, opacity: visible ? 1 : 0, transform: visible ? "translateX(0)" : "translateX(-12px)", transition:"opacity .35s,transform .35s" }}>
+                  <span style={{ fontSize:"clamp(9px,.8vh,11px)", flexShrink:0, color: done ? "#6ef0b8" : current ? "#fbbf24" : "#4f9dff", animation: current ? "ald-blink .8s ease-in-out infinite" : "none" }}>
+                    {done ? "✓" : current ? "▶" : "·"}
+                  </span>
+                  <span style={{ color: done ? "rgba(140,190,255,.8)" : current ? "#eef5ff" : "rgba(140,190,255,.5)" }}>{stage.label}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Stat pills */}
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap", opacity: statsVisible ? 1 : 0, transform: statsVisible ? "translateY(0)" : "translateY(12px)", transition:"opacity .5s,transform .5s cubic-bezier(.34,1.56,.64,1)" }}>
+            {[
+              { label:"Mentors",  value: approvedCount || "—", color:"#4f9dff" },
+              { label:"Capacity", value: totalCapacity || "—", color:"#5ee1ff" },
+              { label:"Status",   value: scanLine === 100 ? "Ready" : "Loading", color: scanLine === 100 ? "#6ef0b8" : "#fbbf24" },
+            ].map(s => (
+              <div key={s.label} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 16px", borderRadius:999, background:"rgba(8,20,50,.7)", border:`1px solid rgba(140,190,255,.14)`, backdropFilter:"blur(8px)" }}>
+                <div style={{ width:6, height:6, borderRadius:"50%", background:s.color, boxShadow:`0 0 8px ${s.color}` }} />
+                <span style={{ fontSize:"clamp(11px,.95vh,14px)", fontWeight:700, letterSpacing:".06em", textTransform:"uppercase", color:"rgba(195,214,245,.7)" }}>
+                  <b style={{ color:"#fff", marginRight:4 }}>{s.value}</b>{s.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── RIGHT: Engine cores + mentor grid ── */}
+        <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:"clamp(20px,2.5vh,36px)", paddingTop:"clamp(12px,2vh,28px)" }}>
+
+          {/* Engine cores row */}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"clamp(12px,1.5vh,20px)", animation:"ald-fade-up .6s .25s cubic-bezier(.16,1,.3,1) both" }}>
+            {[
+              { key:"fcfs",     label:"FCFS Engine",     sub:"Preference-based · queue order", color:"#4f9dff", rgb:"79,157,255",  border:"rgba(79,157,255,.28)",  bg:"rgba(79,157,255,.14)" },
+              { key:"fallback", label:"Fallback Engine",  sub:"Random assignment · fill gaps",  color:"#5ee1ff", rgb:"94,225,255",  border:"rgba(94,225,255,.22)",  bg:"rgba(94,225,255,.11)" },
+            ].map((eng, ei) => (
+              <div key={eng.key} style={{ position:"relative", border:`1px solid ${eng.border}`, background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`, borderRadius:20, padding:"clamp(14px,1.6vh,24px)", overflow:"hidden" }}>
+                {/* Rotating core rings */}
+                <div style={{ position:"absolute", right:"clamp(12px,1.2vh,18px)", top:"50%", transform:"translateY(-50%)", width:"clamp(56px,6vh,80px)", height:"clamp(56px,6vh,80px)", pointerEvents:"none" }}>
+                  <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:`conic-gradient(from 0deg,transparent 0 70%,rgba(${eng.rgb},.9) 100%)`, WebkitMask:"radial-gradient(circle,transparent 62%,#000 63%,#000 76%,transparent 77%)", mask:"radial-gradient(circle,transparent 62%,#000 63%,#000 76%,transparent 77%)", animation:`ald-spin ${coreActive ? "1.4s" : "6s"} linear infinite`, transition:"animation-duration .8s" }} />
+                  <div style={{ position:"absolute", inset:"18%", borderRadius:"50%", background:`conic-gradient(from 180deg,transparent 0 55%,rgba(${eng.rgb},.6) 100%)`, WebkitMask:"radial-gradient(circle,transparent 58%,#000 59%,#000 74%,transparent 75%)", mask:"radial-gradient(circle,transparent 58%,#000 59%,#000 74%,transparent 75%)", animation:`ald-spin ${coreActive ? ".9s" : "4s"} linear infinite reverse`, transition:"animation-duration .8s" }} />
+                  <div style={{ position:"absolute", inset:"30%", border:`1px dashed rgba(${eng.rgb},.45)`, borderRadius:"50%", animation:"ald-spin 9s linear infinite" }} />
+                  <div style={{ position:"absolute", inset:"42%", background:eng.color, borderRadius:"50%", boxShadow:`0 0 18px ${eng.color}`, animation:"ald-core-breathe 2.2s ease-in-out infinite", animationDelay: ei === 1 ? ".5s" : "0s" }} />
+                </div>
+                <div style={{ paddingRight:"clamp(60px,7vh,90px)" }}>
+                  <div style={{ font:`800 clamp(14px,1.4vh,20px) Manrope,sans-serif`, marginBottom:6 }}>{eng.label}</div>
+                  <div style={{ fontSize:"clamp(11px,1vh,14px)", color:"#8aa3cc" }}>{eng.sub}</div>
+                  <div style={{ marginTop:"clamp(10px,1.1vh,16px)", display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background: coreActive ? eng.color : "rgba(140,190,255,.3)", boxShadow: coreActive ? `0 0 10px ${eng.color}` : "none", transition:"all .5s", animation: coreActive ? "ald-live 1.8s infinite" : "none" }} />
+                    <span style={{ fontSize:"clamp(10px,.9vh,13px)", fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color: coreActive ? eng.color : "rgba(140,190,255,.4)", transition:"color .5s" }}>
+                      {coreActive ? "Online" : "Standby"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Mentor load grid */}
+          <div style={{ flex:1, minHeight:0, border:"1px solid rgba(140,190,255,.13)", background:"linear-gradient(145deg,rgba(13,30,70,.82),rgba(6,14,38,.86))", backdropFilter:"blur(20px)", borderRadius:24, padding:"clamp(14px,1.5vh,22px)", display:"flex", flexDirection:"column", opacity: gridVisible ? 1 : 0, transform: gridVisible ? "translateY(0)" : "translateY(20px)", transition:"opacity .6s cubic-bezier(.16,1,.3,1),transform .6s cubic-bezier(.16,1,.3,1)" }}>
+            <div style={{ flexShrink:0, display:"flex", alignItems:"center", justifyContent:"space-between", paddingBottom:"clamp(10px,1vh,15px)", borderBottom:"1px solid rgba(140,190,255,.13)", marginBottom:"clamp(8px,.9vh,14px)" }}>
+              <div style={{ font:`800 clamp(14px,1.3vh,18px) Manrope,sans-serif` }}>
+                Mentor constellation · <span style={{ color:"#6f89b3", fontWeight:600 }}>{mentors.length} mentors loaded</span>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                {[{label:"idle",bg:"rgba(140,190,255,.12)"},{label:"1",bg:"rgba(79,157,255,.45)"},{label:"2–3",bg:"rgba(94,225,255,.7)"},{label:"4+",bg:"#ffc766"}].map(l => (
+                  <div key={l.label} style={{ display:"flex", alignItems:"center", gap:4, fontSize:"clamp(9px,.8vh,11px)", fontWeight:700, color:"#6f89b3" }}>
+                    <span style={{ width:9, height:9, borderRadius:3, background:l.bg, display:"inline-block", flexShrink:0 }} />
+                    {l.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ flex:1, minHeight:0, overflow:"hidden" }}>
+              {mentors.length === 0
+                ? <div style={{ height:"100%", display:"grid", placeItems:"center", color:"#4a6080", fontSize:"clamp(12px,1.1vh,15px)" }}>Loading mentor roster…</div>
+                : <MentorLoadGrid mentors={mentors} hitName={null} />
+              }
+            </div>
+          </div>
+
+          {/* Standby banner */}
+          <div style={{ flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", gap:16, padding:"clamp(14px,1.6vh,22px)", border:"1px solid rgba(79,157,255,.25)", borderRadius:18, background:"rgba(79,157,255,.07)", opacity: gridVisible ? 1 : 0, transition:"opacity .6s .3s", animation: gridVisible ? "ald-standby-pulse 3s ease-in-out infinite" : "none" }}>
+            <div style={{ width:10, height:10, borderRadius:"50%", background:"#4f9dff", boxShadow:"0 0 12px #4f9dff", animation:"ald-live 1.8s infinite" }} />
+            <span style={{ font:`700 clamp(13px,1.2vh,17px) Manrope,sans-serif`, letterSpacing:".08em", textTransform:"uppercase", color:"#c3d6f5" }}>
+              Engine standby — awaiting allocation start
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <RoboStyles />
+      <style>{`
+        @keyframes ald-orb          { to{transform:translate3d(46px,-38px,0) scale(1.12)} }
+        @keyframes ald-spin         { to{transform:rotate(360deg)} }
+        @keyframes ald-live         { 70%{box-shadow:0 0 0 10px rgba(79,157,255,0)} }
+        @keyframes ald-core-breathe { 50%{transform:scale(1.35);opacity:.8} }
+        @keyframes ald-blink        { 0%,100%{opacity:1} 50%{opacity:.3} }
+        @keyframes ald-fade-up      { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:none} }
+        @keyframes ald-standby-pulse{ 0%,100%{border-color:rgba(79,157,255,.25)} 50%{border-color:rgba(79,157,255,.55)} }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── AllocationScene — running state: drip-feed animation ─────────────────────
+
 export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type: "allocation" }> }) {
+
   type AllocRow = { mentee: string; mentor: string; method: "preference" | "fallback" | "manual"; priority: number | null };
   type AllocData = { allocations: AllocRow[]; fcfsCount: number; fallbackCount: number; total: number; menteeTotal: number };
 
@@ -36,16 +257,9 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
   const [activeEngine,  setActiveEngine]  = useState<"fcfs"|"fallback"|null>(null);
   const [isComplete,    setIsComplete]    = useState(false);
   const [hasData,       setHasData]       = useState(false);
-  const [minDelayDone,  setMinDelayDone]  = useState(false);
   const [queueItems,    setQueueItems]    = useState<{ id:number;name:string;exiting?:boolean }[]>([]);
   const [mentorLoad,    setMentorLoad]    = useState<MentorLoadEntry[]>([]);
   const [hitMentorName, setHitMentorName] = useState<string | null>(null);
-
-  // ── 4s minimum loading screen ─────────────────────────────────────────────
-  useEffect(() => {
-    const t = setTimeout(() => setMinDelayDone(true), 4000);
-    return () => clearTimeout(t);
-  }, []);
 
   // ── Flying chip ───────────────────────────────────────────────────────────
   const flyChip = React.useCallback((initials: string, method: "fcfs" | "fallback") => {
@@ -217,59 +431,20 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
     };
   }, [fetchData]);
 
-  // ── Loading screen ────────────────────────────────────────────────────────
-  if (!hasData || !minDelayDone) {
+  // ── Loading screen — brief spinner while first fetch completes ───────────
+  if (!hasData) {
     return (
-      <div style={{ position:"fixed", inset:0, background:"radial-gradient(circle at 50% 40%,#061640 0%,#030a1c 60%,#020810 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", overflow:"hidden", fontFamily:"Manrope,sans-serif" }}>
-        <div style={{ position:"absolute", inset:0, pointerEvents:"none", backgroundImage:"linear-gradient(rgba(79,157,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,157,255,.04) 1px,transparent 1px)", backgroundSize:"60px 60px", WebkitMaskImage:"radial-gradient(ellipse 70% 70% at 50% 50%,#000 20%,transparent 80%)", maskImage:"radial-gradient(ellipse 70% 70% at 50% 50%,#000 20%,transparent 80%)" }} />
-        <div style={{ position:"absolute", width:"50vw", height:"50vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(79,157,255,.22) 0%,transparent 70%)", filter:"blur(80px)", top:"-10%", left:"50%", transform:"translateX(-50%)", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:"30vw", height:"30vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(94,225,255,.15) 0%,transparent 70%)", filter:"blur(60px)", bottom:"-5%", left:"20%", animation:"rf-drift1 10s ease-in-out infinite", pointerEvents:"none" }} />
-        <div style={{ position:"absolute", width:"30vw", height:"30vw", borderRadius:"50%", background:"radial-gradient(circle,rgba(45,108,240,.2) 0%,transparent 70%)", filter:"blur(60px)", bottom:"-5%", right:"20%", animation:"rf-drift2 12s ease-in-out infinite", pointerEvents:"none" }} />
-
-        <RobotLogoMark size="clamp(120px,16vw,200px)" glow />
-
-        <div style={{ marginTop:"clamp(24px,3.5vh,40px)", textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:8 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ opacity:.7 }}>
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#5ee1ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span style={{ fontSize:"clamp(22px,2.4vw,32px)", fontWeight:800, letterSpacing:"-.02em", background:"linear-gradient(90deg,#eef5ff 30%,#5ee1ff 100%)", WebkitBackgroundClip:"text", backgroundClip:"text", color:"transparent" }}>
-              MentorFlow
-            </span>
-          </div>
-          <div style={{ fontSize:"clamp(11px,1vw,14px)", fontWeight:600, color:"rgba(140,190,255,.45)", letterSpacing:".18em", textTransform:"uppercase" }}>
-            Allocation Engine
-          </div>
+      <div style={{ position:"fixed", inset:0, background:"radial-gradient(circle at 50% 40%,#061640 0%,#030a1c 60%,#020810 100%)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Manrope,sans-serif" }}>
+        <div style={{ display:"flex", gap:10 }}>
+          {[0,1,2].map(i => <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#4f9dff", animation:"rf-dot 1.2s ease-in-out infinite", animationDelay:`${i * 0.22}s`, boxShadow:"0 0 10px #4f9dff" }} />)}
         </div>
-
-        <div style={{ marginTop:"clamp(32px,4.5vh,52px)", display:"flex", flexDirection:"column", alignItems:"center", gap:16 }}>
-          <div style={{ display:"flex", gap:10 }}>
-            {[0,1,2].map(i => (
-              <div key={i} style={{ width:10, height:10, borderRadius:"50%", background:"#4f9dff", animation:"rf-dot 1.2s ease-in-out infinite", animationDelay:`${i * 0.22}s`, boxShadow:"0 0 10px #4f9dff" }} />
-            ))}
-          </div>
-          <div style={{ fontSize:"clamp(11px,1vw,14px)", fontWeight:600, color:"rgba(140,190,255,.38)", letterSpacing:".12em", textTransform:"uppercase" }}>
-            Initialising MentorFlow engine…
-          </div>
-        </div>
-
-        <RoboStyles />
-        <style>{`
-          @keyframes rf-dot    { 0%,80%,100%{transform:scale(.7);opacity:.4} 40%{transform:scale(1.3);opacity:1} }
-          @keyframes rf-drift1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(4vw,-3vh)} }
-          @keyframes rf-drift2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-4vw,3vh)} }
-        `}</style>
+        <style>{`@keyframes rf-dot { 0%,80%,100%{transform:scale(.7);opacity:.4} 40%{transform:scale(1.3);opacity:1} }`}</style>
       </div>
     );
   }
 
   const total = menteeTotalRef.current;
 
-  const methodLabel = (m: string, p: number | null) => {
-    if (m === "preference") return p === 1 ? "1st choice" : p === 2 ? "2nd choice" : p === 3 ? "3rd choice" : "Preference";
-    if (m === "fallback")   return "Fallback";
-    return "Manual";
-  };
   const methodColor = (m: string, p: number | null) => {
     if (m === "preference") return p === 1 ? "#22c55e" : p === 2 ? "#f59e0b" : "#a78bfa";
     return "#38bdf8";
