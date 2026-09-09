@@ -7,7 +7,7 @@ import { ThankYouScene }          from "./ThankYouScene";
 import { CustomScene }            from "./CustomScene";
 import { ResultsScene }           from "./ResultsScene";
 import { LiveRegistrationsScene } from "./LiveRegistrationsScene";
-import { AllocationScene, AllocationLoadScene } from "./AllocationScene";
+import { AllocationFlow } from "./AllocationScene";
 import { MentorCarouselScene }    from "./MentorCarouselScene";
 import { MentorCardScene }        from "./MentorCardScene";
 import { SceneTransition }        from "./SceneTransition";
@@ -48,8 +48,7 @@ export function DisplayScreen() {
       {scene.type === "thankyou"           && <ThankYouScene />}
       {scene.type === "live-registrations" && <LiveRegistrationsScene />}
       {scene.type === "mentor-carousel"    && <MentorCarouselScene scene={scene} />}
-      {scene.type === "allocation-load"    && <AllocationLoadScene />}
-      {scene.type === "allocation"         && <AllocationScene     scene={scene} />}
+      {(scene.type === "allocation-load" || scene.type === "allocation") && <AllocationFlow scene={scene} />}
       {scene.type === "results"            && <ResultsScene        scene={scene} />}
       {scene.type === "custom"             && <CustomScene         scene={scene} />}
       {scene.type === "mentor-card"        && <MentorCardScene     scene={scene} />}
