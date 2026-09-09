@@ -890,11 +890,8 @@ function DisplayControlTab({ overview, onRunAllocation }: {
   };
 
   const handleRunAllocation = async () => {
-    // Step 1: Show engine-ready screen while allocation runs in background
-    await push({ type: "allocation-load" });
-    // Step 2: Trigger the actual allocation API
+    // Push directly to allocation — "Engine Ready" is pressed separately by the admin
     const assigned = await onRunAllocation();
-    // Step 3: Switch to running animation with real data
     void push({ type: "allocation", count: assigned, total: overview.stats.totalMentees });
   };
 

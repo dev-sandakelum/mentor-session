@@ -33,10 +33,14 @@ export function DisplayScreen() {
 
   const scene = state?.scene ?? ({ type: "idle" } as DisplayScene);
 
+  // allocation-load and allocation share the same key so SceneTransition never
+  // crossfades between them — the switch is instant, feeling like one continuous scene.
   const sceneKey =
     scene.type === "mentor-card"
       ? `mentor-card-${(scene as Extract<DisplayScene, { type: "mentor-card" }>).mentor.id}`
-      : scene.type;
+      : scene.type === "allocation-load" || scene.type === "allocation"
+        ? "allocation-flow"
+        : scene.type;
 
   const sceneNode = (
     <>
