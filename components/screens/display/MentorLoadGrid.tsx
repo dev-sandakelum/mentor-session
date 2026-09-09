@@ -39,19 +39,28 @@ interface Props {
   mentors: MentorLoadEntry[];
   /** Name of the mentor whose tile should flash right now (null = none). */
   hitName: string | null;
+  /** When true, skips the staggered entrance animation (e.g. during live allocation). */
+  disableEntrance?: boolean;
 }
 
 /**
  * MentorLoadGrid — auto-fitting constellation grid of mentor load tiles.
  *
- * Each tile flashes (`alloc-tile-hit` + sweep) when `hitName` matches.
- * The tile key changes on every hit so the CSS animation restarts cleanly.
+ * On first render of each tile it plays a staggered `mlg-tile-in` entrance
+ * animation (scale + fade, 18 ms between tiles).
+ * Each tile also flashes (`alloc-tile-hit` + sweep) when `hitName` matches.
  */
-export function MentorLoadGrid({ mentors, hitName }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+export function MentorLoadGrid({ mentors, hitName, disableEntrance = false }: Props) {
+  const containerRef  = useRef<HTMLDivElement>(null);
   const [cols, setCols]         = useState(6);
   const [tileSize, setTileSize] = useState(44);
+
+  // Tracks hit-animation restarts (key changes force re-mount → restart CSS anim)
   const hitCountRef = useRef<Map<string, number>>(new Map());
+
+  // Tracks which names have already been introduced so we only play the
+  // entrance animation once per tile, not on every re-render.
+  const seenRef     = useRef<Map<string, number>>(new Map()); // name → entrance index
 
   // Auto-fit grid columns to available space
   useEffect(() => {
@@ -60,10 +69,11 @@ export function MentorLoadGrid({ mentors, hitName }: Props) {
     const fit = () => {
       const W = el.clientWidth, H = el.clientHeight, n = mentors.length;
       if (!W || !H || !n) return;
+      const GAP = 6;
       let best = { cols: 6, size: 0 };
       for (let c = 4; c <= 12; c++) {
         const rows = Math.ceil(n / c);
-        const size = Math.min((W - 5 * (c - 1)) / c, (H - 5 * (rows - 1)) / rows);
+        const size = Math.min((W - GAP * (c - 1)) / c, (H - GAP * (rows - 1)) / rows);
         if (size > best.size) best = { cols: c, size };
       }
       setCols(best.cols);
@@ -80,79 +90,106 @@ export function MentorLoadGrid({ mentors, hitName }: Props) {
     hitCountRef.current.set(hitName, (hitCountRef.current.get(hitName) ?? 0) + 1);
   }
 
+  // Assign entrance indices to new tiles (runs synchronously during render so
+  // every new tile immediately gets a stable delay before its first paint)
+  mentors.forEach((m) => {
+    if (!seenRef.current.has(m.name)) {
+      seenRef.current.set(m.name, seenRef.current.size);
+    }
+  });
+
   return (
-    <div
-      ref={containerRef}
-      style={{
-        display:"grid",
-        gridTemplateColumns:`repeat(${cols},${tileSize}px)`,
-        gridAutoRows:`${tileSize}px`,
-        gap:5,
-        alignContent:"start",
-        width:"100%",
-        height:"100%",
-        overflow:"hidden",
-      }}
-    >
-      {mentors.map((m) => {
-        const isHit    = hitName === m.name;
-        const hitCount = hitCountRef.current.get(m.name) ?? 0;
-        const fontSize = Math.max(9, Math.floor(tileSize * 0.27));
+    <>
+      <style>{`
+        @keyframes mlg-tile-in {
+          0%   { opacity: 0; transform: scale(0.55); }
+          60%  { opacity: 1; transform: scale(1.08); }
+          100% { opacity: 1; transform: scale(1);    }
+        }
+      `}</style>
 
-        return (
-          <div
-            key={`${m.name}-${hitCount}`}
-            title={`${m.name} · ${m.allocated}${m.capacity ? `/${m.capacity}` : ""}`}
-            style={{
-              position:"relative",
-              borderRadius:10,
-              display:"flex", flexDirection:"column",
-              alignItems:"center", justifyContent:"center",
-              gap:2,
-              fontSize:`${fontSize}px`,
-              fontWeight:800,
-              fontFamily:"Manrope,sans-serif",
-              cursor:"default",
-              overflow:"hidden",
-              transition:"background .45s,border-color .45s,box-shadow .45s",
-              animation: isHit ? "alloc-tile-hit .7s cubic-bezier(.34,1.56,.64,1)" : undefined,
-              ...tileStyle(m.allocated, m.capacity),
-            }}
-          >
-            {/* Sweep flash on hit */}
-            {isHit && (
-              <div style={{ position:"absolute", inset:0, background:"linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent)", animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards", pointerEvents:"none" }} />
-            )}
+      <div
+        ref={containerRef}
+        style={{
+          display:"grid",
+          gridTemplateColumns:`repeat(${cols},${tileSize}px)`,
+          gridAutoRows:`${tileSize}px`,
+          gap:6,
+          alignContent:"start",
+          justifyContent:"center",
+          width:"100%",
+          height:"100%",
+          overflow:"hidden",
+        }}
+      >
+        {mentors.map((m) => {
+          const isHit        = hitName === m.name;
+          const hitCount     = hitCountRef.current.get(m.name) ?? 0;
+          const entranceIdx  = seenRef.current.get(m.name) ?? 0;
+          const fontSize     = Math.max(9, Math.floor(tileSize * 0.27));
+          // 18 ms stagger per tile, capped so the last tile doesn't wait forever
+          const entranceDelay = `${Math.min(entranceIdx * 18, 1200)}ms`;
 
-            <span>{ini(m.name)}</span>
+          return (
+            <div
+              key={`${m.name}-${hitCount}`}
+              title={`${m.name} · ${m.allocated}${m.capacity ? `/${m.capacity}` : ""}`}
+              style={{
+                position:"relative",
+                borderRadius:10,
+                display:"flex", flexDirection:"column",
+                alignItems:"center", justifyContent:"center",
+                gap:2,
+                fontSize:`${fontSize}px`,
+                fontWeight:800,
+                fontFamily:"Manrope,sans-serif",
+                cursor:"default",
+                overflow:"hidden",
+                transition:"background .45s,border-color .45s,box-shadow .45s",
+                // Entrance plays once on load; disabled during live allocation; hit overrides with bounce
+                animation: isHit
+                  ? "alloc-tile-hit .7s cubic-bezier(.34,1.56,.64,1)"
+                  : disableEntrance
+                    ? undefined
+                    : `mlg-tile-in .42s cubic-bezier(.34,1.56,.64,1) ${entranceDelay} both`,
+                ...tileStyle(m.allocated, m.capacity),
+              }}
+            >
+              {/* Sweep flash on hit */}
+              {isHit && (
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent)", animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards", pointerEvents:"none" }} />
+              )}
 
-            {/* Count: dots ≤5, number badge >5 */}
-            {m.allocated > 0 && (
-              m.allocated <= 5 ? (
-                <div style={{ display:"flex", gap:2 }}>
-                  {Array.from({ length: m.allocated }, (_, j) => (
-                    <span key={j} style={{
-                      width:3, height:3, borderRadius:"50%",
-                      background:"currentColor", opacity:.9, display:"inline-block",
-                      animation: isHit && j === m.allocated - 1
-                        ? "alloc-dot-in .35s cubic-bezier(.34,1.56,.64,1) both"
-                        : undefined,
-                    }} />
-                  ))}
-                </div>
-              ) : (
-                <span style={{
-                  fontSize:`${Math.max(8, Math.floor(tileSize * 0.22))}px`,
-                  fontWeight:800, lineHeight:1, opacity:.9,
-                  animation: isHit ? "alloc-dot-in .35s cubic-bezier(.34,1.56,.64,1) both" : undefined,
-                }}>
-                  {m.allocated}
-                </span>
-              )
-            )}
-          </div>
-        );
-      })}
-    </div>
+              <span>{ini(m.name)}</span>
+
+              {/* Count: dots ≤5, number badge >5 */}
+              {m.allocated > 0 && (
+                m.allocated <= 5 ? (
+                  <div style={{ display:"flex", gap:2 }}>
+                    {Array.from({ length: m.allocated }, (_, j) => (
+                      <span key={j} style={{
+                        width:3, height:3, borderRadius:"50%",
+                        background:"currentColor", opacity:.9, display:"inline-block",
+                        animation: isHit && j === m.allocated - 1
+                          ? "alloc-dot-in .35s cubic-bezier(.34,1.56,.64,1) both"
+                          : undefined,
+                      }} />
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{
+                    fontSize:`${Math.max(8, Math.floor(tileSize * 0.22))}px`,
+                    fontWeight:800, lineHeight:1, opacity:.9,
+                    animation: isHit ? "alloc-dot-in .35s cubic-bezier(.34,1.56,.64,1) both" : undefined,
+                  }}>
+                    {m.allocated}
+                  </span>
+                )
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }

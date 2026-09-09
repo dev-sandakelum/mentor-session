@@ -165,7 +165,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
       setActiveEngine(eng); setTimeout(()=>setActiveEngine(null),500);
       flyChip(ini,eng);
       setTimeout(()=>{
-        setDisplayed(prev=>[row,...prev].slice(0,9));
+        setDisplayed(prev=>[row,...prev]);
         const map=mentorLoadRef.current;
         const ex=map.get(row.mentor);
         if(ex){map.set(row.mentor,{...ex,allocated:ex.allocated+1});}
@@ -401,7 +401,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
               </div>
 
               {/* Latest matches */}
-              <div ref={assignedNodeRef} style={{...assemblyStyle("translateX(20px)",0.62), border:"1px solid rgba(140,190,255,.1)",background:"rgba(3,10,30,.5)",borderRadius:22,padding:"clamp(14px,1.5vh,22px)",overflow:"hidden",display:"flex",flexDirection:"column",minHeight:0}}>
+              <div ref={assignedNodeRef} style={{...assemblyStyle("translateX(20px)",0.62), border:"1px solid rgba(140,190,255,.1)",background:"rgba(3,10,30,.5)",borderRadius:22,padding:"clamp(14px,1.5vh,22px)",display:"flex",flexDirection:"column",minHeight:0}}>
                 <div style={{color:"#7d97c2",font:`800 clamp(10px,.9vh,13px) Manrope,sans-serif`,letterSpacing:".14em",textTransform:"uppercase",marginBottom:"clamp(8px,.9vh,13px)",flexShrink:0,display:"flex",alignItems:"center",gap:8}}>
                   <span style={{width:"clamp(22px,2vh,28px)",height:"clamp(22px,2vh,28px)",borderRadius:8,background:"rgba(79,157,255,.12)",display:"grid",placeItems:"center",flexShrink:0}}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="#4f9dff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{width:"clamp(12px,1.1vh,15px)",height:"clamp(12px,1.1vh,15px)"}}><circle cx="17" cy="7" r="3"/><circle cx="7" cy="17" r="3"/><path d="M14 7H7a5 5 0 0 0 0 10h3"/></svg>
@@ -487,7 +487,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
               <div style={{flex:1,minHeight:0,overflow:"hidden"}}>
                 {mentorLoad.length===0
                   ?<div style={{height:"100%",display:"grid",placeItems:"center",color:"#4a6080",fontSize:"clamp(12px,1.1vh,15px)"}}>Loading mentor data…</div>
-                  :<MentorLoadGrid mentors={mentorLoad} hitName={hitMentorName}/>
+                  :<MentorLoadGrid mentors={mentorLoad} hitName={hitMentorName} disableEntrance={isRunning}/>
                 }
               </div>
 
@@ -508,7 +508,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
                         <strong style={{display:"block",font:`800 clamp(20px,1.8vh,28px)/1 Manrope,sans-serif`,marginTop:4,letterSpacing:"-.03em"}}>{s.val}</strong>
                       </div>
                     ))}
-                    {busiest&&(
+                    {/* {busiest&&(
                       <div style={{gridColumn:"1/-1",background:"rgba(255,255,255,.03)",border:"1px solid rgba(140,190,255,.09)",borderRadius:12,padding:"clamp(8px,.8vh,12px)",display:"flex",alignItems:"center",gap:10}}>
                         <div style={{width:"clamp(28px,2.5vh,36px)",height:"clamp(28px,2.5vh,36px)",borderRadius:9,display:"grid",placeItems:"center",fontSize:"clamp(10px,.9vh,13px)",fontWeight:800,color:"#fff",background:"linear-gradient(145deg,rgba(255,199,102,.7),rgba(94,225,255,.4))",flexShrink:0}}>{bIni}</div>
                         <div style={{minWidth:0}}>
@@ -517,7 +517,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
                         </div>
                         <div style={{marginLeft:"auto",flexShrink:0,fontSize:"clamp(16px,1.5vh,22px)",fontWeight:800,color:"#ffc766",letterSpacing:"-.02em"}}>{busiest.allocated}</div>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 );
               })()}
@@ -684,7 +684,7 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
 
       // Chip lands ~510ms — update matches + mentor tile
       setTimeout(() => {
-        setDisplayed(prev => [row, ...prev].slice(0, 9));
+        setDisplayed(prev => [row, ...prev]);
 
         const mentorName = row.mentor;
         const map = mentorLoadRef.current;
@@ -919,7 +919,7 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
               </div>
 
               {/* Latest matches */}
-              <div ref={assignedNodeRef} style={{ border:"1px solid rgba(140,190,255,.1)", background:"rgba(3,10,30,.5)", borderRadius:22, padding:"clamp(14px,1.5vh,22px)", overflow:"hidden", display:"flex", flexDirection:"column", minHeight:0 }}>
+              <div ref={assignedNodeRef} style={{ border:"1px solid rgba(140,190,255,.1)", background:"rgba(3,10,30,.5)", borderRadius:22, padding:"clamp(14px,1.5vh,22px)", display:"flex", flexDirection:"column", minHeight:0 }}>
                 <div style={{ color:"#7d97c2", font:`800 clamp(10px,.9vh,13px) Manrope,sans-serif`, letterSpacing:".14em", textTransform:"uppercase", marginBottom:"clamp(8px,.9vh,13px)", flexShrink:0, display:"flex", alignItems:"center", gap:8 }}>
                   <span style={{ width:"clamp(22px,2vh,28px)", height:"clamp(22px,2vh,28px)", borderRadius:8, background:"rgba(79,157,255,.12)", display:"grid", placeItems:"center", flexShrink:0 }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="#4f9dff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ width:"clamp(12px,1.1vh,15px)", height:"clamp(12px,1.1vh,15px)" }}>
@@ -1013,7 +1013,7 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
                 {mentorLoad.length === 0 ? (
                   <div style={{ height:"100%", display:"grid", placeItems:"center", color:"#4a6080", fontSize:"clamp(12px,1.1vh,15px)" }}>Loading mentor data…</div>
                 ) : (
-                  <MentorLoadGrid mentors={mentorLoad} hitName={hitMentorName} />
+                  <MentorLoadGrid mentors={mentorLoad} hitName={hitMentorName} disableEntrance />
                 )}
               </div>
 
@@ -1034,7 +1034,7 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
                         <strong style={{ display:"block", font:`800 clamp(20px,1.8vh,28px)/1 Manrope,sans-serif`, marginTop:4, letterSpacing:"-.03em" }}>{s.val}</strong>
                       </div>
                     ))}
-                    {busiest && (
+                    {/* {busiest && (
                       <div style={{ gridColumn:"1/-1", background:"rgba(255,255,255,.03)", border:"1px solid rgba(140,190,255,.09)", borderRadius:12, padding:"clamp(8px,.8vh,12px)", display:"flex", alignItems:"center", gap:10 }}>
                         <div style={{ width:"clamp(28px,2.5vh,36px)", height:"clamp(28px,2.5vh,36px)", borderRadius:9, display:"grid", placeItems:"center", fontSize:"clamp(10px,.9vh,13px)", fontWeight:800, color:"#fff", background:"linear-gradient(145deg,rgba(255,199,102,.7),rgba(94,225,255,.4))", flexShrink:0 }}>{bIni}</div>
                         <div style={{ minWidth:0 }}>
@@ -1043,7 +1043,7 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
                         </div>
                         <div style={{ marginLeft:"auto", flexShrink:0, fontSize:"clamp(16px,1.5vh,22px)", fontWeight:800, color:"#ffc766", letterSpacing:"-.02em" }}>{busiest.allocated}</div>
                       </div>
-                    )}
+                    )} */}
                   </div>
                 );
               })()}
