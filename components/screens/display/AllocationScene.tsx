@@ -16,36 +16,47 @@ type AllocationFlowScene =
 
 // ─── EngineCore — rotating ring animation ─────────────────────────────────────
 function EngineCore({ color, rgb, active }: { color: string; rgb: string; active: boolean }) {
+  const burstRef = useRef<HTMLDivElement>(null);
+  const prevActive = useRef(false);
+
+  // Fire burst imperatively so the ring animations never get interrupted
+  useEffect(() => {
+    if (active && !prevActive.current && burstRef.current) {
+      const el = burstRef.current;
+      el.style.animation = "none";
+      // Force reflow so the browser registers the reset before restarting
+      void el.offsetWidth;
+      el.style.animation = "engCoreBurst .7s cubic-bezier(.2,.8,.2,1) forwards";
+    }
+    prevActive.current = active;
+  }, [active]);
+
   return (
     <div aria-hidden="true" style={{
       position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
       width:"clamp(64px,6vh,96px)", height:"clamp(64px,6vh,96px)", pointerEvents:"none", opacity:.7,
     }}>
-      {/* Outer arc — conic gradient masked to a ring, spins forward */}
-      <div style={{
+      {/* Outer arc — always 5s spin, speed-up handled by CSS class not inline style */}
+      <div className={active ? "eng-arc1 eng-fast1" : "eng-arc1"} style={{
         position:"absolute", inset:0, borderRadius:"50%",
         background:`conic-gradient(from 0deg, transparent 0 65%, rgba(${rgb},.9) 100%)`,
         WebkitMaskImage:"radial-gradient(circle, transparent 62%, #000 63%, #000 77%, transparent 78%)",
         maskImage:"radial-gradient(circle, transparent 62%, #000 63%, #000 77%, transparent 78%)",
-        animation:`engCore1 ${active?"1.1s":"5s"} linear infinite`,
-        transition:"animation-duration .4s",
       }}/>
-      {/* Inner arc — spins reverse, slower */}
-      <div style={{
+      {/* Inner arc — reverse spin */}
+      <div className={active ? "eng-arc2 eng-fast2" : "eng-arc2"} style={{
         position:"absolute", inset:"14%", borderRadius:"50%",
         background:`conic-gradient(from 180deg, transparent 0 50%, rgba(${rgb},.65) 100%)`,
         WebkitMaskImage:"radial-gradient(circle, transparent 58%, #000 59%, #000 75%, transparent 76%)",
         maskImage:"radial-gradient(circle, transparent 58%, #000 59%, #000 75%, transparent 76%)",
-        animation:`engCore2 ${active?"0.75s":"3.4s"} linear infinite reverse`,
-        transition:"animation-duration .4s",
       }}/>
-      {/* Dashed orbit ring */}
+      {/* Dashed orbit ring — constant slow spin */}
       <div style={{
         position:"absolute", inset:"28%", borderRadius:"50%",
         border:`1px dashed rgba(${rgb},.4)`,
         animation:"engCore3 9s linear infinite",
       }}/>
-      {/* Centre dot */}
+      {/* Centre dot — always breathing, glow intensifies via transition */}
       <div style={{
         position:"absolute", inset:"40%", borderRadius:"50%",
         background:color,
@@ -53,14 +64,11 @@ function EngineCore({ color, rgb, active }: { color: string; rgb: string; active
         animation:"engCoreDot 2.2s ease-in-out infinite",
         transition:"box-shadow .4s",
       }}/>
-      {/* Burst ring on active */}
-      {active && (
-        <div style={{
-          position:"absolute", inset:"33%", borderRadius:"50%",
-          border:`2px solid ${color}`,
-          animation:"engCoreBurst .7s cubic-bezier(.2,.8,.2,1) forwards",
-        }}/>
-      )}
+      {/* Burst ring — always in DOM, triggered imperatively */}
+      <div ref={burstRef} style={{
+        position:"absolute", inset:"33%", borderRadius:"50%",
+        border:`2px solid ${color}`,
+      }}/>
     </div>
   );
 }
@@ -597,6 +605,10 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
         @keyframes engCore3    { to{transform:rotate(360deg)} }
         @keyframes engCoreDot  { 50%{transform:scale(1.4);opacity:.75} }
         @keyframes engCoreBurst{ from{transform:scale(.4);opacity:1}to{transform:scale(2.6);opacity:0} }
+        .eng-arc1{animation:engCore1 5s linear infinite}
+        .eng-arc2{animation:engCore2 3.4s linear infinite reverse}
+        .eng-fast1{animation-duration:1.1s}
+        .eng-fast2{animation-duration:.75s}
       `}</style>
     </div>
   );
@@ -1129,6 +1141,10 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
         @keyframes engCore3    { to{transform:rotate(360deg)} }
         @keyframes engCoreDot  { 50%{transform:scale(1.4);opacity:.75} }
         @keyframes engCoreBurst{ from{transform:scale(.4);opacity:1}to{transform:scale(2.6);opacity:0} }
+        .eng-arc1{animation:engCore1 5s linear infinite}
+        .eng-arc2{animation:engCore2 3.4s linear infinite reverse}
+        .eng-fast1{animation-duration:1.1s}
+        .eng-fast2{animation-duration:.75s}
       `}</style>
     </div>
   );
