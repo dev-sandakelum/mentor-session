@@ -18,8 +18,8 @@ type AllocationFlowScene =
 function EngineCore({ color, rgb, active }: { color: string; rgb: string; active: boolean }) {
   return (
     <div aria-hidden="true" style={{
-      position:"absolute", right:"clamp(10px,1vh,16px)", top:"50%", transform:"translateY(-50%)",
-      width:"clamp(64px,6vh,96px)", height:"clamp(64px,6vh,96px)", pointerEvents:"none",
+      position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)",
+      width:"clamp(64px,6vh,96px)", height:"clamp(64px,6vh,96px)", pointerEvents:"none", opacity:.7,
     }}>
       {/* Outer arc — conic gradient masked to a ring, spins forward */}
       <div style={{
@@ -420,7 +420,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
               <div style={{display:"grid",gridTemplateRows:"1fr 1fr",gap:10,minHeight:0}}>
                 {engines.map((eng,ei)=>(
                   <div key={eng.key} ref={eng.key==="fcfs"?fcfsEngineRef:fbEngineRef}
-                    style={{...assemblyStyle("translateY(20px)",0.36+ei*0.1), position:"relative",border:`1px solid ${eng.border}`,background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`,borderRadius:20,padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)",paddingRight:"clamp(80px,8vh,110px)",overflow:"hidden",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                    style={{...assemblyStyle("translateY(20px)",0.36+ei*0.1), position:"relative",border:`1px solid ${eng.border}`,background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`,borderRadius:20,padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)",overflow:"hidden",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
                     {activeEngine===eng.key&&<div style={{position:"absolute",inset:0,background:"linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent)",animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards",pointerEvents:"none"}}/>}
                     <EngineCore color={eng.color} rgb={eng.rgb} active={activeEngine===eng.key}/>
                     <div>
@@ -944,7 +944,7 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
               <div style={{ display:"grid", gridTemplateRows:"1fr 1fr", gap:10, minHeight:0 }}>
                 {engines.map(eng => (
                   <div key={eng.key} ref={eng.key==="fcfs" ? fcfsEngineRef : fbEngineRef}
-                    style={{ position:"relative", border:`1px solid ${eng.border}`, background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`, borderRadius:20, padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)", paddingRight:"clamp(80px,8vh,110px)", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
+                    style={{ position:"relative", border:`1px solid ${eng.border}`, background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`, borderRadius:20, padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
                     {activeEngine===eng.key && <div style={{ position:"absolute", inset:0, background:"linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent)", animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards", pointerEvents:"none" }} />}
                     <EngineCore color={eng.color} rgb={eng.rgb} active={activeEngine===eng.key}/>
                     <div>
