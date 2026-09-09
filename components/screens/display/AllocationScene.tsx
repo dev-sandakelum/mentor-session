@@ -14,6 +14,57 @@ type AllocationFlowScene =
   | Extract<DisplayScene, { type: "allocation-load" }>
   | Extract<DisplayScene, { type: "allocation" }>;
 
+// ─── EngineCore — rotating ring animation ─────────────────────────────────────
+function EngineCore({ color, rgb, active }: { color: string; rgb: string; active: boolean }) {
+  return (
+    <div aria-hidden="true" style={{
+      position:"absolute", right:"clamp(10px,1vh,16px)", top:"50%", transform:"translateY(-50%)",
+      width:"clamp(64px,6vh,96px)", height:"clamp(64px,6vh,96px)", pointerEvents:"none",
+    }}>
+      {/* Outer arc — conic gradient masked to a ring, spins forward */}
+      <div style={{
+        position:"absolute", inset:0, borderRadius:"50%",
+        background:`conic-gradient(from 0deg, transparent 0 65%, rgba(${rgb},.9) 100%)`,
+        WebkitMaskImage:"radial-gradient(circle, transparent 62%, #000 63%, #000 77%, transparent 78%)",
+        maskImage:"radial-gradient(circle, transparent 62%, #000 63%, #000 77%, transparent 78%)",
+        animation:`engCore1 ${active?"1.1s":"5s"} linear infinite`,
+        transition:"animation-duration .4s",
+      }}/>
+      {/* Inner arc — spins reverse, slower */}
+      <div style={{
+        position:"absolute", inset:"14%", borderRadius:"50%",
+        background:`conic-gradient(from 180deg, transparent 0 50%, rgba(${rgb},.65) 100%)`,
+        WebkitMaskImage:"radial-gradient(circle, transparent 58%, #000 59%, #000 75%, transparent 76%)",
+        maskImage:"radial-gradient(circle, transparent 58%, #000 59%, #000 75%, transparent 76%)",
+        animation:`engCore2 ${active?"0.75s":"3.4s"} linear infinite reverse`,
+        transition:"animation-duration .4s",
+      }}/>
+      {/* Dashed orbit ring */}
+      <div style={{
+        position:"absolute", inset:"28%", borderRadius:"50%",
+        border:`1px dashed rgba(${rgb},.4)`,
+        animation:"engCore3 9s linear infinite",
+      }}/>
+      {/* Centre dot */}
+      <div style={{
+        position:"absolute", inset:"40%", borderRadius:"50%",
+        background:color,
+        boxShadow:`0 0 ${active?"22px":"14px"} ${color}`,
+        animation:"engCoreDot 2.2s ease-in-out infinite",
+        transition:"box-shadow .4s",
+      }}/>
+      {/* Burst ring on active */}
+      {active && (
+        <div style={{
+          position:"absolute", inset:"33%", borderRadius:"50%",
+          border:`2px solid ${color}`,
+          animation:"engCoreBurst .7s cubic-bezier(.2,.8,.2,1) forwards",
+        }}/>
+      )}
+    </div>
+  );
+}
+
 export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
   const isRunning = scene.type === "allocation";
   const runningScene = isRunning ? (scene as Extract<DisplayScene, { type: "allocation" }>) : null;
@@ -369,8 +420,9 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
               <div style={{display:"grid",gridTemplateRows:"1fr 1fr",gap:10,minHeight:0}}>
                 {engines.map((eng,ei)=>(
                   <div key={eng.key} ref={eng.key==="fcfs"?fcfsEngineRef:fbEngineRef}
-                    style={{...assemblyStyle("translateY(20px)",0.36+ei*0.1), position:"relative",border:`1px solid ${eng.border}`,background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`,borderRadius:20,padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)",overflow:"hidden",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                    style={{...assemblyStyle("translateY(20px)",0.36+ei*0.1), position:"relative",border:`1px solid ${eng.border}`,background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`,borderRadius:20,padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)",paddingRight:"clamp(80px,8vh,110px)",overflow:"hidden",display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
                     {activeEngine===eng.key&&<div style={{position:"absolute",inset:0,background:"linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent)",animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards",pointerEvents:"none"}}/>}
+                    <EngineCore color={eng.color} rgb={eng.rgb} active={activeEngine===eng.key}/>
                     <div>
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
                         <div style={{display:"flex",alignItems:"center",gap:12,font:`800 clamp(15px,1.4vh,20px) Manrope,sans-serif`}}>
@@ -540,6 +592,11 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
         @keyframes alloc-queueEnter { 0%{opacity:0;transform:scale(.92) translateY(14px)}100%{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes alloc-tile-hit { 0%{transform:scale(1)}30%{transform:scale(1.22);box-shadow:0 0 0 3px rgba(255,255,255,.2),0 0 22px rgba(94,225,255,.5)}100%{transform:scale(1)} }
         @keyframes alloc-dot-in   { from{transform:scale(0)}to{transform:scale(1)} }
+        @keyframes engCore1    { to{transform:rotate(360deg)} }
+        @keyframes engCore2    { to{transform:rotate(360deg)} }
+        @keyframes engCore3    { to{transform:rotate(360deg)} }
+        @keyframes engCoreDot  { 50%{transform:scale(1.4);opacity:.75} }
+        @keyframes engCoreBurst{ from{transform:scale(.4);opacity:1}to{transform:scale(2.6);opacity:0} }
       `}</style>
     </div>
   );
@@ -887,8 +944,9 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
               <div style={{ display:"grid", gridTemplateRows:"1fr 1fr", gap:10, minHeight:0 }}>
                 {engines.map(eng => (
                   <div key={eng.key} ref={eng.key==="fcfs" ? fcfsEngineRef : fbEngineRef}
-                    style={{ position:"relative", border:`1px solid ${eng.border}`, background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`, borderRadius:20, padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
+                    style={{ position:"relative", border:`1px solid ${eng.border}`, background:`linear-gradient(115deg,${eng.bg},rgba(6,16,45,.4))`, borderRadius:20, padding:"clamp(12px,1.3vh,20px) clamp(14px,1.4vh,22px)", paddingRight:"clamp(80px,8vh,110px)", overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"space-between" }}>
                     {activeEngine===eng.key && <div style={{ position:"absolute", inset:0, background:"linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent)", animation:"alloc-sweep .55s cubic-bezier(.2,.8,.2,1) forwards", pointerEvents:"none" }} />}
+                    <EngineCore color={eng.color} rgb={eng.rgb} active={activeEngine===eng.key}/>
                     <div>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:12, font:`800 clamp(15px,1.4vh,20px) Manrope,sans-serif` }}>
@@ -1066,6 +1124,11 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
         @keyframes alloc-queueEnter { 0%{opacity:0;transform:scale(.92) translateY(14px)}100%{opacity:1;transform:scale(1) translateY(0)} }
         @keyframes alloc-tile-hit { 0%{transform:scale(1)}30%{transform:scale(1.22);box-shadow:0 0 0 3px rgba(255,255,255,.2),0 0 22px rgba(94,225,255,.5)}100%{transform:scale(1)} }
         @keyframes alloc-dot-in   { from{transform:scale(0)}to{transform:scale(1)} }
+        @keyframes engCore1    { to{transform:rotate(360deg)} }
+        @keyframes engCore2    { to{transform:rotate(360deg)} }
+        @keyframes engCore3    { to{transform:rotate(360deg)} }
+        @keyframes engCoreDot  { 50%{transform:scale(1.4);opacity:.75} }
+        @keyframes engCoreBurst{ from{transform:scale(.4);opacity:1}to{transform:scale(2.6);opacity:0} }
       `}</style>
     </div>
   );
