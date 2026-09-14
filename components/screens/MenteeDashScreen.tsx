@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { postJson, getJson } from "@/lib/client-api";
 import { getMenteeId } from "@/lib/mentee-session";
 import { useToast } from "../ToastProvider";
 import { Pill } from "../ui/Pill";
 import { StarRating } from "../ui/StarRating";
+
+// How often to re-fetch while results are not yet published (ms)
+const POLL_INTERVAL = 10_000;
+// Statuses where polling can stop — data won't change anymore
+const TERMINAL_STATUSES = new Set(["published", "closed"]);
 
 type SessionData = {
   title: string;
@@ -46,7 +51,7 @@ type Preference = {
   mentors: PreferenceMentor | null;
 };
 
-const ALLOCATED_STATUSES = new Set(["allocation", "published", "closed"]);
+const ALLOCATED_STATUSES = new Set(["published", "closed"]);
 
 function ordinal(n: number) {
   return `${n}${n === 1 ? "st" : n === 2 ? "nd" : "rd"}`;
@@ -315,7 +320,9 @@ function AllocatedView({
 }
 
 // ── Pending view (preferences submitted, waiting for allocation) ──────────────
-function PendingView({ prefs }: { prefs: Preference[] }) {
+function PendingView({ prefs, sessionStatus }: { prefs: Preference[]; sessionStatus: string }) {
+  const isAllocating = sessionStatus === "allocation";
+
   const RANK_STYLES = [
     { icon: "⭐", label: "1st Choice", color: "#f59e0b", bg: "linear-gradient(135deg,#fffbeb,#fef3c7)", border: "#fcd34d", glow: "rgba(245,158,11,0.18)" },
     { icon: "🥈", label: "2nd Choice", color: "#4f46e5", bg: "linear-gradient(135deg,#f5f3ff,#eef2ff)", border: "#a5b4fc", glow: "rgba(79,70,229,0.15)" },
@@ -325,17 +332,34 @@ function PendingView({ prefs }: { prefs: Preference[] }) {
   return (
     <div className="mdash-pending">
       {/* ── Animated status banner ── */}
-      <div className="mdash-pending-banner">
-        <div className="mdash-pending-icon" aria-hidden="true">
-          <ClockIcon />
+      {isAllocating ? (
+        <div className="mdash-allocating-banner" role="status" aria-live="polite">
+          <div className="mdash-allocating-spinner" aria-hidden="true">
+            <svg viewBox="0 0 44 44" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+              <circle cx="22" cy="22" r="16" strokeOpacity="0.15" />
+              <path d="M22 6a16 16 0 0 1 16 16" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="mdash-allocating-title">Allocation is running…</h3>
+            <p className="mdash-allocating-sub">
+              The FCFS engine is assigning mentors right now. Hang tight — your results will appear here once published.
+            </p>
+          </div>
         </div>
-        <div>
-          <h3 className="mdash-pending-title">Allocation in progress</h3>
-          <p className="mdash-pending-sub">
-            Your preferences are locked and queued. Your assigned mentor will appear here once results are published.
-          </p>
+      ) : (
+        <div className="mdash-pending-banner">
+          <div className="mdash-pending-icon" aria-hidden="true">
+            <ClockIcon />
+          </div>
+          <div>
+            <h3 className="mdash-pending-title">Waiting for allocation</h3>
+            <p className="mdash-pending-sub">
+              Your preferences are locked and queued. Your assigned mentor will appear here once results are published.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {prefs.length > 0 && (
         <>
@@ -402,6 +426,11 @@ export function MenteeDashScreen() {
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
   const [justSubmitted, setJustSubmitted] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isTerminal = useRef(false);
 
   useEffect(() => {
     // Pick up the flag set by the prefs screen on successful submission
@@ -411,28 +440,61 @@ export function MenteeDashScreen() {
     }
   }, []);
 
+  const fetchDashboard = useCallback(async (silent = false) => {
+    const menteeId = getMenteeId();
+    if (!menteeId) return;
+    if (!silent) setLoading(true);
+    if (silent) setRefreshing(true);
+
+    try {
+      const [dashData, prefData] = await Promise.all([
+        fetch(`/api/dashboard/mentee?menteeId=${encodeURIComponent(menteeId)}`)
+          .then(async (res) => {
+            const payload: unknown = await res.json();
+            if (!res.ok) throw new Error(
+              typeof payload === "object" && payload && "error" in payload && typeof payload.error === "string"
+                ? payload.error : "Unable to load your dashboard."
+            );
+            return payload as DashboardData;
+          }),
+        getJson<{ preferences: Preference[] }>(`/api/preferences?menteeId=${encodeURIComponent(menteeId)}`)
+          .then((p) => p.preferences)
+          .catch(() => [] as Preference[]),
+      ]);
+
+      setData(dashData);
+      setPrefs(prefData);
+      setLastUpdated(new Date());
+
+      // Stop polling once we reach a terminal state
+      if (TERMINAL_STATUSES.has(dashData.session.status)) {
+        isTerminal.current = true;
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      }
+    } catch (err: unknown) {
+      // On silent background polls, swallow errors quietly
+      if (!silent) showToast(err instanceof Error ? err.message : "Unable to load your dashboard.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [showToast]);
+
+  // Initial load + polling setup
   useEffect(() => {
     const menteeId = getMenteeId();
     if (!menteeId) { queueMicrotask(() => setLoading(false)); return; }
 
-    Promise.all([
-      fetch(`/api/dashboard/mentee?menteeId=${encodeURIComponent(menteeId)}`)
-        .then(async (res) => {
-          const payload: unknown = await res.json();
-          if (!res.ok) throw new Error(
-            typeof payload === "object" && payload && "error" in payload && typeof payload.error === "string"
-              ? payload.error : "Unable to load your dashboard."
-          );
-          return payload as DashboardData;
-        }),
-      getJson<{ preferences: Preference[] }>(`/api/preferences?menteeId=${encodeURIComponent(menteeId)}`)
-        .then((p) => p.preferences)
-        .catch(() => [] as Preference[]),
-    ])
-      .then(([dashData, prefData]) => { setData(dashData); setPrefs(prefData); })
-      .catch((err: unknown) => showToast(err instanceof Error ? err.message : "Unable to load your dashboard."))
-      .finally(() => setLoading(false));
-  }, [showToast]);
+    fetchDashboard(false);
+
+    pollRef.current = setInterval(() => {
+      if (!isTerminal.current) fetchDashboard(true);
+    }, POLL_INTERVAL);
+
+    return () => {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+  }, [fetchDashboard]);
 
   const submitFeedback = async () => {
     if (!data) return;
@@ -531,6 +593,15 @@ export function MenteeDashScreen() {
             </Pill>
           </p>
         </div>
+        {/* Live refresh indicator */}
+        {!isTerminal.current && (
+          <div className="mdash-live-badge" aria-label="Auto-refreshing">
+            <span className={`mdash-live-dot${refreshing ? " mdash-live-dot--spin" : ""}`} aria-hidden="true" />
+            {refreshing ? "Updating…" : lastUpdated
+              ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+              : "Live"}
+          </div>
+        )}
       </div>
 
       {/* ── Submission success banner ── */}
@@ -611,7 +682,7 @@ export function MenteeDashScreen() {
           </div>
         </div>
       ) : prefs.length > 0 ? (
-        <PendingView prefs={prefs} />
+        <PendingView prefs={prefs} sessionStatus={session.status} />
       ) : (
         <div className="mdash-no-alloc-card mdash-no-alloc-card--cta">
           <div className="mdash-no-alloc-icon mdash-no-alloc-icon--indigo" aria-hidden="true">

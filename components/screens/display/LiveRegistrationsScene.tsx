@@ -538,7 +538,7 @@ export function LiveRegistrationsScene() {
       `}</style>
 
       {/* suppress unused */}
-      {displayCount}
+      {/* {displayCount} */}
     </div>
   );
 }

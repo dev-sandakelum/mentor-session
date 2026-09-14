@@ -178,10 +178,11 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
     });
     document.body.appendChild(chip);
     const y0=from.top+from.height*0.4;
+    const chipW = 60; // approximate chip width for centering
     chip.animate([
       { transform:"translate(0,0) scale(.8)", opacity:"0" },
-      { transform:`translate(${via.left-(from.right-60)+70}px,${via.top+via.height/2-y0}px) scale(1)`, opacity:"1", offset:0.46 },
-      { transform:`translate(${to.left-(from.right-60)+90}px,${to.top+80-y0}px) scale(.7)`, opacity:"0" },
+      { transform:`translate(${via.left + via.width/2 - (from.right-60) - chipW/2}px,${via.top+via.height/2-y0}px) scale(1)`, opacity:"1", offset:0.46 },
+      { transform:`translate(${to.left-(from.right-60)+90}px,${to.top+180-y0}px) scale(.7)`, opacity:"0" },
     ], { duration:1050, easing:"cubic-bezier(.2,.75,.2,1)" }).onfinish = () => chip.remove();
   }, []);
 
@@ -684,8 +685,9 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
     document.body.appendChild(chip);
 
     const y0   = from.top + from.height * 0.4;
-    const viaX = via.left - (from.right - 60) + 70;
-    const viaY = via.top  + via.height / 2    - y0;
+    const chipW = 60; // approximate chip width for centering
+    const viaX = via.left + via.width / 2 - (from.right - 60) - chipW / 2;
+    const viaY = via.top  + via.height / 2 - y0;
     const toX  = to.left  - (from.right - 60) + 90;
     const toY  = to.top   + 80                 - y0;
 
