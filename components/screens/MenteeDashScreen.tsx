@@ -370,6 +370,15 @@ export function MenteeDashScreen() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
+
+  useEffect(() => {
+    // Pick up the flag set by the prefs screen on successful submission
+    if (sessionStorage.getItem("prefs-just-submitted")) {
+      setJustSubmitted(true);
+      sessionStorage.removeItem("prefs-just-submitted");
+    }
+  }, []);
 
   useEffect(() => {
     const menteeId = getMenteeId();
@@ -449,6 +458,22 @@ export function MenteeDashScreen() {
         </div>
 
       </div>
+
+      {/* ── Just-submitted success banner ── */}
+      {justSubmitted && (
+        <div
+          className="submitted-box"
+          style={{ marginBottom: 24, maxWidth: 560, margin: "0 auto 24px" }}
+        >
+          <div className="check">✓</div>
+          <h2 className="section-title" style={{ color: "var(--green)" }}>
+            Preferences Submitted ✓
+          </h2>
+          <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
+            🔒 Your selections are locked and queued for FCFS allocation.
+          </p>
+        </div>
+      )}
 
       {/* ── Body — four states ── */}
       {allocationPublished && allocation ? (

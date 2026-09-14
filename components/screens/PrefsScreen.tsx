@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getJson, postJson } from "@/lib/client-api";
 import { useToast } from "../ToastProvider";
 import { getMenteeId } from "@/lib/mentee-session";
@@ -19,12 +20,10 @@ interface Mentor {
 const SLOT_LABELS = ["⭐ 1st Priority", "2nd Priority", "3rd Priority"] as const;
 
 export function PrefsScreen() {
+  const router = useRouter();
   const { showToast } = useToast();
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [picks, setPicks] = useState<string[]>([]);
-  const [submitted, setSubmitted] = useState(false);
-  const [lockedNames, setLockedNames] = useState<string[]>([]);
-  const [submittedAt, setSubmittedAt] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -79,11 +78,9 @@ export function PrefsScreen() {
         submittedAt: string;
         preferences: { mentorName?: string }[];
       }>("/api/preferences", { menteeId, mentorIds: picks });
-      setLockedNames(result.preferences.map((preference) => preference.mentorName ?? "Mentor"));
-      setSubmittedAt(result.submittedAt);
-      setSubmitted(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
       showToast("Preferences submitted — FCFS position recorded ✓");
+      sessionStorage.setItem("prefs-just-submitted", "1");
+      router.push("/mentee/dashboard");
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Preferences could not be submitted."
@@ -92,46 +89,6 @@ export function PrefsScreen() {
       setSubmitting(false);
     }
   };
-
-  if (submitted) {
-    return (
-      <div className="container">
-        <div style={{ maxWidth: 560, margin: "0 auto" }}>
-          <div className="submitted-box">
-            <div className="check">✓</div>
-            <h2 className="section-title" style={{ color: "var(--green)" }}>
-              Preferences Submitted ✓
-            </h2>
-            <p className="muted" style={{ fontSize: 14, margin: "6px 0" }}>
-              Submitted:
-            </p>
-            <div className="ts">
-              {submittedAt ? new Date(submittedAt).toLocaleString() : ""}
-            </div>
-            <p style={{ fontSize: 14, fontWeight: 600, marginTop: 10 }}>
-              🔒 Your preferences are locked.
-            </p>
-            <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
-              Allocation will be processed according to{" "}
-              <b>First Come, First Served.</b>
-            </p>
-          </div>
-          <div className="card" style={{ marginTop: 18 }}>
-            <h3 className="card-title">Your locked preferences</h3>
-            {lockedNames.map((name, index) => (
-              <div
-                key={name}
-                className={`pref-slot filled${index === 0 ? " first" : ""}`}
-              >
-                <span className="slot-label">{SLOT_LABELS[index]}</span>
-                <div className="slot-name">{name}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container">

@@ -1,6 +1,5 @@
 import { SiteHeader } from "@/components/nav/SiteHeader";
-import { MentorNav } from "@/components/nav/MentorNav";
-import { SiteFooter } from "@/components/SiteFooter";
+import { BackButton } from "@/components/nav/BackButton";
 
 export const metadata = {
   title: "Mentor Directory — Mentor Session 2026",
@@ -9,9 +8,8 @@ export const metadata = {
 export default function MentorLayout({ children }: LayoutProps<"/mentor">) {
   return (
     <>
-      <SiteHeader nav={<MentorNav />} />
+      <SiteHeader nav={<BackButton />} compact />
       <main className="screen-enter">{children}</main>
-      {/* <SiteFooter /> */}
     </>
   );
 }

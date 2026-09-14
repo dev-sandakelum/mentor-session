@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getJson, postJson } from "@/lib/client-api";
 import { useToast } from "../ToastProvider";
 import { getMenteeId } from "@/lib/mentee-session";
@@ -407,15 +408,13 @@ const SLOT_LABELS = [
 ] as const;
 
 export function MobilePrefsScreen() {
+  const router = useRouter();
   const { showToast } = useToast();
 
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [loading, setLoading] = useState(true);
   const [picks, setPicks] = useState<(string | null)[]>([null, null, null]);
   const [openSheet, setOpenSheet] = useState<number | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [lockedNames, setLockedNames] = useState<string[]>([]);
-  const [submittedAt, setSubmittedAt] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -451,10 +450,10 @@ export function MobilePrefsScreen() {
         submittedAt: string;
         preferences: { mentorName?: string }[];
       }>("/api/preferences", { menteeId, mentorIds: picks as string[] });
-      setLockedNames(res.preferences.map((p) => p.mentorName ?? "Mentor"));
-      setSubmittedAt(res.submittedAt);
-      setSubmitted(true);
+      void res; // response consumed by dashboard
       showToast("Preferences submitted ✓");
+      sessionStorage.setItem("prefs-just-submitted", "1");
+      router.push("/mentee/dashboard");
     } catch (e) {
       showToast(
         e instanceof Error ? e.message : "Could not submit preferences."
@@ -463,70 +462,6 @@ export function MobilePrefsScreen() {
       setSubmitting(false);
     }
   };
-
-  /* ── Submitted state ── */
-  if (submitted) {
-    return (
-      <div className="mpd-layout mpd-layout-submitted">
-        <div className="mpd-submitted-inner">
-          {/* Success card */}
-          <div className="mpd-success-card">
-            <div className="mpd-success-icon">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 28 28"
-                fill="none"
-              >
-                <path
-                  d="M6 14l5 5 11-11"
-                  stroke="#fff"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <h2 className="mpd-success-title">All done!</h2>
-            <p className="mpd-success-body">
-              Your preferences are locked and queued for allocation.
-            </p>
-            {submittedAt && (
-              <p className="mpd-success-ts">
-                {new Date(submittedAt).toLocaleString()}
-              </p>
-            )}
-          </div>
-
-          {/* Locked selections */}
-          <div className="mpd-locked-list">
-            {lockedNames.map((name, i) => (
-              <div key={name} className="mpd-locked-row">
-                <span
-                  className="mpd-locked-badge"
-                  style={{ background: RANKS[i].color }}
-                >
-                  {i + 1}
-                </span>
-                <span className="mpd-locked-info">
-                  <span className="mpd-locked-label">
-                    {SLOT_LABELS[i]}
-                  </span>
-                  <span className="mpd-locked-name">{name}</span>
-                </span>
-                <span className="mpd-locked-check">🔒</span>
-              </div>
-            ))}
-          </div>
-
-          <p className="mpd-success-note">
-            Allocation follows{" "}
-            <strong>First Come, First Served</strong> order.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   /* ── Active selection ── */
   return (
