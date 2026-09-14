@@ -25,6 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body suppressHydrationWarning>
         <ToastProvider>
           {children}
+          {/* <SiteFooter /> */}
           <DevBar />
         </ToastProvider>
       </body>
