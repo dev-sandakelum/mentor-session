@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const TABS = [{ href: "/admin", label: "Admin Dashboard", isAdmin: true }];
+const TABS = [
+  { href: "/admin",        label: "Admin Dashboard", isAdmin: true },
+  { href: "/admin/remote", label: "📡 Remote",        isAdmin: true },
+];
 
 export function AdminNav() {
   const pathname = usePathname();
