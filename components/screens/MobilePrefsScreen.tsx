@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getJson, postJson } from "@/lib/client-api";
 import { useToast } from "../ToastProvider";
 import { getMenteeId } from "@/lib/mentee-session";
@@ -128,13 +128,9 @@ function BottomSheet({
   onSelect,
   onClose,
 }: BottomSheetProps) {
-  const [search, setSearch] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    setTimeout(() => searchRef.current?.focus(), 150);
     return () => {
       document.body.style.overflow = prev;
     };
@@ -148,15 +144,7 @@ function BottomSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const filtered = search.trim()
-    ? mentors.filter((m) => {
-        const q = search.toLowerCase();
-        return (
-          m.fullName.toLowerCase().includes(q) ||
-          (m.batch ?? "").toLowerCase().includes(q)
-        );
-      })
-    : mentors;
+  const filtered = mentors;
 
   return (
     <>
@@ -197,79 +185,6 @@ function BottomSheet({
           </button>
         </div>
 
-        {/* Search bar */}
-        <div className="mpd-search-wrap">
-          <svg
-            className="mpd-search-icon"
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-          >
-            <circle
-              cx="7"
-              cy="7"
-              r="4.5"
-              stroke="currentColor"
-              strokeWidth="1.7"
-            />
-            <path
-              d="M10.5 10.5l3 3"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-            />
-          </svg>
-          <input
-            ref={searchRef}
-            className="mpd-search"
-            type="search"
-            placeholder="Search name or batch…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search mentors"
-          />
-          {search && (
-            <button
-              className="mpd-search-clear"
-              onClick={() => setSearch("")}
-              aria-label="Clear"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <path
-                  d="M1 1l10 10M11 1L1 11"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
-
-        {/* Remove selection */}
-        {selected && (
-          <button
-            className="mpd-clear-row"
-            onClick={() => {
-              onSelect(null);
-              onClose();
-            }}
-          >
-            <span className="mpd-clear-icon">
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                <path
-                  d="M1 1l10 10M11 1L1 11"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-            Remove current selection
-          </button>
-        )}
-
         {/* List */}
         <div className="mpd-list">
           {loading &&
@@ -284,11 +199,7 @@ function BottomSheet({
           {!loading && filtered.length === 0 && (
             <div className="mpd-empty">
               <div className="mpd-empty-icon">🔍</div>
-              <p>
-                {search
-                  ? `No results for "${search}"`
-                  : "No mentors available"}
-              </p>
+              <p>No mentors available</p>
             </div>
           )}
 
