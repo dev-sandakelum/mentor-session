@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -8,7 +8,7 @@ type CarouselControl = "play" | "pause" | "next" | "prev" | "stop";
 
 type LifecycleStep = {
   label: string;
-  icon: string;
+  svgPath: string;
   status: string;
   registrationOpen: boolean;
 };
@@ -37,16 +37,78 @@ type Mentee = {
   assignedMentor: string | null;
 };
 
+// ─── SVG icon paths (stroke-based, 24×24 viewBox) ────────────────────────────
+
+const ICONS = {
+  // Scenes
+  monitor:      "M2 3h20v14H2zM8 21h8M12 17v4",
+  carousel:     "M4 6h16M4 12h16M4 18h16",  // list / carousel
+  bars:         "M18 20V10M12 20V4M6 20v-6",
+  hands:        "M18 11V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v5M12 12v9M8 17h8",
+  checkSquare:  "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
+  settings:     "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z",
+  playTriangle: "M5 3l14 9-14 9V3z",
+  // Carousel
+  skipBack:     "M19 20L9 12l10-8v16zM5 19V5",
+  play:         "M5 3l14 9-14 9V3z",
+  skipFwd:      "M5 4l10 8-10 8V4zM19 5v14",
+  pause:        "M6 4h4v16H6zM14 4h4v16h-4z",
+  stop:         "M4 4h16v16H4z",
+  // Mentor card
+  skipPrev:     "M19 20L9 12l10-8v16zM5 19V5",
+  eye:          "M1 12S5 4 12 4s11 8 11 8-4 8-11 8S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z",
+  skipNext:     "M5 4l10 8-10 8V4zM19 5v14",
+  // Lifecycle
+  pencil:       "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
+  sliders:      "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6",
+  unlock:       "M18 11H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2zM8 11V7a4 4 0 0 1 7.75-1.35",
+  clipboard:    "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 2h6v4H9z",
+  bolt:         "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  megaphone:    "M3 11l19-9-9 19-2-8-8-2zM11 13l4.5-4.5",
+  flag:         "M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3S15 4 12 4 7 2 4 2v13zM4 22v-7",
+  // Fullscreen
+  expand:       "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",
+  compress:     "M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7",
+  // Misc
+  messageSquare:"M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  externalLink: "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3",
+} as const;
+
+type IconKey = keyof typeof ICONS;
+
+// ─── SVG Icon component ───────────────────────────────────────────────────────
+
+function Icon({ name, size = 22, stroke = "currentColor", strokeWidth = 1.75 }: {
+  name: IconKey;
+  size?: number;
+  stroke?: string;
+  strokeWidth?: number;
+}) {
+  return (
+    <svg
+      width={size} height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={ICONS[name]} />
+    </svg>
+  );
+}
+
 // ─── Lifecycle steps ──────────────────────────────────────────────────────────
 
 const LIFECYCLE_STEPS: LifecycleStep[] = [
-  { icon: "✏️",  label: "Create Session",      status: "draft",        registrationOpen: false },
-  { icon: "⚙️",  label: "Configure Batches",   status: "draft",        registrationOpen: false },
-  { icon: "🔓",  label: "Open Registration",   status: "registration", registrationOpen: true  },
-  { icon: "📋",  label: "Collect Preferences", status: "registration", registrationOpen: true  },
-  { icon: "⚡",  label: "Allocation",           status: "allocation",   registrationOpen: false },
-  { icon: "📢",  label: "Publish Results",      status: "published",    registrationOpen: false },
-  { icon: "🏁",  label: "Session & Feedback",  status: "closed",       registrationOpen: false },
+  { label: "Create Session",      svgPath: ICONS.pencil,    status: "draft",        registrationOpen: false },
+  { label: "Configure",           svgPath: ICONS.sliders,   status: "draft",        registrationOpen: false },
+  { label: "Open Registration",   svgPath: ICONS.unlock,    status: "registration", registrationOpen: true  },
+  { label: "Preferences",         svgPath: ICONS.clipboard, status: "registration", registrationOpen: true  },
+  { label: "Allocation",          svgPath: ICONS.bolt,      status: "allocation",   registrationOpen: false },
+  { label: "Publish Results",     svgPath: ICONS.megaphone, status: "published",    registrationOpen: false },
+  { label: "Feedback",            svgPath: ICONS.flag,      status: "closed",       registrationOpen: false },
 ];
 
 function getActiveStep(status: string, registrationOpen: boolean): number {
@@ -58,44 +120,63 @@ function getActiveStep(status: string, registrationOpen: boolean): number {
   return 0;
 }
 
-// ─── Shared press-scale animation handler ─────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-function pressHandlers(disabled = false) {
+const BG_PAGE    = "#0d1117";
+const BG_PANEL   = "#161b22";
+const BG_BTN     = "#1c2433";
+const BG_BTN_HVR = "#21283a";
+const BORDER     = "rgba(255,255,255,0.07)";
+const TEXT_DIM   = "rgba(148,163,184,0.6)";
+const INDIGO     = "#6366f1";
+const GREEN      = "#22c55e";
+const RED        = "#ef4444";
+const AMBER      = "#f59e0b";
+
+// ─── Press animation handlers ─────────────────────────────────────────────────
+
+function ph(scale = "0.93", disabled = false) {
   return {
     onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
-      if (!disabled) e.currentTarget.style.transform = "scale(0.93)";
+      if (!disabled) e.currentTarget.style.transform = `scale(${scale})`;
     },
     onPointerUp:    (e: React.PointerEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = ""; },
     onPointerLeave: (e: React.PointerEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = ""; },
   };
 }
 
-// ─── Reusable grid button ─────────────────────────────────────────────────────
+// ─── Base card button ─────────────────────────────────────────────────────────
+// Matches the reference: square-ish dark card, icon centred, label below, accent dot
 
-interface GridBtnProps {
-  icon: string;
+interface CardBtnProps {
+  iconName?: IconKey;
+  svgPath?: string;
   label: string;
-  sub?: string;
-  bg: string;
-  fg?: string;
-  glow?: string;
+  accent?: string;        // dot colour below label
+  iconBg?: string;        // circle behind icon (Play, Show)
+  iconColor?: string;
+  border?: string;        // override border (Stop — red)
   disabled?: boolean;
-  active?: boolean;          // ring highlight (e.g. lifecycle current step)
-  done?: boolean;            // checkmark badge (lifecycle done step)
-  wide?: boolean;            // span 2 cols
+  active?: boolean;       // lifecycle current-step ring
+  done?: boolean;         // lifecycle done-step
+  wide?: boolean;
+  tall?: boolean;
   onClick: () => void;
 }
 
-function GridBtn({ icon, label, sub, bg, fg = "#f1f5f9", glow, disabled, active, done, wide, onClick }: GridBtnProps) {
-  const color = active ? "#a5b4fc" : done ? "#34d399" : fg;
-  const border = active
-    ? "1.5px solid rgba(99,102,241,0.6)"
+function CardBtn({
+  iconName, svgPath, label, accent, iconBg, iconColor,
+  border: borderOverride, disabled, active, done, wide, tall, onClick,
+}: CardBtnProps) {
+  const iconStroke = iconColor ?? (active ? INDIGO : done ? GREEN : "#c9d5e8");
+  const cardBorder = active
+    ? `1.5px solid ${INDIGO}`
     : done
-    ? "1.5px solid rgba(52,211,153,0.35)"
-    : "1.5px solid rgba(255,255,255,0.06)";
-  const shadow = active
-    ? "0 0 0 3px rgba(99,102,241,0.2), 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08)"
-    : `0 6px 18px rgba(0,0,0,0.5)${glow ? `, 0 0 20px ${glow}` : ""}, inset 0 1px 0 rgba(255,255,255,0.08)`;
+    ? `1px solid rgba(34,197,94,0.3)`
+    : borderOverride ?? `1px solid ${BORDER}`;
+  const cardShadow = active
+    ? `0 0 0 2px rgba(99,102,241,0.25), 0 4px 12px rgba(0,0,0,0.6)`
+    : `0 4px 12px rgba(0,0,0,0.5)`;
 
   return (
     <button
@@ -103,81 +184,121 @@ function GridBtn({ icon, label, sub, bg, fg = "#f1f5f9", glow, disabled, active,
       onClick={onClick}
       style={{
         gridColumn: wide ? "span 2" : undefined,
+        position: "relative",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 7,
-        padding: "18px 10px 16px",
-        minHeight: 96,
-        background: bg,
-        color,
-        border,
-        borderRadius: 18,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.45 : 1,
-        boxShadow: shadow,
-        transition: "transform 0.1s, opacity 0.12s",
+        gap: 10,
+        padding: tall ? "24px 10px 20px" : "18px 10px 14px",
+        background: active ? "rgba(99,102,241,0.1)" : done ? "rgba(34,197,94,0.06)" : BG_BTN,
+        border: cardBorder,
+        borderRadius: 14,
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled && !active ? 0.42 : 1,
+        boxShadow: cardShadow,
+        transition: "transform 0.08s ease, opacity 0.12s",
         userSelect: "none",
-        position: "relative",
+        minHeight: tall ? 110 : 88,
+        WebkitTapHighlightColor: "transparent",
       }}
-      {...pressHandlers(disabled)}
+      {...ph("0.94", disabled)}
     >
       {/* Done checkmark badge */}
       {done && !active && (
         <span style={{
-          position: "absolute", top: 7, right: 8,
-          width: 16, height: 16, borderRadius: "50%",
-          background: "#34d399",
+          position: "absolute", top: 6, right: 7,
+          width: 15, height: 15, borderRadius: "50%",
+          background: GREEN,
           display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
         }}>
-          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </span>
       )}
-      {/* Active pill badge */}
-      {active && (
+
+      {/* Icon — optionally inside a circle (Play / Show style) */}
+      {iconBg ? (
         <span style={{
-          position: "absolute", top: 7, right: 8,
-          fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "#a5b4fc",
-          background: "rgba(99,102,241,0.25)",
-          borderRadius: 5, padding: "2px 6px",
+          width: 44, height: 44, borderRadius: "50%",
+          background: iconBg,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+          boxShadow: `0 0 16px ${iconBg}55`,
         }}>
-          Now
+          {iconName
+            ? <Icon name={iconName} size={20} stroke="#fff" strokeWidth={2} />
+            : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={svgPath} /></svg>
+          }
         </span>
+      ) : (
+        iconName
+          ? <Icon name={iconName} size={22} stroke={iconStroke} />
+          : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={svgPath} /></svg>
       )}
-      <span style={{ fontSize: 26, lineHeight: 1 }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, textAlign: "center", lineHeight: 1.3 }}>{label}</span>
-      {sub && (
-        <span style={{ fontSize: 10, fontWeight: 500, opacity: 0.6, textAlign: "center", lineHeight: 1.3 }}>
-          {sub}
-        </span>
+
+      {/* Label */}
+      <span style={{
+        fontSize: 11,
+        fontWeight: 600,
+        color: active ? "#a5b4fc" : done ? "#4ade80" : "#94a3b8",
+        textAlign: "center",
+        lineHeight: 1.3,
+        letterSpacing: "0.01em",
+      }}>
+        {label}
+      </span>
+
+      {/* Accent dot */}
+      {accent && (
+        <span style={{
+          position: "absolute",
+          bottom: 7,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 18, height: 2,
+          borderRadius: 2,
+          background: accent,
+          opacity: 0.7,
+        }} />
       )}
     </button>
   );
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
+// ─── Panel wrapper ────────────────────────────────────────────────────────────
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Panel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <section>
-      <div style={{
-        fontSize: 10,
-        fontWeight: 800,
-        letterSpacing: "0.12em",
-        textTransform: "uppercase",
-        color: "rgba(148,163,184,0.45)",
-        marginBottom: 10,
-        paddingLeft: 2,
-      }}>
-        {label}
-      </div>
+    <div style={{
+      background: BG_PANEL,
+      border: `1px solid ${BORDER}`,
+      borderRadius: 18,
+      padding: "14px 12px",
+      ...style,
+    }}>
       {children}
-    </section>
+    </div>
+  );
+}
+
+// ─── Section label inside a panel ────────────────────────────────────────────
+
+function PanelLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 10,
+      fontWeight: 700,
+      letterSpacing: "0.1em",
+      textTransform: "uppercase",
+      color: TEXT_DIM,
+      marginBottom: 10,
+      paddingLeft: 2,
+    }}>
+      {children}
+    </div>
   );
 }
 
@@ -196,49 +317,40 @@ export function RemoteScreen() {
   const [session,    setSession]    = useState<SessionConfig | null>(null);
   const [advancing,  setAdvancing]  = useState(false);
   const [lcError,    setLcError]    = useState("");
+  const [isFs,       setIsFs]       = useState(false);
 
   const statsRef = useRef(stats);
   statsRef.current = stats;
 
-  // ── Fullscreen ─────────────────────────────────────────────────────────────
-
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
+  // Fullscreen
   useEffect(() => {
-    const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
+    const h = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", h);
+    return () => document.removeEventListener("fullscreenchange", h);
   }, []);
 
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      void document.documentElement.requestFullscreen?.();
-    } else {
-      void document.exitFullscreen?.();
-    }
+  const toggleFs = useCallback(() => {
+    if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
+    else void document.exitFullscreen?.();
   }, []);
 
-  // Fetch overview + session config on mount
+  // Data fetch
   useEffect(() => {
     void (async () => {
       try {
-        const [overviewRes, configRes] = await Promise.all([
+        const [ovRes, cfgRes] = await Promise.all([
           fetch("/api/admin/overview"),
           fetch("/api/admin/session-config"),
         ]);
-        if (overviewRes.ok) {
-          const data = (await overviewRes.json()) as {
-            mentors: Mentor[];
-            mentees: Mentee[];
-            stats: typeof stats;
-          };
-          setMentors(data.mentors ?? []);
-          setMentees(data.mentees ?? []);
-          setStats(data.stats ?? statsRef.current);
+        if (ovRes.ok) {
+          const d = (await ovRes.json()) as { mentors: Mentor[]; mentees: Mentee[]; stats: typeof stats };
+          setMentors(d.mentors ?? []);
+          setMentees(d.mentees ?? []);
+          setStats(d.stats ?? statsRef.current);
         }
-        if (configRes.ok) {
-          const data = (await configRes.json()) as { session: SessionConfig };
-          setSession(data.session ?? null);
+        if (cfgRes.ok) {
+          const d = (await cfgRes.json()) as { session: SessionConfig };
+          setSession(d.session ?? null);
         }
       } finally {
         setLoading(false);
@@ -247,8 +359,7 @@ export function RemoteScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Scene push ─────────────────────────────────────────────────────────────
-
+  // Scene push
   const push = async (scene: object) => {
     setSending(true);
     try {
@@ -263,11 +374,10 @@ export function RemoteScreen() {
     }
   };
 
-  const pushCarousel = (control: CarouselControl) =>
-    void push({ type: "mentor-carousel", control, seq: Date.now() });
+  const pushCarousel = (ctrl: CarouselControl) =>
+    void push({ type: "mentor-carousel", control: ctrl, seq: Date.now() });
 
-  // ── Lifecycle advance ──────────────────────────────────────────────────────
-
+  // Lifecycle
   const advanceLifecycle = async (step: LifecycleStep) => {
     setAdvancing(true);
     setLcError("");
@@ -278,292 +388,249 @@ export function RemoteScreen() {
         body: JSON.stringify({ status: step.status, registrationOpen: step.registrationOpen }),
       });
       const data: unknown = await res.json();
-      if (!res.ok) {
-        throw new Error(
-          typeof data === "object" && data && "error" in data &&
-          typeof (data as { error: unknown }).error === "string"
-            ? (data as { error: string }).error
-            : "Unable to update session.",
-        );
-      }
+      if (!res.ok) throw new Error(
+        typeof data === "object" && data && "error" in data &&
+        typeof (data as { error: unknown }).error === "string"
+          ? (data as { error: string }).error
+          : "Unable to update session.",
+      );
       const cfgRes = await fetch("/api/admin/session-config");
       if (cfgRes.ok) {
         const cfg = (await cfgRes.json()) as { session: SessionConfig };
         setSession(cfg.session ?? null);
       }
     } catch (err) {
-      setLcError(err instanceof Error ? err.message : "Unable to update session status.");
+      setLcError(err instanceof Error ? err.message : "Unable to update session.");
     } finally {
       setAdvancing(false);
     }
   };
 
-  // ── Mentor card ────────────────────────────────────────────────────────────
-
-  const approvedMentors = mentors.filter((m) => m.is_approved);
-  const safeMentorIdx   = Math.min(mentorIdx, Math.max(0, approvedMentors.length - 1));
+  // Mentor card
+  const approved     = mentors.filter((m) => m.is_approved);
+  const safeIdx      = Math.min(mentorIdx, Math.max(0, approved.length - 1));
 
   const goTo = (idx: number) => {
     setMentorIdx(idx);
-    const mentor = approvedMentors[idx];
+    const mentor = approved[idx];
     if (!mentor) return;
-    const realIdx = mentors.findIndex((m) => m.id === mentor.id);
-    const m = mentors[realIdx];
+    const ri = mentors.findIndex((m) => m.id === mentor.id);
+    const m  = mentors[ri];
     if (!m) return;
-    const assignedMentees = mentees
-      .filter((me) => me.assignedMentor === m.full_name)
-      .map((me) => ({ name: me.full_name, studentId: me.student_id }));
     void push({
       type: "mentor-card",
-      mentor: {
-        id: m.id, name: m.full_name,
-        studentId: m.student_id ?? null,
-        batch: m.batch ?? null,
-        photoUrl: m.profile_photo_url ?? null,
-        communicationMethod: m.communication_method,
-      },
-      mentees: assignedMentees,
-      index: realIdx,
+      mentor: { id: m.id, name: m.full_name, studentId: m.student_id ?? null, batch: m.batch ?? null, photoUrl: m.profile_photo_url ?? null, communicationMethod: m.communication_method },
+      mentees: mentees.filter((me) => me.assignedMentor === m.full_name).map((me) => ({ name: me.full_name, studentId: me.student_id })),
+      index: ri,
       total: mentors.length,
     });
   };
 
-  const s = stats;
-  const activeIdx = session ? getActiveStep(session.status, session.registration_open) : -1;
+  const s        = stats;
+  const activeLC = session ? getActiveStep(session.status, session.registration_open) : -1;
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div style={{
       minHeight: "100dvh",
-      background: "linear-gradient(160deg,#0a0f1e 0%,#111827 100%)",
-      fontFamily: "'Inter',system-ui,sans-serif",
+      background: BG_PAGE,
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif",
       display: "flex",
       flexDirection: "column",
+      color: "#e2e8f0",
     }}>
 
-      {/* ── Sticky header ── */}
+      {/* ── Header ── */}
       <header style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "14px 18px",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        position: "sticky",
-        top: 0,
-        background: "rgba(10,15,30,0.88)",
-        backdropFilter: "blur(14px)",
-        zIndex: 20,
+        position: "sticky", top: 0, zIndex: 30,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "12px 16px",
+        background: "rgba(13,17,23,0.92)",
+        backdropFilter: "blur(16px)",
+        borderBottom: `1px solid ${BORDER}`,
         flexShrink: 0,
       }}>
+        {/* Left: status */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 20 }}>📡</span>
+          <div style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: (sending || advancing) ? AMBER : lastScene ? GREEN : "#475569",
+            boxShadow: (sending || advancing) ? `0 0 6px ${AMBER}` : lastScene ? `0 0 6px ${GREEN}` : "none",
+            flexShrink: 0,
+            transition: "background 0.3s",
+          }} />
           <div>
-            <div style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 16, lineHeight: 1 }}>
-              Remote
-            </div>
-            <div style={{ color: "rgba(148,163,184,0.65)", fontSize: 11, marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
-              {lastScene
-                ? <><span style={{ color: "#38bdf8", fontWeight: 600 }}>{lastScene}</span><span style={{ opacity: 0.5 }}>active</span></>
-                : <span>no scene</span>}
-              {(sending || advancing) && (
-                <span style={{
-                  display: "inline-flex", alignItems: "center", gap: 3,
-                  color: "#fbbf24", fontWeight: 600,
-                }}>
-                  <span style={{
-                    width: 5, height: 5, borderRadius: "50%",
-                    background: "#fbbf24",
-                    animation: "pulse 1s infinite",
-                  }} />
-                  {advancing ? "updating…" : "sending…"}
-                </span>
-              )}
-              {loading && <span style={{ color: "rgba(148,163,184,0.4)" }}>loading…</span>}
-            </div>
+            <span style={{ fontWeight: 700, fontSize: 15, color: "#f1f5f9" }}>Remote</span>
+            <span style={{ fontSize: 11, color: TEXT_DIM, marginLeft: 8 }}>
+              {loading ? "loading…" : advancing ? "updating…" : sending ? "sending…" : lastScene ? lastScene : "ready"}
+            </span>
           </div>
         </div>
+
         {/* Right: fullscreen + back */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8 }}>
           <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+            onClick={toggleFs}
+            title={isFs ? "Exit fullscreen" : "Fullscreen"}
             style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 10,
-              width: 36,
-              height: 36,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "#94a3b8",
-              flexShrink: 0,
+              width: 34, height: 34,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: BG_BTN, border: `1px solid ${BORDER}`,
+              borderRadius: 9, cursor: "pointer", color: TEXT_DIM,
             }}
-            {...pressHandlers()}
+            {...ph("0.9")}
           >
-            {isFullscreen ? (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
-                <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
-              </svg>
-            ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
-                <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-            )}
+            {isFs
+              ? <Icon name="compress" size={14} stroke={TEXT_DIM} strokeWidth={2} />
+              : <Icon name="expand"   size={14} stroke={TEXT_DIM} strokeWidth={2} />}
           </button>
           <a href="/admin" style={{
-            background: "rgba(255,255,255,0.06)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 10,
-            padding: "7px 14px",
-            color: "#94a3b8",
-            fontSize: 12,
-            fontWeight: 600,
-            textDecoration: "none",
+            height: 34, display: "inline-flex", alignItems: "center",
+            padding: "0 14px",
+            background: BG_BTN, border: `1px solid ${BORDER}`,
+            borderRadius: 9, color: TEXT_DIM,
+            fontSize: 12, fontWeight: 600, textDecoration: "none",
           }}>
             ← Admin
           </a>
         </div>
       </header>
 
-      {/* ── Scrollable body ── */}
+      {/* ── Body ── */}
       <div style={{
         flex: 1,
-        padding: "22px 14px 56px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 32,
-        maxWidth: 540,
-        width: "100%",
-        margin: "0 auto",
+        padding: "16px 12px 60px",
+        display: "flex", flexDirection: "column", gap: 12,
+        maxWidth: 520, width: "100%", margin: "0 auto",
         boxSizing: "border-box",
       }}>
 
-        {/* ════ 1. SCENES ═══════════════════════════════════════════════════ */}
-        <Section label="Scenes">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <GridBtn icon="🌌" label="Cover / Idle"       bg="#0f1929"                onClick={() => void push({ type: "idle" })}                                                                                                  disabled={sending} />
-            <GridBtn icon="🎠" label="Mentor Carousel"    bg="#0d1b3e"                onClick={() => void push({ type: "mentor-carousel" })}                                                                                        disabled={sending} />
-            <GridBtn icon="📊" label="Live Registrations" bg="#0f1929"                onClick={() => void push({ type: "live-registrations" })}                                                                                     disabled={sending} />
-            <GridBtn icon="🙏" label="Thank You"          bg="#0f1929"                onClick={() => void push({ type: "thankyou" })}                                                                                               disabled={sending} />
-            <GridBtn icon="✅" label="Show Results"        bg="#052e16" fg="#86efac"   onClick={() => void push({ type: "results", assigned: s.assigned, unmatched: s.unassigned, satisfaction: s.preferenceSatisfaction })}          disabled={sending} glow="rgba(52,211,153,0.15)" />
-            <GridBtn icon="⚙️" label="Engine Ready"       bg="#0d0d2b" fg="#a5b4fc"   onClick={() => void push({ type: "allocation-load" })}                                                                                        disabled={sending} sub="load mentors" />
-            <GridBtn icon="▶️" label="Allocation Anim."   bg="#0d1b3e" fg="#93c5fd"   onClick={() => void push({ type: "allocation", count: 0, total: s.totalMentees })}                                                            disabled={sending} sub="drip-feed" wide />
+        {/* ════ SCENES ══════════════════════════════════════════════════════ */}
+        <Panel>
+          <PanelLabel>Scenes</PanelLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+            <CardBtn iconName="monitor"      label="Cover / Idle"       accent="#475569" onClick={() => void push({ type: "idle" })}             disabled={sending} />
+            <CardBtn iconName="carousel"     label="Mentor Carousel"    accent={INDIGO}  onClick={() => void push({ type: "mentor-carousel" })}  disabled={sending} />
+            <CardBtn iconName="bars"         label="Live Regs."         accent="#475569" onClick={() => void push({ type: "live-registrations" })} disabled={sending} />
+            <CardBtn iconName="hands"        label="Thank You"          accent="#475569" onClick={() => void push({ type: "thankyou" })}          disabled={sending} />
           </div>
-        </Section>
-
-        {/* ════ 2. CAROUSEL CONTROLS ════════════════════════════════════════ */}
-        <Section label="Carousel Controls">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            <GridBtn icon="◀"  label="Prev"  bg="#0f1929"            onClick={() => pushCarousel("prev")}  disabled={sending} />
-            <GridBtn icon="▶"  label="Play"  bg="#052e16" fg="#86efac" onClick={() => pushCarousel("play")}  disabled={sending} glow="rgba(52,211,153,0.12)" />
-            <GridBtn icon="▶|" label="Next"  bg="#0f1929"            onClick={() => pushCarousel("next")}  disabled={sending} />
-            <GridBtn icon="⏸"  label="Pause" bg="#2d1a00" fg="#fcd34d" onClick={() => pushCarousel("pause")} disabled={sending} />
-            <GridBtn icon="⏹"  label="Stop"  bg="#2d0808" fg="#fca5a5" onClick={() => pushCarousel("stop")}  disabled={sending} wide />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+            <CardBtn iconName="bars"         label="Show Results"       accent={GREEN}   onClick={() => void push({ type: "results", assigned: s.assigned, unmatched: s.unassigned, satisfaction: s.preferenceSatisfaction })} disabled={sending} iconColor="#4ade80" />
+            <CardBtn iconName="settings"     label="Engine Ready"       accent={INDIGO}  onClick={() => void push({ type: "allocation-load" })}  disabled={sending} iconColor="#a5b4fc" />
           </div>
-        </Section>
-
-        {/* ════ 3. MENTOR CARD ══════════════════════════════════════════════ */}
-        {approvedMentors.length > 0 && (
-          <Section label={`Mentor Card  ${safeMentorIdx + 1} / ${approvedMentors.length}`}>
-            {/* Name readout */}
-            <div style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
+          {/* Start Animation — full-width accent row */}
+          <button
+            disabled={sending}
+            onClick={() => void push({ type: "allocation", count: 0, total: s.totalMentees })}
+            style={{
+              marginTop: 8,
+              width: "100%", padding: "14px",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              background: "linear-gradient(90deg, rgba(99,102,241,0.25) 0%, rgba(124,58,237,0.25) 100%)",
+              border: "1px solid rgba(99,102,241,0.35)",
               borderRadius: 12,
-              padding: "11px 14px",
-              color: "#e2e8f0",
-              fontWeight: 700,
-              fontSize: 14,
-              marginBottom: 10,
-              textAlign: "center",
-              letterSpacing: "0.01em",
+              color: "#a5b4fc", fontSize: 14, fontWeight: 700,
+              cursor: sending ? "default" : "pointer",
+              opacity: sending ? 0.5 : 1,
+              transition: "transform 0.08s",
+              userSelect: "none",
+              WebkitTapHighlightColor: "transparent",
+            }}
+            {...ph("0.98", sending)}
+          >
+            <span style={{
+              width: 28, height: 28, borderRadius: "50%",
+              background: INDIGO,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
             }}>
-              {approvedMentors[safeMentorIdx]?.full_name ?? "—"}
+              <Icon name="playTriangle" size={13} stroke="#fff" strokeWidth={2} />
+            </span>
+            Start Animation
+          </button>
+        </Panel>
+
+        {/* ════ CAROUSEL CONTROLS ═══════════════════════════════════════════ */}
+        <Panel>
+          <PanelLabel>Carousel Controls</PanelLabel>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr 1fr", gap: 8 }}>
+            <CardBtn iconName="skipBack" label="Prev" accent="#475569"           onClick={() => pushCarousel("prev")}  disabled={sending} />
+            {/* Play — dominant centre button */}
+            <CardBtn iconName="play"    label="Play" iconBg={INDIGO} tall        onClick={() => pushCarousel("play")}  disabled={sending} />
+            <CardBtn iconName="skipFwd" label="Next" accent="#475569"            onClick={() => pushCarousel("next")}  disabled={sending} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+            <CardBtn iconName="pause"   label="Pause" accent={AMBER} iconColor="#fbbf24" onClick={() => pushCarousel("pause")} disabled={sending} />
+            {/* Stop — red border accent */}
+            <CardBtn iconName="stop"    label="Stop"  iconColor={RED}
+              border={`1px solid rgba(239,68,68,0.4)`}
+              onClick={() => pushCarousel("stop")} disabled={sending} />
+          </div>
+        </Panel>
+
+        {/* ════ MENTOR CARD ═════════════════════════════════════════════════ */}
+        {approved.length > 0 && (
+          <Panel>
+            <PanelLabel>Mentor Card — {safeIdx + 1} / {approved.length}</PanelLabel>
+
+            {/* Name chip */}
+            <div style={{
+              background: BG_BTN, border: `1px solid ${BORDER}`,
+              borderRadius: 10, padding: "10px 14px",
+              color: "#e2e8f0", fontWeight: 600, fontSize: 13,
+              textAlign: "center", marginBottom: 8,
+            }}>
+              {approved[safeIdx]?.full_name ?? "—"}
             </div>
 
             {/* Prev / Show / Next */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 10 }}>
-              <GridBtn icon="◀"  label="Prev" bg="#0f1929" onClick={() => goTo(safeMentorIdx - 1)} disabled={sending || safeMentorIdx === 0} />
-              <GridBtn icon="📺" label="Show" bg="#0d1b3e" onClick={() => goTo(safeMentorIdx)}     disabled={sending} glow="rgba(99,102,241,0.15)" />
-              <GridBtn icon="▶"  label="Next" bg="#0f1929" onClick={() => goTo(safeMentorIdx + 1)} disabled={sending || safeMentorIdx >= approvedMentors.length - 1} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr 1fr", gap: 8 }}>
+              <CardBtn iconName="skipPrev" label="Prev" accent="#475569" onClick={() => goTo(safeIdx - 1)} disabled={sending || safeIdx === 0} />
+              {/* Show — eye with indigo circle */}
+              <CardBtn iconName="eye" label="Show" iconBg={INDIGO} tall onClick={() => goTo(safeIdx)} disabled={sending} />
+              <CardBtn iconName="skipNext" label="Next" accent="#475569" onClick={() => goTo(safeIdx + 1)} disabled={sending || safeIdx >= approved.length - 1} />
             </div>
 
-            {/* Mentor picker */}
+            {/* Picker */}
             <select
-              value={safeMentorIdx}
+              value={safeIdx}
               onChange={(e) => goTo(Number(e.target.value))}
               style={{
-                width: "100%",
-                padding: "11px 14px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                borderRadius: 11,
-                color: "#cbd5e1",
-                fontSize: 13,
-                outline: "none",
-                cursor: "pointer",
+                marginTop: 8,
+                width: "100%", padding: "10px 12px",
+                background: BG_BTN, border: `1px solid ${BORDER}`,
+                borderRadius: 10, color: "#94a3b8",
+                fontSize: 13, outline: "none", cursor: "pointer",
               }}
             >
-              {approvedMentors.map((m, i) => (
-                <option key={m.id} value={i} style={{ background: "#111827" }}>
+              {approved.map((m, i) => (
+                <option key={m.id} value={i} style={{ background: BG_PANEL }}>
                   {i + 1}. {m.full_name}
                 </option>
               ))}
             </select>
-          </Section>
+          </Panel>
         )}
 
-        {/* ════ 4. SESSION LIFECYCLE ════════════════════════════════════════ */}
-        <Section label="Session Lifecycle">
+        {/* ════ SESSION LIFECYCLE ═══════════════════════════════════════════ */}
+        <Panel>
+          <PanelLabel>Session Lifecycle</PanelLabel>
           {loading || !session ? (
-            <div style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 14,
-              padding: "20px",
-              color: "rgba(148,163,184,0.5)",
-              fontSize: 13,
-              textAlign: "center",
-            }}>
-              {loading ? "Loading…" : "Session unavailable"}
+            <div style={{ textAlign: "center", color: TEXT_DIM, fontSize: 13, padding: "16px 0" }}>
+              {loading ? "Loading…" : "Unavailable"}
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
                 {LIFECYCLE_STEPS.map((step, i) => {
-                  const current = i === activeIdx;
-                  const done    = i < activeIdx;
-
-                  // colour palette per step
-                  const palette: Record<number, { bg: string; fg: string; glow?: string }> = {
-                    0: { bg: "#111827",              fg: "#94a3b8"  },
-                    1: { bg: "#111827",              fg: "#94a3b8"  },
-                    2: { bg: "#0d1b3e",              fg: "#93c5fd", glow: "rgba(99,102,241,0.12)" },
-                    3: { bg: "#0d1b3e",              fg: "#a5b4fc", glow: "rgba(99,102,241,0.12)" },
-                    4: { bg: "#2d1a00",              fg: "#fcd34d", glow: "rgba(251,191,36,0.12)"  },
-                    5: { bg: "#052e16",              fg: "#86efac", glow: "rgba(52,211,153,0.15)"  },
-                    6: { bg: "#1a0530",              fg: "#d8b4fe", glow: "rgba(168,85,247,0.12)"  },
-                  };
-                  const p = palette[i] ?? palette[0];
-
-                  // active step gets its palette colour boosted; done gets green
-                  const bg     = current ? p.bg    : done ? "#071c13" : "#0a0f1e";
-                  const fg     = current ? p.fg    : done ? "#34d399" : "rgba(148,163,184,0.45)";
-                  const glow   = current ? p.glow  : done ? "rgba(52,211,153,0.08)" : undefined;
-
+                  const current = i === activeLC;
+                  const done    = i < activeLC;
                   return (
-                    <GridBtn
+                    <CardBtn
                       key={i}
-                      icon={step.icon}
+                      svgPath={step.svgPath}
                       label={step.label}
-                      bg={bg}
-                      fg={fg}
-                      glow={glow}
                       active={current}
                       done={done}
                       disabled={advancing || current}
@@ -572,41 +639,33 @@ export function RemoteScreen() {
                   );
                 })}
               </div>
-
               {lcError && (
                 <div style={{
-                  padding: "10px 14px",
-                  background: "rgba(220,38,38,0.12)",
-                  border: "1px solid rgba(220,38,38,0.25)",
-                  borderRadius: 10,
-                  color: "#fca5a5",
-                  fontSize: 12,
+                  marginTop: 8, padding: "9px 12px",
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  borderRadius: 9, color: "#fca5a5", fontSize: 12,
                 }}>
                   {lcError}
                 </div>
               )}
-            </div>
+            </>
           )}
-        </Section>
+        </Panel>
 
-        {/* ════ 5. CUSTOM MESSAGE + DISPLAY LINK ═══════════════════════════ */}
-        <Section label="Other">
+        {/* ════ OTHER ═══════════════════════════════════════════════════════ */}
+        <Panel>
+          <PanelLabel>Custom Message</PanelLabel>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-
-            {/* Custom message inputs */}
             <input
               type="text"
-              placeholder="Custom message…"
+              placeholder="Message text…"
               value={customText}
               onChange={(e) => setCustomText(e.target.value)}
               style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                borderRadius: 11,
-                padding: "12px 14px",
-                color: "#f1f5f9",
-                fontSize: 14,
-                outline: "none",
+                background: BG_BTN, border: `1px solid ${BORDER}`,
+                borderRadius: 9, padding: "11px 13px",
+                color: "#f1f5f9", fontSize: 13, outline: "none",
               }}
             />
             <input
@@ -615,74 +674,55 @@ export function RemoteScreen() {
               value={customSub}
               onChange={(e) => setCustomSub(e.target.value)}
               style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.09)",
-                borderRadius: 11,
-                padding: "12px 14px",
-                color: "#f1f5f9",
-                fontSize: 14,
-                outline: "none",
+                background: BG_BTN, border: `1px solid ${BORDER}`,
+                borderRadius: 9, padding: "11px 13px",
+                color: "#f1f5f9", fontSize: 13, outline: "none",
               }}
             />
             <button
               disabled={sending || !customText.trim()}
               onClick={() => void push({ type: "custom", text: customText.trim(), sub: customSub.trim() || undefined })}
               style={{
-                padding: "14px",
-                borderRadius: 12,
-                border: "none",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: customText.trim() ? "pointer" : "not-allowed",
-                background: customText.trim() ? "linear-gradient(135deg,#4f46e5,#7c3aed)" : "rgba(255,255,255,0.04)",
-                color: customText.trim() ? "#fff" : "#475569",
-                opacity: (sending || !customText.trim()) ? 0.5 : 1,
-                boxShadow: customText.trim() ? "0 4px 14px rgba(79,70,229,0.35)" : "none",
-                transition: "background 0.15s, box-shadow 0.15s",
+                padding: "12px 16px",
+                background: customText.trim() ? INDIGO : BG_BTN,
+                border: `1px solid ${customText.trim() ? INDIGO : BORDER}`,
+                borderRadius: 9, color: customText.trim() ? "#fff" : TEXT_DIM,
+                fontSize: 13, fontWeight: 700,
+                cursor: customText.trim() ? "pointer" : "default",
+                opacity: sending ? 0.5 : 1,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                transition: "background 0.15s",
                 userSelect: "none",
               }}
-              {...pressHandlers(!customText.trim() || sending)}
+              {...ph("0.97", !customText.trim() || sending)}
             >
-              Push Message →
+              <Icon name="messageSquare" size={15} stroke="currentColor" strokeWidth={2} />
+              Push Message
             </button>
 
-            {/* Display screen link */}
+            {/* Display link */}
             <div style={{
-              marginTop: 4,
-              padding: "13px 16px",
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.07)",
-              borderRadius: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
+              marginTop: 2, padding: "10px 14px",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              background: BG_BTN, border: `1px solid ${BORDER}`, borderRadius: 9,
             }}>
-              <span style={{ color: "rgba(148,163,184,0.55)", fontSize: 12 }}>Projector / second screen</span>
+              <span style={{ color: TEXT_DIM, fontSize: 12 }}>Projector screen</span>
               <a
-                href="/display"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/display" target="_blank" rel="noopener noreferrer"
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
+                  display: "inline-flex", alignItems: "center", gap: 5,
                   background: "rgba(99,102,241,0.12)",
-                  color: "#a5b4fc",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  padding: "7px 14px",
-                  borderRadius: 9,
-                  textDecoration: "none",
-                  border: "1px solid rgba(99,102,241,0.2)",
+                  border: "1px solid rgba(99,102,241,0.25)",
+                  borderRadius: 7, padding: "6px 12px",
+                  color: "#a5b4fc", fontSize: 12, fontWeight: 600, textDecoration: "none",
                 }}
               >
-                /display ↗
+                /display
+                <Icon name="externalLink" size={11} stroke="#a5b4fc" strokeWidth={2} />
               </a>
             </div>
-
           </div>
-        </Section>
+        </Panel>
 
       </div>
     </div>
