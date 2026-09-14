@@ -6,7 +6,6 @@ import { getMenteeId } from "@/lib/mentee-session";
 import { useToast } from "../ToastProvider";
 import { Pill } from "../ui/Pill";
 import { StarRating } from "../ui/StarRating";
-import { MentorCard } from "../ui/MentorCard";
 
 type SessionData = {
   title: string;
@@ -47,7 +46,6 @@ type Preference = {
   mentors: PreferenceMentor | null;
 };
 
-const PRIO_LABELS = ["⭐ 1st Choice", "2nd Choice", "3rd Choice"] as const;
 const ALLOCATED_STATUSES = new Set(["allocation", "published", "closed"]);
 
 function ordinal(n: number) {
@@ -318,15 +316,23 @@ function AllocatedView({
 
 // ── Pending view (preferences submitted, waiting for allocation) ──────────────
 function PendingView({ prefs }: { prefs: Preference[] }) {
+  const RANK_STYLES = [
+    { icon: "⭐", label: "1st Choice", color: "#f59e0b", bg: "linear-gradient(135deg,#fffbeb,#fef3c7)", border: "#fcd34d", glow: "rgba(245,158,11,0.18)" },
+    { icon: "🥈", label: "2nd Choice", color: "#4f46e5", bg: "linear-gradient(135deg,#f5f3ff,#eef2ff)", border: "#a5b4fc", glow: "rgba(79,70,229,0.15)" },
+    { icon: "🥉", label: "3rd Choice", color: "#64748b", bg: "linear-gradient(135deg,#f8fafc,#f1f5f9)", border: "#cbd5e1", glow: "rgba(100,116,139,0.12)" },
+  ] as const;
+
   return (
     <div className="mdash-pending">
+      {/* ── Animated status banner ── */}
       <div className="mdash-pending-banner">
-        <div className="mdash-pending-icon" aria-hidden="true"><ClockIcon /></div>
+        <div className="mdash-pending-icon" aria-hidden="true">
+          <ClockIcon />
+        </div>
         <div>
           <h3 className="mdash-pending-title">Allocation in progress</h3>
           <p className="mdash-pending-sub">
-            Your preferences have been recorded. Your assigned mentor will appear here once the
-            administrator publishes allocations.
+            Your preferences are locked and queued. Your assigned mentor will appear here once results are published.
           </p>
         </div>
       </div>
@@ -334,23 +340,48 @@ function PendingView({ prefs }: { prefs: Preference[] }) {
       {prefs.length > 0 && (
         <>
           <h3 className="dash-section-label" style={{ marginTop: 28 }}>Your submitted preferences</h3>
-          <div className="dash-prefs-grid">
+          <div className="mdash-prefs-rank-list">
             {prefs.map((pref) => {
               const m = pref.mentors;
               if (!m) return null;
+              const rank = RANK_STYLES[(pref.priority - 1) % 3];
+              const idx = pref.priority - 1;
+              const gradients = [
+                "linear-gradient(135deg,#6366f1,#312e81)",
+                "linear-gradient(135deg,#0ea5e9,#1d4ed8)",
+                "linear-gradient(135deg,#f472b6,#9d174d)",
+              ];
               return (
-                <div key={m.id} className="dash-pref-item">
-                  <div className="dash-pref-badge">
-                    {PRIO_LABELS[pref.priority - 1] ?? `Priority ${pref.priority}`}
+                <div
+                  key={m.id}
+                  className="mdash-pref-rank-card"
+                  style={{
+                    "--rank-color": rank.color,
+                    "--rank-bg": rank.bg,
+                    "--rank-border": rank.border,
+                    "--rank-glow": rank.glow,
+                  } as React.CSSProperties}
+                >
+                  <div className="mdash-pref-rank-num" style={{ background: rank.color }} aria-hidden="true">
+                    {pref.priority}
                   </div>
-                  <MentorCard
-                    id={m.id}
-                    fullName={m.full_name}
-                    batch={m.batch}
-                    profilePhotoUrl={m.profile_photo_url}
-                    index={pref.priority - 1}
-                    priority={pref.priority as 1 | 2 | 3}
-                  />
+                  <div className="mdash-pref-rank-avatar" aria-hidden="true">
+                    {m.profile_photo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.profile_photo_url} alt={m.full_name} draggable={false} />
+                    ) : (
+                      <div className="mdash-pref-rank-initials" style={{ background: gradients[idx] }}>
+                        {m.full_name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mdash-pref-rank-info">
+                    <p className="mdash-pref-rank-name">{m.full_name}</p>
+                    {m.batch && <p className="mdash-pref-rank-batch">{m.batch}</p>}
+                  </div>
+                  <span className="mdash-pref-rank-badge" style={{ color: rank.color }}>
+                    {rank.icon} {rank.label}
+                  </span>
                 </div>
               );
             })}
@@ -441,6 +472,50 @@ export function MenteeDashScreen() {
   const allocationPublished = ALLOCATED_STATUSES.has(session.status);
   const firstName = mentee.full_name.split(" ")[0];
 
+  // ── Stepper: driven directly by session.status from the API ──────────────
+  // Real status progression: draft → registration → allocation → published → closed
+  //
+  // Steps shown to the mentee:
+  //   0  Registration Open   — status reached "registration"
+  //   1  Preferences Sent    — mentee has submitted prefs
+  //   2  Allocation Running  — status reached "allocation"
+  //   3  Results Published   — status reached "published" / "closed"
+  //
+  // Step state:
+  //   done   (green ✓)  — that phase is fully complete
+  //   active (pulsing)  — currently happening
+  //   pending (grey)    — not reached yet
+  const STATUS_ORDER = ["draft", "registration", "allocation", "published", "closed"] as const;
+  type SessionStatus = typeof STATUS_ORDER[number];
+  const statusIdx = STATUS_ORDER.indexOf(session.status as SessionStatus);
+
+  // Each step resolves its own done/active/pending from the real status index
+  const stepState = (doneWhenStatusIdx: number, activeWhenStatusIdx: number) => {
+    if (statusIdx > activeWhenStatusIdx)  return "done";
+    if (statusIdx === activeWhenStatusIdx) return "active";
+    return "pending";
+  };
+
+  // Step 1 — Registration Open: done after registration phase
+  const s0 = stepState(1, 1); // active at "registration", done after
+  // Step 2 — Preferences Submitted: done if mentee has prefs AND past registration
+  const s1: "done" | "active" | "pending" =
+    statusIdx > 1 && prefs.length > 0 ? "done"
+    : statusIdx === 1 && prefs.length > 0 ? "active"
+    : statusIdx === 1 ? "active"
+    : "pending";
+  // Step 3 — Allocation Running: active at "allocation", done after
+  const s2 = stepState(2, 2);
+  // Step 4 — Results Published: active at "published"/"closed", done after
+  const s3 = stepState(3, 3);
+
+  const STEPS: { label: string; state: "done" | "active" | "pending" }[] = [
+    { label: "Registration\nOpen",          state: s0 },
+    { label: "Preferences\nSubmitted",      state: s1 },
+    { label: "Allocation\nRunning",         state: s2 },
+    { label: "Results\nPublished",          state: s3 },
+  ];
+
   return (
     <div className="container">
       {/* ── Page header ── */}
@@ -456,24 +531,58 @@ export function MenteeDashScreen() {
             </Pill>
           </p>
         </div>
-
       </div>
 
-      {/* ── Just-submitted success banner ── */}
+      {/* ── Submission success banner ── */}
       {justSubmitted && (
-        <div
-          className="submitted-box"
-          style={{ marginBottom: 24, maxWidth: 560, margin: "0 auto 24px" }}
-        >
-          <div className="check">✓</div>
-          <h2 className="section-title" style={{ color: "var(--green)" }}>
-            Preferences Submitted ✓
-          </h2>
-          <p className="muted" style={{ fontSize: 13.5, marginTop: 6 }}>
-            🔒 Your selections are locked and queued for FCFS allocation.
-          </p>
+        <div className="mdash-success-banner" role="status" aria-live="polite">
+          <div className="mdash-success-icon" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 10l4.5 4.5L16 6" />
+            </svg>
+          </div>
+          <div>
+            <p className="mdash-success-title">Preferences submitted successfully!</p>
+            <p className="mdash-success-sub">🔒 Your selections are locked and queued for FCFS allocation.</p>
+          </div>
         </div>
       )}
+
+      {/* ── Progress stepper ── */}
+      <div className="mdash-progress-wrap" aria-label="Allocation progress">
+        <div className="mdash-progress-steps">
+          {STEPS.map((step, i) => (
+            <div
+              key={step.label}
+              className={[
+                "mdash-step",
+                step.state === "done"    ? "mdash-step-done"    : "",
+                step.state === "active"  ? "mdash-step-active"  : "",
+                step.state === "pending" ? "mdash-step-pending" : "",
+              ].filter(Boolean).join(" ")}
+            >
+              <div className="mdash-step-node" aria-hidden="true">
+                {step.state === "done" ? (
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8l3.5 3.5L13 5" />
+                  </svg>
+                ) : step.state === "active" ? (
+                  <span className="mdash-step-pulse" />
+                ) : (
+                  <span>{i + 1}</span>
+                )}
+              </div>
+              {i < STEPS.length - 1 && (
+                <div
+                  className={`mdash-step-line${step.state === "done" ? " mdash-step-line-done" : ""}`}
+                  aria-hidden="true"
+                />
+              )}
+              <p className="mdash-step-label">{step.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ── Body — four states ── */}
       {allocationPublished && allocation ? (
@@ -487,20 +596,36 @@ export function MenteeDashScreen() {
           onFeedback={submitFeedback}
         />
       ) : allocationPublished && !allocation ? (
-        <div className="card">
-          <h3 className="card-title">No allocation found</h3>
-          <p className="muted">
-            The allocation has been processed but you were not assigned a mentor. Please contact the administrator.
-          </p>
+        <div className="mdash-no-alloc-card">
+          <div className="mdash-no-alloc-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="mdash-no-alloc-title">No allocation found</h3>
+            <p className="mdash-no-alloc-sub">
+              The allocation has been processed but you were not assigned a mentor. Please contact the administrator.
+            </p>
+          </div>
         </div>
       ) : prefs.length > 0 ? (
         <PendingView prefs={prefs} />
       ) : (
-        <div className="card">
-          <h3 className="card-title">Select your mentors</h3>
-          <p className="muted">
-            You haven&apos;t submitted your preferences yet. Go to Preference Selection to choose your top 3 mentors.
-          </p>
+        <div className="mdash-no-alloc-card mdash-no-alloc-card--cta">
+          <div className="mdash-no-alloc-icon mdash-no-alloc-icon--indigo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="mdash-no-alloc-title">Select your mentors</h3>
+            <p className="mdash-no-alloc-sub">
+              You haven&apos;t submitted your preferences yet. Go to Preference Selection to choose your top 3 mentors.
+            </p>
+          </div>
         </div>
       )}
     </div>
