@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ToastProvider>
           {children}
           {/* <SiteFooter /> */}
-          <DevBar />
+          {/* <DevBar /> */}
         </ToastProvider>
       </body>
     </html>
