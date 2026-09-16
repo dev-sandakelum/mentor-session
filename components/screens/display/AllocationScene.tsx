@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import type { DisplayScene } from "@/lib/display-state";
-import { FIRST, LAST, rand } from "./shared";
 import { MentorLoadGrid, type MentorLoadEntry } from "./MentorLoadGrid";
 import { RobotLogoMark, RoboStyles } from "./RobotLogoMark";
 
@@ -95,9 +94,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
   const [minDelayDone,  setMinDelayDone]  = useState(false);
   const [mentorLoad,    setMentorLoad]    = useState<MentorLoadEntry[]>([]);
   const [total,         setTotal]         = useState(runningScene?.total || 0);
-  const [queueItems,    setQueueItems]    = useState<{ id:number;name:string;exiting?:boolean }[]>(() =>
-    Array.from({ length:4 }, (_, i) => ({ id:i+1, name:`${rand(FIRST)} ${rand(LAST)}`, exiting:false }))
-  );
+  const [queueItems,    setQueueItems]    = useState<{ id:number;name:string;exiting?:boolean }[]>([]);
   const [displayed,     setDisplayed]     = useState<{ mentee:string;mentor:string;method:"preference"|"fallback"|"manual";priority:number|null }[]>([]);
   const [fcfsCount,     setFcfsCount]     = useState(0);
   const [fbCount,       setFbCount]       = useState(0);
@@ -120,7 +117,7 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
   const pollRef         = useRef<ReturnType<typeof setInterval>|null>(null);
   const mentorLoadRef   = useRef<Map<string,MentorLoadEntry>>(new Map());
   const menteeTotalRef  = useRef(runningScene?.total || 83);
-  const qIdRef          = useRef(4); // starts at 4 since queue pre-seeded
+  const qIdRef          = useRef(0); // starts at 0, queue starts empty
   const feedKeyRef      = useRef(0);
   const fetchDataRef    = useRef<(() => Promise<void>)|null>(null);
 
@@ -200,7 +197,6 @@ export function AllocationFlow({ scene }: { scene: AllocationFlowScene }) {
   const rebuildQueue = React.useCallback((revealed:number) => {
     const all=allDataRef.current;
     const names=all.slice(revealed,revealed+4).map(r=>r.mentee);
-    while(names.length<4) names.push(`${rand(FIRST)} ${rand(LAST)}`);
     const next=names.map(name=>({id:++qIdRef.current,name,exiting:false}));
     setQueueItems(prev=>{
       if(prev.length>0){
@@ -719,7 +715,7 @@ export function AllocationScene({ scene }: { scene: Extract<DisplayScene, { type
     const all    = allDataRef.current;
     const next4  = all.slice(revealed, revealed + 4);
     const names  = next4.map(r => r.mentee);
-    while (names.length < 4) names.push(`${rand(FIRST)} ${rand(LAST)}`);
+    // No padding with fake names — show only real upcoming mentees
     const next = names.map(name => ({ id: ++qIdRef.current, name, exiting: false }));
     setQueueItems(prev => {
       if (prev.length > 0) {
